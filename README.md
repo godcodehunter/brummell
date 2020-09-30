@@ -1,3 +1,16 @@
+It is blog developed for myself. 
+I set out to achieve the following qualities:
+- Minimalistic
+- Dark strict style
+- Few dependencies
+
+Features:
+    For creating article's used markdown. 
+
+Code design traits:  
+
+//https://www.androidpolice.com/
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
