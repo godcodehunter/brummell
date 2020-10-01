@@ -1,9 +1,9 @@
 import React from 'react';
-import ProfileCard from '../components/ProfileCard';
+import { ProfileCard } from '../components/ProfileCard';
 import avatar from '../resource/avatar.jpg';
-import {ReactComponent as Github} from '../resource/github.svg';
-import {ReactComponent as Linkedin} from '../resource/linkedin.svg';
-import {ReactComponent as Twitter} from '../resource/twitter.svg';
+import { ReactComponent as Github} from '../resource/github.svg';
+import { ReactComponent as Linkedin} from '../resource/linkedin.svg';
+import { ReactComponent as Twitter} from '../resource/twitter.svg';
 
 export default {
     component: ProfileCard,

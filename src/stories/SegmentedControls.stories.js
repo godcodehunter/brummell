@@ -8,8 +8,8 @@ export default {
 
 const Template = args => <SegmentedControls {...args} />;
 
-export const Default = Template.bind({});
-Default.args = {
+export const AllSelected = Template.bind({});
+AllSelected.args = {
   variants: [
     {label: "Posts", isActive: true}, 
     {label: "Tweets", isActive: true}, 

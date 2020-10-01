@@ -15,8 +15,8 @@ NoData.args = {
 };
 
 
-export const Default = Template.bind({});
-Default.args = {
+export const Filled = Template.bind({});
+Filled.args = {
     data: [
         {tag: NodeTag.Category, label: "item-1", children: [
             {tag: NodeTag.Item, label: "item--1-1"},
