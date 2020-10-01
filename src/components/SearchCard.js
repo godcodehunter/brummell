@@ -1,11 +1,12 @@
-import React, { useState} from 'react';
-import { ReactComponent as Arrow } from '../resource/arrow.svg';
+import React, { useState, useEffect} from 'react';
 import { ReactComponent as Loupe } from '../resource/loupe.svg';
 import { StyleSheet, css } from 'aphrodite';
 import { ChipHolder } from './Chip';
 import { useHover } from './hooks';
 import * as R from 'ramda';
 import chroma from 'chroma-js';
+import { Autocomplete } from './Autocomplete';
+import { SegmentedControls } from './SegmentedControls';
 
 const styles = StyleSheet.create({
     substrate: {
@@ -14,10 +15,7 @@ const styles = StyleSheet.create({
     },
     field: {
         display: "flex",  
-        // alignItems: "center", 
-        border: "0.4px solid #ABABAB", 
-        backgroundColor: "#3F3D3D",
-        height: 28,
+        backgroundColor: "#3F3D3D", //TODO: 3F3D3D
     },
     input: {
         flexGrow: 1,
@@ -50,84 +48,53 @@ const styles = StyleSheet.create({
     },
 });
 
-const Search = ({}) => {
+const Search = ({onSearch}) => {
     const [hovered, eventHandlers] = useHover();
-
+    const [focused, setFocused] = useState();
+    const [text, setText] = useState("");
+    
+    const applySearch = () => { 
+        onSearch(text);
+    };
+    const handleChange = (event) => setText(event.target.value);
+    const handleKeyDown = (event) => {
+        if(event.keyCode === 13) {
+            applySearch();
+        } 
+    };
     return (
-        <div className={css(styles.field)}>
+        <div className={css(styles.field)} 
+            style={{ 
+                height: 25,
+                padding: focused ? 0 : 0.4,
+                boxSizing: "border-box",
+                border: focused ? "0.4px solid #ABABAB" : undefined,
+            }} 
+            onFocus={() => setFocused(true)} 
+            onBlur={() => setFocused(false)}
+            onKeyDown={handleKeyDown}
+            value={text} 
+            onChange={handleChange}
+        >
             <input className={css(styles.input)}/>
             <div className={css(styles.delimiter)}/>
-            <Loupe fill={hovered ?  "#FAFAFA": "#ABABAB"} style={{width: 20, padding: 4, cursor: "pointer",}} {...eventHandlers}/>
+            <Loupe 
+                fill={hovered ?  "#FAFAFA": "#ABABAB"} 
+                style={{width: 20, padding: 4, cursor: "pointer",}} 
+                {...eventHandlers}
+                onClick={applySearch}
+            />
         </div>
     );
 }
 
-const Autocomplete = ({}) => {
-    const [hovered, eventHandlers] = useHover();
-
-    return (
-        <div className={css(styles.field)}>
-            <input className={css(styles.input)}/>
-            <Arrow 
-                style={{display: "block", margin: "auto", height: "100%", width: 28, cursor: "pointer",}}
-                stroke={hovered ?  "#FAFAFA": "#ABABAB"}
-                {...eventHandlers}
-            />
-        </div>
-    );
-};
-
-const segmentedControls = StyleSheet.create({
-    container: {
-        display: "flex", 
-        height: 25,
-    },
-    segment: {
-        boxSizing: "border-box",
-        textTransform: "uppercase",
-        padding: "5px 8px 4px",
-        marginTop: "-1px",
-        fontSize: "10px",
-        height: "25px",
-        lineHeight: "1.5em",
-        border: "1px solid #4A4A4A",
-        cursor: "pointer",
-    },
-});
-
-const SegmentedControls = ({variants}) => {
-    const [selected, setSelected] = useState([]);
-
-    return (
-        <div className={css(segmentedControls.container)}>
-            {
-                variants.map((e, i)=>(
-                    <div
-                        key={i}
-                        className={css(segmentedControls.segment)}
-                        style={{backgroundColor: selected.includes(e) ? "#1E1E1F" : undefined,}}
-                        onClick={() => {
-                            if(!selected.includes(e)) {
-                                setSelected([...selected, e])
-                            } else {
-                                setSelected(ex => ex.filter(n => n !== e))
-                            }
-                        }}
-                    >
-                        {e}
-                    </div>
-                ))
-            }
-        </div>
-    );
-};
-
 export const SearchCard = ({onSearch = undefined, style}) => {
-    const [chips, setChips] = useState([
+    const [topics, setTopics] = useState([
         {label: "Electronic", color: chroma.random(), tooltip: "test1"}, 
         {label: "Soldering", color: chroma.random(), tooltip: "test2"}, 
         {label: "Fun", color: chroma.random(), tooltip: "test3"}
     ]);
+    const [contentType, setContentType] = useState();
 
     return (
         <div className={css(styles.substrate)} style={{...style}}>
@@ -137,21 +104,28 @@ export const SearchCard = ({onSearch = undefined, style}) => {
                 <span className={css(styles.headline)}>
                     SEARCH
                 </span>
-                <Search/>
+                <Search onSearch={(e)=>console.log(e)}/>
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>
                 <ChipHolder 
                     removable
-                    data={chips} 
-                    style={{marginBottom: chips.length !== 0 ? 6 : 0}} 
-                    onRemove={(i)=>{setChips(R.remove(i, 1, chips));}}
+                    data={topics} 
+                    style={{marginBottom: topics.length !== 0 ? 6 : 0}} 
+                    onRemove={(i)=>{setTopics(R.remove(i, 1, topics));}}
                 />
-                <Autocomplete/>
+                <Autocomplete
+                    variants={["banana", "ball", "beicon", "binary", "control", "constant"]}
+                    filter={(q, e)=>{}}
+                />
                 <span className={css(styles.headline)}>
                     CONTENT TYPE
                 </span>
-                <SegmentedControls variants={["Posts","Tweets","Talks"]}/>
+                <SegmentedControls variants={[
+                    {label: "Posts", isActive: true}, 
+                    {label: "Tweets", isActive: true}, 
+                    {label: "Talks", isActive: true},
+                ]}/>
             </div>
         </div>
     );

@@ -9,7 +9,7 @@ const globalExtension = {
 
 const extended = StyleSheet.extend([globalExtension]);
 
-const styles = extended.StyleSheet.create({
+export const globalStyles = extended.StyleSheet.create({
   [GLOBALS]: {
     "html, body, root": {
       height: "100%", 
@@ -24,7 +24,18 @@ const styles = extended.StyleSheet.create({
       fontSize: "14px",
       color: "#E0E0E0",
     },
-  }
+  },
+  substrate: {
+    backgroundColor: "#2E2E2E",
+    boxShadow: "8px 8px 0px rgba(0, 0, 0, 0.25)",
+  },
+  headline: {
+    fontWeight: "bold",
+    fontSize: "12px",
+    lineHeight: "26px",
+    color: "#D4D4D4",
+    alignItems: "center",
+  },  
 });
 
-export default extended.css(styles[GLOBALS]);
+export default extended.css(globalStyles[GLOBALS]);

@@ -1,5 +1,9 @@
 import React from 'react';
+import { StyleSheet, css } from 'aphrodite';
 
+const profileCard = StyleSheet.create({
+
+});
 
 export const ProfileCard = ({avatar, nickname, overview, social}) => (
     <>

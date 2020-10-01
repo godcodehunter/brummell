@@ -9,8 +9,15 @@ Features:
 
 Code design traits:  
 
-//https://www.androidpolice.com/
 
+
+http://www.joyofdata.de/blog/comparison-of-string-distance-algorithms/
+//neironetfork 
+//https://www.androidpolice.com/
+//http://glench.github.io/fuzzyset.js/
+//http://www.joyofdata.de/blog/comparison-of-string-distance-algorithms/
+
+<!-- /////////////////////////////////////////////////////////////////////////// -->
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

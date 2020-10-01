@@ -1,5 +1,4 @@
 import React, { SVGProps } from 'react';
-import { SpringGrid } from 'react-stonecutter';
 import { SearchCard } from './components/SearchCard';
 import { ProfileCard } from './components/ProfileCard';
 
@@ -8,7 +7,7 @@ import { ReactComponent as Github } from './resource/github.svg';
 import { ReactComponent as Linkedin } from './resource/linkedin.svg';
 import { ReactComponent as Twitter } from './resource/twitter.svg';
 import { useHover } from './components/hooks';
-import { TimelineCard } from './components/TimelineCard';
+import { TimelineCard, NodeTag } from './components/TimelineCard';
 import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
 import chroma from 'chroma-js';
@@ -77,7 +76,7 @@ function App() {
           ]}
         />
         <SearchCard style={{width: 300}}/>
-        <TimelineCard style={{width: 300}}/>
+        <TimelineCard data={[]} style={{width: 300}}/>
       </div>
         {/* <SpringGrid  
           columns={4}

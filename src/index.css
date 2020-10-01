@@ -5,4 +5,10 @@
   background-color: #4f4f4f;
 }
 
+.kek::-webkit-scrollbar {
+  width: 0.8em;
+}
+.kek::-webkit-scrollbar-thumb {
+  background-color: #4f4f4f;
+}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import {SearchCard} from './SearchCard';
+import {SearchCard} from '../components/SearchCard';
 
 export default {
     component: SearchCard,

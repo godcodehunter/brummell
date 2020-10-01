@@ -1,5 +1,5 @@
 import React from 'react';
-import ProfileCard from './ProfileCard';
+import ProfileCard from '../components/ProfileCard';
 import avatar from '../resource/avatar.jpg';
 import {ReactComponent as Github} from '../resource/github.svg';
 import {ReactComponent as Linkedin} from '../resource/linkedin.svg';
