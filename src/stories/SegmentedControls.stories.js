@@ -11,9 +11,9 @@ const Template = args => <SegmentedControls {...args} />;
 export const AllSelected = Template.bind({});
 AllSelected.args = {
   variants: [
-    {label: "Posts", isActive: true}, 
-    {label: "Tweets", isActive: true}, 
-    {label: "Talks", isActive: true},
+    {label: "Posts", isActive: true, value: "Posts"}, 
+    {label: "Tweets", isActive: true, value: "Tweets"}, 
+    {label: "Talks", isActive: true, value: "Talks"},
   ]
 };
 

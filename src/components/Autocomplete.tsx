@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { useSpring, animated } from 'react-spring'
 import { ReactComponent as Arrow } from '../resource/arrow.svg';
-import { useHover } from './hooks';
+import { useHover } from '../hooks';
 
 const autocomplete = StyleSheet.create({
     field: {

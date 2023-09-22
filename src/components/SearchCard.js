@@ -1,12 +1,13 @@
-import React, { useState, useEffect} from 'react';
+import React, { useState, useRef } from 'react';
 import { ReactComponent as Loupe } from '../resource/loupe.svg';
 import { StyleSheet, css } from 'aphrodite';
 import { ChipHolder } from './Chip';
-import { useHover } from './hooks';
+import { useHover } from '../hooks';
 import * as R from 'ramda';
 import chroma from 'chroma-js';
 import { Autocomplete } from './Autocomplete';
 import { SegmentedControls } from './SegmentedControls';
+import { LoadingIndicator } from './LoadingIndicator';
 
 const styles = StyleSheet.create({
     substrate: {
@@ -15,7 +16,7 @@ const styles = StyleSheet.create({
     },
     field: {
         display: "flex",  
-        backgroundColor: "#3F3D3D", //TODO: 3F3D3D
+        backgroundColor: "#3F3D3D", 
     },
     input: {
         flexGrow: 1,
@@ -37,11 +38,6 @@ const styles = StyleSheet.create({
         lineHeight: "26px",
         color: "#D4D4D4",
         alignItems: "center",
-    },
-    delimiter: {
-        borderLeft: "0.4px solid #ABABAB", 
-        marginTop: 2, 
-        marginBottom: 2,
     },
     content: {
         padding: 8,
@@ -77,7 +73,6 @@ const Search = ({onSearch}) => {
             onChange={handleChange}
         >
             <input className={css(styles.input)}/>
-            <div className={css(styles.delimiter)}/>
             <Loupe 
                 fill={hovered ?  "#FAFAFA": "#ABABAB"} 
                 style={{width: 20, padding: 4, cursor: "pointer",}} 
@@ -100,6 +95,7 @@ export const SearchCard = ({onSearch = undefined, style}) => {
         <div className={css(styles.substrate)} style={{...style}}>
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
             <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+            <LoadingIndicator color={"#ABABAB"}/>
             <div className={css(styles.content)}>
                 <span className={css(styles.headline)}>
                     SEARCH
@@ -122,10 +118,15 @@ export const SearchCard = ({onSearch = undefined, style}) => {
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                    {label: "Posts", isActive: true}, 
-                    {label: "Tweets", isActive: true}, 
-                    {label: "Talks", isActive: true},
-                ]}/>
+                        {label: "Posts", isActive: true, value: "Posts"}, 
+                        {label: "Tweets", isActive: true, value: "Tweets"}, 
+                        {label: "Talks", isActive: true, value: "Talks"},
+                    ]}
+                    onUpdate={(selected) => {
+                        console.log(selected);
+                        setContentType(selected);
+                    }}
+                />
             </div>
         </div>
     );

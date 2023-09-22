@@ -25,7 +25,20 @@ export const SegmentedControls = ({variants, onUpdate}: {variants: any, onUpdate
     useEffect(() => {
         setSelected(variants.filter((item: any) => item.isActive));
     }, [variants]);
-    
+
+    const handleToggle = (item: any) => {
+        if(!selected.includes(item)) {
+            setSelected([...selected, item]);
+        } else {
+            setSelected(ex => ex.filter(n => n !== item));
+        }
+        onUpdate(selected.map((item: any)=> item.value));
+    }
+
+    const itemColor = (item: any) => {
+        return selected.includes(item) ? "#1E1E1F" : undefined;
+    };
+
     return (
         <div className={css(segmentedControls.container)}>
             {
@@ -34,13 +47,7 @@ export const SegmentedControls = ({variants, onUpdate}: {variants: any, onUpdate
                         key={i}
                         className={css(segmentedControls.segment)}
                         style={{backgroundColor: selected.includes(item) ? "#1E1E1F" : undefined}}
-                        onClick={() => {
-                            if(!selected.includes(item)) {
-                                setSelected([...selected, item]);
-                            } else {
-                                setSelected(ex => ex.filter(n => n !== item));
-                            }
-                        }}
+                        onClick={() => handleToggle(item)}
                     >
                         {item.label}
                     </div>

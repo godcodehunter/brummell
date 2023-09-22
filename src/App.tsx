@@ -6,12 +6,13 @@ import avatar from './resource/avatar.jpg';
 import { ReactComponent as Github } from './resource/github.svg';
 import { ReactComponent as Linkedin } from './resource/linkedin.svg';
 import { ReactComponent as Twitter } from './resource/twitter.svg';
-import { useHover } from './components/hooks';
+import { useHover } from './hooks';
 import { TimelineCard, NodeTag } from './components/TimelineCard';
 import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
-import chroma from 'chroma-js';
+import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
+import { globalStyles, palette } from './components/global_styles';
 
 interface IconButtonProps {
   url: string,
@@ -34,7 +35,8 @@ const app = StyleSheet.create({
   root: {
     display:"flex", 
     flexDirection: "row", 
-    alignItems: "stretch",
+    minHeight: "100vh",
+    backgroundColor: palette.mainColor
   },
   leftPanel: {
     height: "100%",
@@ -76,33 +78,40 @@ function App() {
           ]}
         />
         <SearchCard style={{width: 300}}/>
-        <TimelineCard data={[]} style={{width: 300}}/>
+        <TimelineCard 
+          data={[]} 
+          title={"TIMELINE"} 
+          style={{width: 300}}
+        />
       </div>
-        {/* <SpringGrid  
-          columns={4}
-          columnWidth={420}
-          gutterWidth={5}
-          gutterHeight={5}
-          itemHeight={380}
-          springConfig={{ stiffness: 170, damping: 26 }}
+        <div 
+          style={{
+            width: "100%",
+            display: "flex",
+          }}
         >
-          {[0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0].map((e, i) => 
-            <div key={i} style={{backgroundColor: "red", width: 400}} >
-              <ArticleCard 
-                key={i} 
-                style={{height: "100%", width: "100%"}}
-                illustration={avatar}
-                headline="Test"
-                tags={[{label: "Electronic", color: String(chroma.random()), tooltip: "test1"}]}
-                onOpen={()=>{ console.log("test"); }}
-                reading_time={Duration.fromObject({ days: 1, minute: 2 })}
-                publication_time={DateTime.fromISO("2020-09-27")}
-              />
-            </div>
-          )}
-        </SpringGrid>  */}
+          <div style={{
+            height: "100%", 
+            flexGrow: 1,
+            backgroundColor: "#3F3D3D"
+          }}/>
+          <div style={ {
+            display:"flex", 
+            flexDirection: "column", 
+            justifyContent: "flex-start",
+            padding: 40,
+            gap: 50,
+          }}>
+            <TimelineCard 
+              data={[]} 
+              title={"CONTENT"} 
+              style={{width: 300}}
+            />
+          </div>
+      </div>
     </div>
   );
 }
 
 export default App;
+  

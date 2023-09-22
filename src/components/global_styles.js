@@ -9,20 +9,25 @@ const globalExtension = {
 
 const extended = StyleSheet.extend([globalExtension]);
 
+export const palette = {
+  darkenedUninteractive: "#858585",
+  mainColor: "#212121",
+  fontColor: "#E0E0E0",
+};
+
 export const globalStyles = extended.StyleSheet.create({
   [GLOBALS]: {
     "html, body, root": {
       height: "100%", 
       margin: "0px", 
       padding: "0px",
-      backgroundColor: "#212121", 
     },
     '*, p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd': {
       fontFamily: "Roboto",
       fontStyle: "normal",
       fontWeight: "normal",
       fontSize: "14px",
-      color: "#E0E0E0",
+      color: palette.fontColor,
     },
   },
   substrate: {
@@ -33,7 +38,6 @@ export const globalStyles = extended.StyleSheet.create({
     fontWeight: "bold",
     fontSize: "12px",
     lineHeight: "26px",
-    color: "#D4D4D4",
     alignItems: "center",
   },  
 });

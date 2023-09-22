@@ -1,5 +1,5 @@
 import React from 'react';
-import { useHover} from './hooks';
+import { useHover} from '../hooks';
 import { StyleSheet, css } from 'aphrodite';
 import chroma from 'chroma-js';
 import { CloseInSquare } from '../resource/icons';
@@ -25,6 +25,7 @@ import { CloseInSquare } from '../resource/icons';
 //rgb(236, 129, 90)
 //rgb(250, 34, 80)
 //rgb(145, 158, 141)
+//rgb(227, 139, 66)
 
 const chip = StyleSheet.create({
   container: {

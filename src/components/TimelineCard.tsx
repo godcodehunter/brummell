@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { PlusInSquare, MinusInSquare } from '../resource/icons';
-import { globalStyles } from './global_styles';
+import { globalStyles, palette } from './global_styles';
 
 const baseRow = StyleSheet.create({
     row: {
@@ -66,7 +66,6 @@ const ContentRow = ({label, style}: {label: string, style?: any}) => (
     <div className={css(baseRow.row)} style={style}>{label}</div>
 );
 
-//TODO: what memo do?
 const Tree = memo(({node, Component}: {node: any, Component: any}) => {
     const [isOpen, setOpen] = useState(false);
     return (
@@ -112,7 +111,7 @@ const timelineCard = StyleSheet.create({
     }
 });
 
-export const TimelineCard = ({data, style}: {data: Node[], style: any}) => {
+export const TimelineCard = ({data, title, style}: {data: Node[], title: string, style: any}) => {
     const Component = ({node, onClick, isOpen}: {node: Node, onClick: any, isOpen: any}) => {
         switch(node.tag) {
             case NodeTag.Category: 
@@ -135,7 +134,7 @@ export const TimelineCard = ({data, style}: {data: Node[], style: any}) => {
         <div className={css(globalStyles.substrate)} style={{...style}}>
             <div className={css(timelineCard.content)}>
                 <span className={css(globalStyles.headline, timelineCard.headline)}>
-                    TIMELINE
+                    {title}
                 </span>
                 <div 
                 className={"tree"}
@@ -158,7 +157,13 @@ export const TimelineCard = ({data, style}: {data: Node[], style: any}) => {
                         />)
                     ) : 
                     (
-                        <ContentRow label={"NO DATA"} style={{textAlign: "center"}}/>
+                        <ContentRow 
+                            label={"NO DATA"} 
+                            style={{
+                                textAlign: "center", 
+                                color: palette.darkenedUninteractive,
+                            }}
+                        />
                     )}
                 </div>
             </div>
