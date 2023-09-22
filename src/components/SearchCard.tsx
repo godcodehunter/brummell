@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ReactComponent as Loupe } from '../resource/loupe.svg';
 import { StyleSheet, css } from 'aphrodite';
-import { ChipHolder } from './Chip';
+import { ChipHolder, Tag } from './Chip';
 import { useHover } from '../hooks';
 import * as R from 'ramda';
 import chroma from 'chroma-js';
@@ -44,20 +44,33 @@ const styles = StyleSheet.create({
     },
 });
 
-const Search = ({onSearch}) => {
+interface SearchProps {
+    // Calling when search is applied, this happens when 
+    // you press Enter or when you click the loupe icon
+    onSearch: (data: String)=>void,
+    
+    // Called when a text is changed or the cross icon is clicked
+    onSuspend: ()=>void,
+    
+    // Must be set to true when searching and false when done
+    // When true right icon is cross otherwise a loupe
+    isSearchInProgress?: boolean,
+}
+
+const Search = ({onSearch, isSearchInProgress}: SearchProps) => {
+    const ENTER_KEY_CODE = 13
+
     const [hovered, eventHandlers] = useHover();
-    const [focused, setFocused] = useState();
+    const [focused, setFocused] = useState<Boolean>(false);
     const [text, setText] = useState("");
     
-    const applySearch = () => { 
-        onSearch(text);
-    };
-    const handleChange = (event) => setText(event.target.value);
-    const handleKeyDown = (event) => {
-        if(event.keyCode === 13) {
-            applySearch();
+    const handleChange = (event: any) => setText(event.target.value);
+    const handleKeyDown = (event: any) => {
+        if(event.keyCode === ENTER_KEY_CODE) {
+            onSearch(text)
         } 
     };
+
     return (
         <div className={css(styles.field)} 
             style={{ 
@@ -69,7 +82,6 @@ const Search = ({onSearch}) => {
             onFocus={() => setFocused(true)} 
             onBlur={() => setFocused(false)}
             onKeyDown={handleKeyDown}
-            value={text} 
             onChange={handleChange}
         >
             <input className={css(styles.input)}/>
@@ -77,25 +89,44 @@ const Search = ({onSearch}) => {
                 fill={hovered ?  "#FAFAFA": "#ABABAB"} 
                 style={{width: 20, padding: 4, cursor: "pointer",}} 
                 {...eventHandlers}
-                onClick={applySearch}
+                onClick={() => onSearch(text)}
             />
         </div>
     );
 }
 
-export const SearchCard = ({onSearch = undefined, style}) => {
-    const [topics, setTopics] = useState([
+enum ContentType {
+    Posts = "Posts",
+    Tweets = "Tweets",
+    Talks = "Talks",
+}
+
+interface SearchCardProps {
+    onSearch?: (
+        data: String, 
+        tags: String[], 
+        content_type: ContentType[],
+    ) => void,
+    style?: React.CSSProperties,
+}
+
+export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
+    const [topics, setTopics] = useState<Tag[]>([
         {label: "Electronic", color: chroma.random(), tooltip: "test1"}, 
         {label: "Soldering", color: chroma.random(), tooltip: "test2"}, 
         {label: "Fun", color: chroma.random(), tooltip: "test3"}
     ]);
-    const [contentType, setContentType] = useState();
+    const [contentType, setContentType] = useState<ContentType[]>([]);
+
+    const callSearch = () => {
+        // onSearch("test", topics.map((i) => i.label), contentType)
+    }
 
     return (
         <div className={css(styles.substrate)} style={{...style}}>
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
             <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-            <LoadingIndicator color={"#ABABAB"}/>
+            {/* <LoadingIndicator color={"#ABABAB"}/> */}
             <div className={css(styles.content)}>
                 <span className={css(styles.headline)}>
                     SEARCH
@@ -122,10 +153,7 @@ export const SearchCard = ({onSearch = undefined, style}) => {
                         {label: "Tweets", isActive: true, value: "Tweets"}, 
                         {label: "Talks", isActive: true, value: "Talks"},
                     ]}
-                    onUpdate={(selected) => {
-                        console.log(selected);
-                        setContentType(selected);
-                    }}
+                    onUpdate={setContentType}
                 />
             </div>
         </div>

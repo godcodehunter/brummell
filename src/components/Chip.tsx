@@ -1,31 +1,8 @@
 import React from 'react';
 import { useHover} from '../hooks';
 import { StyleSheet, css } from 'aphrodite';
-import chroma from 'chroma-js';
+import chroma, { Color } from 'chroma-js';
 import { CloseInSquare } from '../resource/icons';
-
-//rgb(78, 226, 232)
-//rgb(236, 177, 148)
-//rgb(91, 190, 124)
-//rgb(234, 211, 181)
-//rgb(227, 149, 22)
-//rgb(196, 180, 233)
-//rgb(253, 221, 52)
-//rgb(14, 218, 78)
-//rgb(215, 51, 137)
-//rgb(213, 127, 189);
-//rgb(28, 199, 206)
-//rgb(171, 27, 8)
-//rgb(146, 167, 54)
-//rgb(0, 245, 198)
-//rgb(128, 236, 222)
-//rgb(223, 192, 66)
-//rgb(186, 132, 144)
-//rgb(168, 85, 120)
-//rgb(236, 129, 90)
-//rgb(250, 34, 80)
-//rgb(145, 158, 141)
-//rgb(227, 139, 66)
 
 const chip = StyleSheet.create({
   container: {
@@ -83,7 +60,7 @@ const chipHolder = StyleSheet.create({
 
 export interface Tag {
   label: string,
-  color: string,
+  color: Color,
   tooltip: string,
 }
 
@@ -109,7 +86,7 @@ export const ChipHolder: React.FC<ChipHolderProps> = ({
         <Chip 
           removable={removable} 
           key={i} 
-          color={el.color} 
+          color={el.color.hex()} 
           label={el.label} 
           onRemove={()=>{
             if(onRemove !== undefined) {
