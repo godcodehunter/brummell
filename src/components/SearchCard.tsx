@@ -49,7 +49,8 @@ interface SearchProps {
     // you press Enter or when you click the loupe icon
     onSearch: (data: String)=>void,
     
-    // Called when a text is changed or the cross icon is clicked
+    // Called when `isSearchInProgress` is true and a text 
+    // is changed or the cross icon is clicked
     onSuspend: ()=>void,
     
     // Must be set to true when searching and false when done
@@ -85,12 +86,16 @@ const Search = ({onSearch, isSearchInProgress}: SearchProps) => {
             onChange={handleChange}
         >
             <input className={css(styles.input)}/>
-            <Loupe 
-                fill={hovered ?  "#FAFAFA": "#ABABAB"} 
-                style={{width: 20, padding: 4, cursor: "pointer",}} 
-                {...eventHandlers}
-                onClick={() => onSearch(text)}
-            />
+            {!isSearchInProgress ?
+                <Loupe 
+                    fill={hovered ?  "#FAFAFA": "#ABABAB"} 
+                    style={{width: 20, padding: 4, cursor: "pointer",}} 
+                    {...eventHandlers}
+                    onClick={() => onSearch(text)}
+                />
+                :
+                <></>
+            }
         </div>
     );
 }
@@ -131,7 +136,7 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
                 <span className={css(styles.headline)}>
                     SEARCH
                 </span>
-                <Search onSearch={(e)=>console.log(e)}/>
+                <Search onSuspend={()=>{}} onSearch={(e)=>console.log(e)}/>
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>

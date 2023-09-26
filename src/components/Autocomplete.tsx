@@ -27,16 +27,16 @@ const autocomplete = StyleSheet.create({
 });
 
 interface AutocompleteProps {
-    onSelect: () => void,
-    renderInput: (params: any) => JSX.Element,
+    // onSelect: () => void,
+    // renderInput: (params: any) => JSX.Element,
     variants: any[],
     filter: (input: string, variants: any) => any,
 }
 
 export const Autocomplete: React.FC<AutocompleteProps> = ({
-    onSelect,
+    // onSelect,
     variants,
-    renderInput,
+    // renderInput,
     filter,
 }) => {
     const [hovered, eventHandlers] = useHover();

@@ -13,6 +13,7 @@ import { Duration, DateTime } from 'luxon';
 import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
 import { globalStyles, palette } from './components/global_styles';
+import StackGrid from "react-stack-grid";
 
 interface IconButtonProps {
   url: string,
@@ -90,7 +91,11 @@ function App() {
             display: "flex",
           }}
         >
-          <div style={{
+          <StackGrid columnWidth={300} style={{width: "100%"}}>
+            <div key="key2">Item 2</div>
+            <div key="key3">Item 3</div>
+          </StackGrid>
+          {/* <div style={{
             height: "100%", 
             flexGrow: 1,
             backgroundColor: "#3F3D3D"
@@ -107,7 +112,7 @@ function App() {
               title={"CONTENT"} 
               style={{width: 300}}
             />
-          </div>
+          </div> */}
       </div>
     </div>
   );
