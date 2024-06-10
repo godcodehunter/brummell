@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "frontend",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -50,6 +50,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.11.5",
+    "babel-core": "^5.0.0",
+    "babel-loader": "8.1.0",
     "@storybook/addon-actions": "^6.0.21",
     "@storybook/addon-essentials": "^6.0.21",
     "@storybook/addon-links": "^6.0.21",

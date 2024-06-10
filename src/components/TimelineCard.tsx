@@ -111,7 +111,7 @@ const timelineCard = StyleSheet.create({
     }
 });
 
-export const TimelineCard = ({data, title, style}: {data: Node[], title: string, style: any}) => {
+export const TimelineCard = ({data, title, style={}}: {data: Node[], title: string, style?: any}) => {
     const Component = ({node, onClick, isOpen}: {node: Node, onClick: any, isOpen: any}) => {
         switch(node.tag) {
             case NodeTag.Category: 
@@ -137,7 +137,6 @@ export const TimelineCard = ({data, title, style}: {data: Node[], title: string,
                     {title}
                 </span>
                 <div 
-                className={"tree"}
                 style={{
                     // substrate
                     backgroundColor: "#1E1E1F", 
@@ -150,7 +149,7 @@ export const TimelineCard = ({data, title, style}: {data: Node[], title: string,
                     maxHeight: 500,
                     overflowX: "auto",
                 }}>
-                    {data.length != 0 ? data.map((e: any) => (
+                    {data.length !== 0 ? data.map((e: any) => (
                         <Tree 
                             node={e} 
                             Component={Component}

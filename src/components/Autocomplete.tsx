@@ -112,7 +112,7 @@ export const Autocomplete: React.FC<AutocompleteProps> = ({
                     onClick={() => setOpen(!isOpen)}
                 />
             </div>
-            <div className={"kek"} style={{
+            <div style={{
                 backgroundColor: "#1E1E1F", 
                 overflowX: "auto",
             }}>

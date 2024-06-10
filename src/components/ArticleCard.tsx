@@ -4,14 +4,7 @@ import { Tag, ChipHolder } from './Chip';
 import { ReactComponent as Clock } from '../resource/clock.svg';
 import { ReactComponent as Calendar } from '../resource/calendar.svg';
 import { DateTime, Duration } from 'luxon';
-
-const styles = StyleSheet.create({
-    substrate: {
-        backgroundColor: "#2E2E2E",
-        boxShadow: "8px 8px 0px rgba(0, 0, 0, 0.25)",
-        cursor: "pointer",
-    },
-});
+import { globalStyles } from './global_styles';
 
 interface ArticleCardProps {
     illustration: string,
@@ -20,7 +13,7 @@ interface ArticleCardProps {
     reading_time: Duration, 
     publication_time: DateTime,
     onOpen: () => void,
-    style: any,
+    style?: any,
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -61,7 +54,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         const dur = duration.shiftTo('hours', 'minutes');
         let ret: string = "";
         [[dur.hours, "h"],[dur.minutes, "min"]].map((i) => {
-            if(i[0].valueOf() !== 0){
+            if(i[0] !== 0){
                 if(ret.length > 0) {
                     ret += " ";
                 }
@@ -75,7 +68,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <>
         <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-        <div className={css(styles.substrate)} style={{...style}} onClick={onOpen}>
+        <div 
+            className={css(globalStyles.substrate)}
+            style={{
+                cursor: "pointer",
+                ...style,
+            }} 
+            onClick={onOpen}
+        >
             <div style={{display: "flex", flexDirection: "column"}}>
                 <div style={{backgroundColor: "red", width: "100%", height: 160}}/>
                 <div style={{margin: 8, display: "flex", flexDirection: "column", gap: 8}}>

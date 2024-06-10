@@ -1,6 +1,6 @@
 import React, { SVGProps } from 'react';
 import { SearchCard } from './components/SearchCard';
-import { ProfileCard } from './components/ProfileCard';
+import { ProfileCard, ProfileCard2 } from './components/ProfileCard';
 
 import avatar from './resource/avatar.jpg';
 import { ReactComponent as Github } from './resource/github.svg';
@@ -14,109 +14,97 @@ import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
 import { globalStyles, palette } from './components/global_styles';
 import StackGrid from "react-stack-grid";
-
-interface IconButtonProps {
-  url: string,
-  Icon: React.FC<SVGProps<SVGSVGElement>>,
-}
-
-const IconButton: React.FC<IconButtonProps> = ({url, Icon}) => {
-  const [hovered, eventHandlers] = useHover();
-  return (
-    <Icon 
-      fill={hovered ? "#FAFAFA" : "#ABABAB"} 
-      onClick={()=>window.open(url, '_blank')}
-      style={{cursor: "pointer",}}
-      {...eventHandlers}
-    />
-  );
-}
+import chroma, { Color } from 'chroma-js';
+import { IconButton } from './components/InconButton';
 
 const app = StyleSheet.create({
   root: {
-    display:"flex", 
-    flexDirection: "row", 
-    minHeight: "100vh",
-    backgroundColor: palette.mainColor
+    // Container properties
+    display: "flex",
+    flexDirection: "row",
+
+    // Styling properties
+    backgroundColor: palette.mainColor,
+
+    // Sizing properties
+    height: "100vh",
   },
   leftPanel: {
-    height: "100%",
-    display:"flex", 
-    flexDirection: "column", 
+    // Flex properties
+    flex: "0 0 300px",
+
+    // Container properties
+    display: "flex",
+    flexDirection: "column",
     justifyContent: "flex-start",
+
+    // Spacing properties
     padding: 40,
-    gap: 50,
+    gap: 40,
   },
 });
 
 function App() {
+  const overview =
+    <>
+      Welcome to my blog. I am a programmer who believes that open source
+      will take over the world, also I am Rust cultist. In my free time
+      I am interested in microelectronics, deep topics from computer
+      science, various code translators.
+      <br />
+      I respect perseverance, uncompromising hard skills, pedantry and
+      commitment to ideals, and with this I move towards a craftsmanship.
+    </>
+
+  const social = [
+    <IconButton
+      url={"https://x.com/godcodehunter"}
+      Icon={Twitter}
+    />,
+    <IconButton
+      url={"https://github.com/godcodehunter"}
+      Icon={Github}
+    />,
+    <IconButton
+      url={"https://www.linkedin.com/in/dmitry-opokin/"}
+      Icon={Linkedin}
+    />
+  ];
+
   return (
     <div className={css(app.root)}>
       <div className={css(app.leftPanel)}>
-        <ProfileCard 
+        <ProfileCard2
           avatar={avatar}
-          nickname={"godcodehunter"} 
-          overview={
-            <>
-              Welcome to my blog. I am a programmer who believes that open source will take over the world, also I am Rust cultist. In my free time I am interested in microelectronics, deep topics from computer science, various code translators.
-              <br/>
-              I respect perseverance, uncompromising hard skills, pedantry and commitment to ideals, and with this I move towards a craftsmanship.             
-            </>
-          }
-          social={[
-            <IconButton 
-              url={"https://twitter.com/godcodehunter"} 
-              Icon={Twitter}
-            />,
-            <IconButton 
-              url={"https://github.com/godcodehunter"} 
-              Icon={Github}
-            />,
-            <IconButton 
-              url={"test"} 
-              Icon={Linkedin}
-            />,
-          ]}
+          nickname={"godcodehunter"}
+          overview={overview}
+          social={social}
         />
-        <SearchCard style={{width: 300}}/>
-        <TimelineCard 
-          data={[]} 
-          title={"TIMELINE"} 
-          style={{width: 300}}
+        <TimelineCard
+          data={[]}
+          title={"TIMELINE"}
         />
       </div>
-        <div 
-          style={{
-            width: "100%",
-            display: "flex",
-          }}
-        >
-          <StackGrid columnWidth={300} style={{width: "100%"}}>
-            <div key="key2">Item 2</div>
-            <div key="key3">Item 3</div>
-          </StackGrid>
-          {/* <div style={{
-            height: "100%", 
-            flexGrow: 1,
-            backgroundColor: "#3F3D3D"
-          }}/>
-          <div style={ {
-            display:"flex", 
-            flexDirection: "column", 
-            justifyContent: "flex-start",
-            padding: 40,
-            gap: 50,
-          }}>
-            <TimelineCard 
-              data={[]} 
-              title={"CONTENT"} 
-              style={{width: 300}}
-            />
-          </div> */}
-      </div>
+      <Showcase>
+        {[...Array(14)].map((_, i) =>
+          <ArticleCard
+            style={{ width: 300 }}
+            key={i}
+            headline="Test"
+            illustration="test"
+            tags={[{
+              label: "Test",
+              color: chroma.rgb(50, 120, 120),
+              tooltip: "test",
+            }]}
+            reading_time={Duration.fromMillis(600000)}
+            publication_time={DateTime.fromMillis(100)}
+            onOpen={() => { }}
+          />
+        )}
+      </Showcase>
     </div>
   );
 }
 
 export default App;
-  

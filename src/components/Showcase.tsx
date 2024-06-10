@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
 
-export const Showcase = () => {
+interface Showcase {
+    children: JSX.Element[],
+}
+
+export const Showcase: React.FC<Showcase> = ({children}) => {
     return (
-        <>
-        
-        </>
+        <div
+            style={{
+                display: "flex",
+                flexDirection: "row",
+                justifyContent: "center",
+                flexWrap: "wrap",
+                overflowY: "scroll",
+                gap: 40,
+            }}
+        >
+            {children}
+        </div>
     );
 };

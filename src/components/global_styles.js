@@ -23,10 +23,9 @@ export const globalStyles = extended.StyleSheet.create({
       padding: "0px",
     },
     '*, p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd': {
-      fontFamily: "Roboto",
+      fontFamily: "Monda",
       fontStyle: "normal",
       fontWeight: "normal",
-      fontSize: "14px",
       color: palette.fontColor,
     },
   },
