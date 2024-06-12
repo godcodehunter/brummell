@@ -1,3 +1,5 @@
+import { createClient, SubscribePayload } from 'graphql-ws';
+
 import React, { SVGProps } from 'react';
 import { SearchCard } from './components/SearchCard';
 import { ProfileCard, ProfileCard2 } from './components/ProfileCard';
@@ -39,9 +41,18 @@ const app = StyleSheet.create({
     justifyContent: "flex-start",
 
     // Spacing properties
-    padding: 40,
+    paddingTop: 40,
+    paddingLeft: 40,
+    paddingBottom: 40,
     gap: 40,
   },
+  rightPanel: {
+    // Spacing properties
+    paddingTop: 40,
+    paddingLeft: 40,
+    paddingRight: 40,
+    gap: 40,
+  }
 });
 
 function App() {
@@ -80,12 +91,13 @@ function App() {
           overview={overview}
           social={social}
         />
+        <SearchCard/>
         <TimelineCard
-          data={[]}
           title={"TIMELINE"}
+          data={[]}
         />
       </div>
-      <Showcase>
+      <Showcase className={css(app.rightPanel)}>
         {[...Array(14)].map((_, i) =>
           <ArticleCard
             style={{ width: 300 }}
