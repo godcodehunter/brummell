@@ -15,6 +15,10 @@ export const palette = {
   fontColor: "#E0E0E0",
 };
 
+export const constants = {
+  gap: 20,
+};
+
 export const globalStyles = extended.StyleSheet.create({
   [GLOBALS]: {
     "html, body, root": {
@@ -22,12 +26,19 @@ export const globalStyles = extended.StyleSheet.create({
       margin: "0px", 
       padding: "0px",
     },
-    '*, p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd': {
+    'p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd': {
       fontFamily: "Monda",
       fontStyle: "normal",
       fontWeight: "normal",
       color: palette.fontColor,
     },
+    '*': {
+      fontFamily: "Roboto",
+      fontStyle: "normal",
+      fontWeight: "normal",
+      fontSize: 14,
+      color: palette.fontColor,
+    }
   },
   substrate: {
     backgroundColor: "#2E2E2E",

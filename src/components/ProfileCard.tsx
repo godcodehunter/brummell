@@ -66,68 +66,66 @@ export const ProfileCard: React.FC<ProfileCard> = ({ avatar, nickname, overview,
 );
 
 
-export const ProfileCard2: React.FC<ProfileCard> = ({ avatar, nickname, overview, social }) => (
+const styles = StyleSheet.create({
+    container: {
+        display: "flex",
+        flexDirection: "column",
+
+        alignItems: 'center',
+        textAlign: "center",
+        
+        padding: 10,
+        gap: 10,
+    },
+    avatar: {
+        width: 185,
+        height: 185,
+    },
+    socialRow: {
+        width: "100%",
+        
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-evenly",
+    },
+    socialIcon: {
+        width: 30,
+        height: 30,
+    },
+});
+
+export const VerticalProfileCard: React.FC<ProfileCard> = ({ avatar, nickname, overview, social }) => (
     <>
         <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
-        <div className={css(globalStyles.substrate)}>
-            <div style={{
-                margin: 10,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: 'center',
-                textAlign: "center",
-                gap: 10,
+        <div className={css(styles.container, globalStyles.substrate)}>
+            <span style={{
+                fontFamily: "Monda",
+                fontStyle: "normal",
+                fontWeight: "normal",
+                fontSize: "24px",
+                color: "#D4D4D4",
+                verticalAlign: "top",
             }}>
-                <span style={{
-                    fontFamily: "Monda",
-                    fontStyle: "normal",
-                    fontWeight: "normal",
-                    fontSize: "24px",
-                    color: "#D4D4D4",
-                    verticalAlign: "top",
-                }}>
-                    {nickname}
-                </span>
+                {nickname}
+            </span>
 
-                <img 
-                    src={avatar} 
-                    style={{ 
-                        width: 185, 
-                        height: 185, 
-                    }} 
-                />
-
-                <span style={{
-                    fontFamily: "Roboto",
-                    fontStyle: "normal",
-                    fontWeight: "normal",
-                    fontSize: "14px",
-                    // lineHeight: "14px",
-                    color: "#D4D4D4",
-                }}>
-                    {overview}
-                </span>
-
-                <div
-                    style={{
-                        display: "flex",
-                        flexDirection: "row",
-                        gap: 40,
-                    }}
-                >
-                    {social.map((el, i) =>
-                    (<div
-                        style={{
-                            width: 32,
-                            height: 32,
-                        }}
+            <img
+                className={css(styles.avatar)}
+                src={avatar}
+            />
+            {overview}
+            <div
+                className={css(styles.socialRow)}
+            >
+                {social.map((el, i) =>
+                    <div
                         key={i}
+                        className={css(styles.socialIcon)}
                     >
                         {el}
-                    </div>))
-                    }
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     </>

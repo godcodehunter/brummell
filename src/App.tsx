@@ -2,7 +2,7 @@ import { createClient, SubscribePayload } from 'graphql-ws';
 
 import React, { SVGProps } from 'react';
 import { SearchCard } from './components/SearchCard';
-import { ProfileCard, ProfileCard2 } from './components/ProfileCard';
+import { ProfileCard, VerticalProfileCard } from './components/ProfileCard';
 
 import avatar from './resource/avatar.jpg';
 import { ReactComponent as Github } from './resource/github.svg';
@@ -14,22 +14,22 @@ import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
 import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
-import { globalStyles, palette } from './components/global_styles';
+import { globalStyles, palette, constants} from './components/global_styles';
 import StackGrid from "react-stack-grid";
 import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';
 
 const app = StyleSheet.create({
   root: {
+    // Sizing properties
+    height: "100vh",
+
     // Container properties
     display: "flex",
     flexDirection: "row",
 
     // Styling properties
     backgroundColor: palette.mainColor,
-
-    // Sizing properties
-    height: "100vh",
   },
   leftPanel: {
     // Flex properties
@@ -41,17 +41,17 @@ const app = StyleSheet.create({
     justifyContent: "flex-start",
 
     // Spacing properties
-    paddingTop: 40,
-    paddingLeft: 40,
-    paddingBottom: 40,
-    gap: 40,
+    paddingTop: constants.gap,
+    paddingLeft: constants.gap,
+    paddingBottom: constants.gap,
+    gap: constants.gap,
   },
   rightPanel: {
     // Spacing properties
-    paddingTop: 40,
-    paddingLeft: 40,
-    paddingRight: 40,
-    gap: 40,
+    paddingTop: constants.gap,
+    paddingLeft: constants.gap,
+    paddingRight: constants.gap,
+    gap: constants.gap,
   }
 });
 
@@ -85,7 +85,7 @@ function App() {
   return (
     <div className={css(app.root)}>
       <div className={css(app.leftPanel)}>
-        <ProfileCard2
+        <VerticalProfileCard
           avatar={avatar}
           nickname={"godcodehunter"}
           overview={overview}
