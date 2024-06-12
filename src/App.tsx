@@ -9,12 +9,12 @@ import { ReactComponent as Github } from './resource/github.svg';
 import { ReactComponent as Linkedin } from './resource/linkedin.svg';
 import { ReactComponent as Twitter } from './resource/twitter.svg';
 import { useHover } from './hooks';
-import { TimelineCard, NodeTag } from './components/TimelineCard';
+import { TreeCard, NodeTag } from './components/TreeCard';
 import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
 import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
-import { globalStyles, palette, constants} from './components/global_styles';
+import { globalStyles, palette, constants } from './components/global_styles';
 import StackGrid from "react-stack-grid";
 import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';
@@ -43,10 +43,24 @@ const app = StyleSheet.create({
     // Spacing properties
     paddingTop: constants.gap,
     paddingLeft: constants.gap,
-    paddingBottom: constants.gap,
+    gap: constants.gap,
+  },
+  middlePanel: {
+    // Spacing properties
+    paddingTop: constants.gap,
+    paddingLeft: constants.gap,
+    paddingRight: constants.gap,
     gap: constants.gap,
   },
   rightPanel: {
+    // Flex properties
+    flex: "0 0 300px",
+
+    // Container properties
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+
     // Spacing properties
     paddingTop: constants.gap,
     paddingLeft: constants.gap,
@@ -91,13 +105,8 @@ function App() {
           overview={overview}
           social={social}
         />
-        <SearchCard/>
-        <TimelineCard
-          title={"TIMELINE"}
-          data={[]}
-        />
       </div>
-      <Showcase className={css(app.rightPanel)}>
+      <Showcase className={css(app.middlePanel)}>
         {[...Array(14)].map((_, i) =>
           <ArticleCard
             style={{ width: 300 }}
@@ -115,6 +124,13 @@ function App() {
           />
         )}
       </Showcase>
+      <div className={css(app.rightPanel)}>
+        <SearchCard />
+        <TreeCard
+          title={"TIMELINE"}
+          data={[]}
+        />
+      </div>
     </div>
   );
 }

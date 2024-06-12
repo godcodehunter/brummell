@@ -1,12 +1,12 @@
 import React from 'react';
-import { TimelineCard, NodeTag } from '../components/TimelineCard';
+import { TreeCard, NodeTag } from '../components/TreeCard';
 
 export default {
-    component: TimelineCard,
+    component: TreeCard,
     title: 'TimelineCard',
 };
 
-const Template = args => <TimelineCard {...args} />;
+const Template = args => <TreeCard {...args} />;
 
 export const NoData = Template.bind({});
 NoData.args = {

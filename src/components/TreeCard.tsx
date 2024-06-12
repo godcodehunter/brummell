@@ -5,7 +5,7 @@ import { globalStyles, palette } from './global_styles';
 
 const baseRow = StyleSheet.create({
     row: {
-        height: 18,
+        // height: 18,
     },
 });
 
@@ -111,7 +111,7 @@ const timelineCard = StyleSheet.create({
     }
 });
 
-export const TimelineCard = ({data, title, style={}}: {data: Node[], title: string, style?: any}) => {
+export const TreeCard = ({data, title, style={}}: {data: Node[], title: string, style?: any}) => {
     const Component = ({node, onClick, isOpen}: {node: Node, onClick: any, isOpen: any}) => {
         switch(node.tag) {
             case NodeTag.Category: 
