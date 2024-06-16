@@ -1,10 +1,10 @@
 import React from 'react';
-import { StyleSheet, css } from 'aphrodite';
+import { css } from 'aphrodite';
 import { Tag, ChipHolder } from './Chip';
 import { ReactComponent as Clock } from '../resource/clock.svg';
 import { ReactComponent as Calendar } from '../resource/calendar.svg';
 import { DateTime, Duration } from 'luxon';
-import { globalStyles } from './global_styles';
+import { globalStyles } from '../global_styles';
 
 interface ArticleCardProps {
     illustration: string,

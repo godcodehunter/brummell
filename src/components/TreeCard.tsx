@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { PlusInSquare, MinusInSquare } from '../resource/icons';
-import { globalStyles, palette } from './global_styles';
+import { globalStyles, palette } from '../global_styles';
 
 const baseRow = StyleSheet.create({
     row: {

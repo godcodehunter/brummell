@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, css } from 'aphrodite';
-import { globalStyles } from './global_styles';
+import { globalStyles } from '../global_styles';
 
 interface ProfileCard {
     avatar: string,

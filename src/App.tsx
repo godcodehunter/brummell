@@ -14,7 +14,7 @@ import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
 import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
-import { globalStyles, palette, constants } from './components/global_styles';
+import { palette, constants } from './global_styles';
 import StackGrid from "react-stack-grid";
 import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';

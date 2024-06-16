@@ -1,3 +1,26 @@
+html, body, root {
+  height: 100%;
+  margin: 0px;
+  padding: 0px;
+}
+
+p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
+  font-family: "Monda";
+  font-style: normal;
+  font-weight: normal;
+  /* palette.fontColor */
+  color: #E0E0E0,
+}
+
+* {
+  font-family: "Roboto";
+  font-style: normal;
+  font-weight: normal;
+  font-size: 14px;
+  /* palette.fontColor */
+  color: #E0E0E0;
+}
+
 *::-webkit-scrollbar {
   width: 0.8em;
 }
