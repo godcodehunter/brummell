@@ -1,5 +1,3 @@
-import { createClient, SubscribePayload } from 'graphql-ws';
-
 import React, { SVGProps } from 'react';
 import { SearchCard } from './components/SearchCard';
 import { ProfileCard, VerticalProfileCard } from './components/ProfileCard';
@@ -18,6 +16,48 @@ import { palette, constants } from './global_styles';
 import StackGrid from "react-stack-grid";
 import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';
+import { gql, useQuery, useSubscription } from "@apollo/client";
+
+const GET_LATEST_ARTICLE_COVER = gql`
+  subscription GetNewArticle {
+    newArticle {
+      id
+      author
+      content
+    }
+  }
+`;
+
+const GET_ARTICLE_COVER = gql`
+  query GetArticle {
+    getArticle {
+      headline,
+      tags {
+        tooltip
+        label
+        color
+      },
+      preview_txt,
+      reading_time_min,
+      publication_time,
+    }
+  }
+`;
+
+interface Tag {
+  label: string,
+  color: string,
+  tooltip: string,
+}
+
+interface ArticleCover {
+  headline: string,
+  illustration: any,
+  tags: Tag[],
+  preview_txt: string,
+  reading_time_min: number, 
+  publication_time: number,
+}
 
 const app = StyleSheet.create({
   root: {
@@ -46,6 +86,8 @@ const app = StyleSheet.create({
     gap: constants.gap,
   },
   middlePanel: {
+    width: "100%",
+
     // Spacing properties
     paddingTop: constants.gap,
     paddingLeft: constants.gap,
@@ -70,6 +112,25 @@ const app = StyleSheet.create({
 });
 
 function App() {
+  const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
+  const { data } = useQuery(GET_ARTICLE_COVER);
+  
+  React.useEffect(() => {
+    if (data?.getArticle?.length > 0) {
+      console.log(data)
+      setArticleCovers(data?.getArticle);
+    }
+  }, [data]);
+
+  useSubscription(GET_LATEST_ARTICLE_COVER, {
+    onData: (onData) => {
+      if (onData?.data) {
+        // @ts-ignore 
+        setArticleCovers([...articleCovers, onData?.data]);
+      }
+    }
+  });
+
   const overview =
     <>
       Welcome to my blog. I am a programmer who believes that open source
@@ -107,19 +168,22 @@ function App() {
         />
       </div>
       <Showcase className={css(app.middlePanel)}>
-        {[...Array(14)].map((_, i) =>
+        {articleCovers.map((item, idx) =>
           <ArticleCard
             style={{ width: 300 }}
-            key={i}
-            headline="Test"
+            key={idx}
+            headline={item.headline}
             illustration="test"
-            tags={[{
-              label: "Test",
-              color: chroma.rgb(50, 120, 120),
-              tooltip: "test",
-            }]}
-            reading_time={Duration.fromMillis(600000)}
-            publication_time={DateTime.fromMillis(100)}
+            tags={item.tags.map((i) => {
+              return {
+                label: i.label,
+                color: chroma.hex(i.color),
+                tooltip: i.tooltip,
+              }
+            })}
+            preview_txt = {item.preview_txt}
+            reading_time={Duration.fromMillis(item.reading_time_min * 60000)}
+            publication_time={DateTime.fromJSDate(new Date(item.publication_time * 1000))}
             onOpen={() => { }}
           />
         )}

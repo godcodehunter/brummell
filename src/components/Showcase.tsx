@@ -17,7 +17,7 @@ export const Showcase: React.FC<Showcase> = ({
             style={{
                 display: "flex",
                 flexDirection: "row",
-                justifyContent: "center",
+                justifyContent: "flex-start",
                 flexWrap: "wrap",
                 overflowY: "scroll",
                 ...style,

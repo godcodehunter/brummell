@@ -10,6 +10,7 @@ interface ArticleCardProps {
     illustration: string,
     headline: string,
     tags: Tag[], 
+    preview_txt: string,
     reading_time: Duration, 
     publication_time: DateTime,
     onOpen: () => void,
@@ -20,6 +21,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     illustration, 
     headline, 
     tags,
+    preview_txt,
     reading_time,
     publication_time,
     onOpen,
@@ -87,7 +89,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                         lineHeight: "26px",
                         color: "#D4D4D4",
                         }}>
-                    Simple digital clock
+                    {headline}
                 </span>
                     <ChipHolder data={tags}/>
                     <span style={{
@@ -95,10 +97,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                         fontStyle: "normal",
                         fontWeight: "normal",
                         fontSize: "14px",
-                        // lineHeight: "14px",
                         color: "#D4D4D4",
                     }}>
-                    In November 2011, Amazon added what it called “Time To Read” to its new Kindle Touch, but disabled it by default. With the release of Kindle Paperwhite in October 2012, it enabled Time To Read and started advertising the feature. It was so popular that people with older versions of Kindle tried to figure out how to get it.
+                    {preview_txt}
                     </span>
                     <div style={{display: "flex", flexDirection: "row", justifyContent: "space-between"}}>
                         <div style={{display: "flex", flexDirection: "row", gap: 4}}>
@@ -108,7 +109,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontStyle: "normal",
                                 fontWeight: "normal",
                                 fontSize: "12px",
-                                // lineHeight: "14px",
                                 color: "#D4D4D4",
                             }}>
                                 {stringifyReadingTime(reading_time)}
