@@ -111,6 +111,41 @@ const app = StyleSheet.create({
   }
 });
 
+const ProfileCardWithContent = () => {
+  const overview =
+  <>
+    Welcome to my blog. I am a programmer who believes that open source
+    will take over the world, also I am Rust cultist. In my free time
+    I am interested in microelectronics, deep topics from computer
+    science, various code translators.
+    <br />
+    I respect perseverance, uncompromising hard skills, pedantry and
+    commitment to ideals, and with this I move towards a craftsmanship.
+  </>
+
+  const social = [
+    <IconButton
+      url={"https://x.com/godcodehunter"}
+      Icon={Twitter}
+    />,
+    <IconButton
+      url={"https://github.com/godcodehunter"}
+      Icon={Github}
+    />,
+    <IconButton
+      url={"https://www.linkedin.com/in/dmitry-opokin/"}
+      Icon={Linkedin}
+    />
+  ];
+
+  return <VerticalProfileCard
+    avatar={avatar}
+    nickname={"godcodehunter"}
+    overview={overview}
+    social={social}
+  />;
+};
+
 function App() {
   const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
   const { data } = useQuery(GET_ARTICLE_COVER);
@@ -131,41 +166,10 @@ function App() {
     }
   });
 
-  const overview =
-    <>
-      Welcome to my blog. I am a programmer who believes that open source
-      will take over the world, also I am Rust cultist. In my free time
-      I am interested in microelectronics, deep topics from computer
-      science, various code translators.
-      <br />
-      I respect perseverance, uncompromising hard skills, pedantry and
-      commitment to ideals, and with this I move towards a craftsmanship.
-    </>
-
-  const social = [
-    <IconButton
-      url={"https://x.com/godcodehunter"}
-      Icon={Twitter}
-    />,
-    <IconButton
-      url={"https://github.com/godcodehunter"}
-      Icon={Github}
-    />,
-    <IconButton
-      url={"https://www.linkedin.com/in/dmitry-opokin/"}
-      Icon={Linkedin}
-    />
-  ];
-
   return (
     <div className={css(app.root)}>
       <div className={css(app.leftPanel)}>
-        <VerticalProfileCard
-          avatar={avatar}
-          nickname={"godcodehunter"}
-          overview={overview}
-          social={social}
-        />
+        <ProfileCardWithContent/>
       </div>
       <Showcase className={css(app.middlePanel)}>
         {articleCovers.map((item, idx) =>

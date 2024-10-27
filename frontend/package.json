@@ -63,5 +63,9 @@
     "babel-core": "^5.0.0",
     "babel-loader": "8.1.0",
     "react-is": "^16.13.1"
+  },
+  "resolutions": {
+    "**/@typescript-eslint/eslint-plugin": "^4.1.1",
+    "**/@typescript-eslint/parser": "^4.1.1"
   }
 }
