@@ -222,7 +222,7 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
   let data : Category[] = []
   
   byMonths.forEach((v: string[], k: string) => {
-    let root = {
+    let root : Category = {
       tag: NodeTag.Category,
       label: k,
       children: [],
