@@ -7,10 +7,10 @@ import { ReactComponent as Github } from './resource/github.svg';
 import { ReactComponent as Linkedin } from './resource/linkedin.svg';
 import { ReactComponent as Twitter } from './resource/twitter.svg';
 import { useHover } from './hooks';
-import { TreeCard, NodeTag } from './components/TreeCard';
+import { Category, TreeCard, NodeTag } from './components/TreeCard';
 import { ArticleCard } from './components/ArticleCard';
 import { Duration, DateTime } from 'luxon';
-import { Showcase } from './components/Showcase';
+// import { Showcase } from './components/Showcase';
 import { StyleSheet, css } from 'aphrodite';
 import { palette, constants } from './global_styles';
 import StackGrid from "react-stack-grid";
@@ -59,10 +59,15 @@ interface ArticleCover {
   publication_time: number,
 }
 
+interface ArticleLine {
+  headline: string,
+  publication_time: number,
+}
+
 const app = StyleSheet.create({
   root: {
     // Sizing properties
-    height: "100vh",
+    height: "100%",
 
     // Container properties
     display: "flex",
@@ -92,6 +97,7 @@ const app = StyleSheet.create({
     paddingTop: constants.gap,
     paddingLeft: constants.gap,
     paddingRight: constants.gap,
+    paddingBottom: constants.gap,
     gap: constants.gap,
   },
   rightPanel: {
@@ -146,13 +152,102 @@ const ProfileCardWithContent = () => {
   />;
 };
 
+const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
+  let byMonths = new Map<string, string[]>();
+
+  const addIfNotExist = (month: string, headline: string) => {
+    if (!byMonths.has(month)) {
+      byMonths.set(month, [])
+    }
+    // @ts-ignore
+    byMonths.get(month).push(headline);
+  }
+  
+  content.map((i) => {
+    var date = new Date(i.publication_time * 1000);
+    let month = date.getMonth()
+    
+    switch(month) {
+      case 0: {
+        addIfNotExist("January", i.headline)
+        break;
+      }
+      case 1: {
+        addIfNotExist("February", i.headline)
+        break;
+      }
+      case 2: {
+        addIfNotExist("March", i.headline)
+        break;
+      }
+      case 3: {
+        addIfNotExist("April", i.headline)
+        break;
+      }
+      case 4: {
+        addIfNotExist("May", i.headline)
+        break;
+      }
+      case 5: {
+        addIfNotExist("June", i.headline)
+        break;
+      }
+      case 6: {
+        addIfNotExist("July", i.headline)
+        break;
+      }
+      case 7: {
+        addIfNotExist("August", i.headline)
+        break;
+      }
+      case 8: {
+        addIfNotExist("September", i.headline)
+        break;
+      }
+      case 9: {
+        addIfNotExist("October", i.headline)
+        break;
+      }
+      case 10: {
+        addIfNotExist("November", i.headline)
+        break;
+      }
+      case 11: {
+        addIfNotExist("December", i.headline)
+        break;
+      }
+    }
+  }) 
+
+  let data : Category[] = []
+  
+  byMonths.forEach((v: string[], k: string) => {
+    let root = {
+      tag: NodeTag.Category,
+      label: k,
+      children: [],
+    }
+    root.children = v.map((i: string) => {
+      return {
+        tag: NodeTag.Item,
+        label: i,
+      }
+    })
+    data.push(root)
+  })
+
+  return <TreeCard
+    title={"TIMELINE"}
+    data={data}
+  />
+};
+
 function App() {
   const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
   const { data } = useQuery(GET_ARTICLE_COVER);
   
   React.useEffect(() => {
     if (data?.getArticle?.length > 0) {
-      console.log(data)
       setArticleCovers(data?.getArticle);
     }
   }, [data]);
@@ -171,10 +266,15 @@ function App() {
       <div className={css(app.leftPanel)}>
         <ProfileCardWithContent/>
       </div>
-      <Showcase className={css(app.middlePanel)}>
+      <div className={css(app.middlePanel)}>
+        <StackGrid 
+          columnWidth={300} 
+          gutterWidth = {constants.gap}
+          gutterHeight={constants.gap}
+        >
         {articleCovers.map((item, idx) =>
           <ArticleCard
-            style={{ width: 300 }}
+            // style={{ width: 300 }}
             key={idx}
             headline={item.headline}
             illustration="test"
@@ -191,13 +291,11 @@ function App() {
             onOpen={() => { }}
           />
         )}
-      </Showcase>
+        </StackGrid>
+      </div>
       <div className={css(app.rightPanel)}>
         <SearchCard />
-        <TreeCard
-          title={"TIMELINE"}
-          data={[]}
-        />
+        <TreeCardWithFill content={articleCovers}/>
       </div>
     </div>
   );

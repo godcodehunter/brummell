@@ -90,7 +90,7 @@ export enum NodeTag {
     Item,
 }
 
-interface Category {
+export interface Category {
     tag: NodeTag.Category,
     label: string,
     children: Node[],
