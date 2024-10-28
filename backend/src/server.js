@@ -160,6 +160,24 @@ const blogs = [
     },
 ];
 
+const tags = [
+  {
+    label: "banana",
+    color: "#327878",
+    tooltip: "Test tooltip",
+  },
+  {
+    label: "ball",
+    color: "#327878",
+    tooltip: "Test tooltip",
+  },
+  {
+    label: "beicon",
+    color: "#327878",
+    tooltip: "Test tooltip",
+  }
+];
+
 // event that the frontend will subscribe to
 const blogs_created = "NEW_BLOG_CREATED";
 
@@ -197,6 +215,7 @@ const typeDefs = `
     }
 
     type Query {
+        getTag:     [Tag!]
         getArticle: [Article!]
     }
 
@@ -234,6 +253,9 @@ const resolvers = {
       // return all blogs
       return blogs;
     },
+    getTag() {
+      return tags;
+    }
   },
   // setting up subscription
   Subscription: {

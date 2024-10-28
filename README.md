@@ -1,0 +1,1 @@
+![](./doc/main_page_preview.jpg "Main page preview")
