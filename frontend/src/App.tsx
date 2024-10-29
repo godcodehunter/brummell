@@ -18,6 +18,7 @@ import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';
 import { gql, useQuery, useSubscription } from "@apollo/client";
 import { ArticlePage } from './ArticlePage';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 
 const GET_LATEST_ARTICLE_COVER = gql`
   subscription GetNewArticle {
@@ -32,6 +33,7 @@ const GET_LATEST_ARTICLE_COVER = gql`
 const GET_ARTICLE_COVER = gql`
   query GetArticle {
     getArticle {
+      id,
       headline,
       tags {
         tooltip
@@ -52,6 +54,7 @@ interface Tag {
 }
 
 interface ArticleCover {
+  id: number,
   headline: string,
   illustration: any,
   tags: Tag[],
@@ -262,6 +265,8 @@ const MainPage = () => {
     }
   });
 
+  const navigate = useNavigate();
+
   return (
     <div className={css(app.root)}>
       <div className={css(app.leftPanel)}>
@@ -288,7 +293,7 @@ const MainPage = () => {
             preview_txt = {item.preview_txt}
             reading_time={Duration.fromMillis(item.reading_time_min * 60000)}
             publication_time={DateTime.fromJSDate(new Date(item.publication_time * 1000))}
-            onOpen={() => { }}
+            onOpen={() => { navigate(item.id) }}
           />
         )}
         </StackGrid>
@@ -304,7 +309,14 @@ const MainPage = () => {
 
 
 function App() {
-  return <MainPage/>
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path='/' element={<MainPage/>}/>
+        <Route path="/:id" element={<ArticlePage/>} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;
