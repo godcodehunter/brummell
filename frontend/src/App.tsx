@@ -3,9 +3,9 @@ import { SearchCard } from './components/SearchCard';
 import { ProfileCard, VerticalProfileCard } from './components/ProfileCard';
 
 import avatar from './resource/avatar.jpg';
-import { ReactComponent as Github } from './resource/github.svg';
-import { ReactComponent as Linkedin } from './resource/linkedin.svg';
-import { ReactComponent as Twitter } from './resource/twitter.svg';
+import { ReactComponent as Github} from './resource/github.svg';
+import { ReactComponent as Linkedin} from './resource/linkedin.svg';
+import { ReactComponent as Twitter} from './resource/twitter.svg';
 import { useHover } from './hooks';
 import { Category, TreeCard, NodeTag } from './components/TreeCard';
 import { ArticleCard } from './components/ArticleCard';
@@ -17,6 +17,7 @@ import StackGrid from "react-stack-grid";
 import chroma, { Color } from 'chroma-js';
 import { IconButton } from './components/InconButton';
 import { gql, useQuery, useSubscription } from "@apollo/client";
+import { ArticlePage } from './ArticlePage';
 
 const GET_LATEST_ARTICLE_COVER = gql`
   subscription GetNewArticle {
@@ -64,7 +65,7 @@ interface ArticleLine {
   publication_time: number,
 }
 
-const app = StyleSheet.create({
+export const app = StyleSheet.create({
   root: {
     // Sizing properties
     height: "100%",
@@ -242,7 +243,7 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
   />
 };
 
-function App() {
+const MainPage = () => {
   const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
   const { data } = useQuery(GET_ARTICLE_COVER);
   
@@ -274,7 +275,6 @@ function App() {
         >
         {articleCovers.map((item, idx) =>
           <ArticleCard
-            // style={{ width: 300 }}
             key={idx}
             headline={item.headline}
             illustration="test"
@@ -299,6 +299,12 @@ function App() {
       </div>
     </div>
   );
+}
+
+
+
+function App() {
+  return <MainPage/>
 }
 
 export default App;
