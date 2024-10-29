@@ -71,7 +71,7 @@ interface ArticleLine {
 export const app = StyleSheet.create({
   root: {
     // Sizing properties
-    height: "100%",
+    height: "100hv",
 
     // Container properties
     display: "flex",
@@ -305,7 +305,6 @@ const MainPage = () => {
     </div>
   );
 }
-
 
 
 function App() {
