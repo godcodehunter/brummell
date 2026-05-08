@@ -1,9 +1,12 @@
-// Reads command-line flags and resolves runtime configuration.
+// Reads command-line flags and resolves 
+// runtime configuration.
 //
 // Supported flags:
-//   --db-dir <path>   Directory where the SQLite file lives.
+//   --db-dir <path>   Directory where the SQLite 
+//                     file lives.
 //                     Created automatically if missing.
-//                     Defaults to "./data" (relative to current working dir).
+//                     Defaults to "./data" (relative to 
+//                     current working dir).
 //
 //  --port <int>       The port the server will use
 
@@ -19,14 +22,10 @@ const { values } = parseArgs({
   allowPositionals: false,
 });
 
-// Parse port value
 const port = parseInt(values["port"]!, 10);
 
-// Resolve to an absolute path
 const dbDir = path.resolve(values["db-dir"]!);
 
-// Make sure the directory exists. `recursive: true` is a no-op if it already
-// does — so this is safe to call on every startup.
 fs.mkdirSync(dbDir, { recursive: true });
 
 export const config = {

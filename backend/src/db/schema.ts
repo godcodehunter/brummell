@@ -1,17 +1,7 @@
-// Drizzle schema — the single source of truth for our database structure.
-//
-// Each `sqliteTable(...)` call declares a SQL table. The columns inside it
-// describe both the SQL types (used to generate migrations) AND the TypeScript
-// types we get when querying.
-//
-// At the bottom we export "inferred" TS types: e.g. `Article` is the exact
-// shape of a row read from `articles`. We never write these by hand —
-// Drizzle generates them from the column definitions above.
-
 import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
-// Blog posts.
+
 export const articles = sqliteTable("articles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
