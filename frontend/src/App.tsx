@@ -35,6 +35,7 @@ const GET_ARTICLE_COVER = gql`
     getArticle {
       id,
       headline,
+      illustration,
       tags {
         tooltip
         label
@@ -286,7 +287,7 @@ const MainPage = () => {
           <ArticleCard
             key={idx}
             headline={item.headline}
-            illustration="test"
+            illustration={item.illustration}
             tags={item.tags.map((i) => {
               return {
                 label: i.label,

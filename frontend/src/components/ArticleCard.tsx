@@ -79,7 +79,11 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
             onClick={onOpen}
         >
             <div style={{display: "flex", flexDirection: "column"}}>
-                <div style={{backgroundColor: "red", width: "100%", height: 160}}/>
+                <img
+                    src={illustration}
+                    alt={headline}
+                    style={{width: "100%", height: 160, objectFit: "cover", display: "block"}}
+                />
                 <div style={{margin: 8, display: "flex", flexDirection: "column", gap: 8}}>
                 <span style={{
                         fontFamily: "Monda",

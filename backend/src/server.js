@@ -5,6 +5,8 @@ const { expressMiddleware } = require("@apollo/server/express4");
 const bodyParser = require("body-parser");
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 const {
   ApolloServerPluginDrainHttpServer,
 } = require("@apollo/server/plugin/drainHttpServer");
@@ -15,6 +17,25 @@ const { PubSub } = require("graphql-subscriptions");
 
 //define port for the graphql Server
 const port = 4000;
+
+const MIME_BY_EXT = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+};
+
+const encodeImageAsDataUrl = (relativePath) => {
+  const absolutePath = path.join(__dirname, relativePath);
+  const ext = path.extname(absolutePath).toLowerCase();
+  const mime = MIME_BY_EXT[ext] || "application/octet-stream";
+  const base64 = fs.readFileSync(absolutePath).toString("base64");
+  return `data:${mime};base64,${base64}`;
+};
+
+const defaultIllustration = encodeImageAsDataUrl("resources/illustration.jpg");
 
 // storing blogs in local
 const blogs = [
@@ -308,8 +329,11 @@ const resolvers = {
   // registering Qyery
   Query: {
     getArticle() {
-      // return all blogs
-      return blogs;
+      // return all blogs with illustration encoded as base64 data URL
+      return blogs.map((blog) => ({
+        ...blog,
+        illustration: defaultIllustration,
+      }));
     },
     getTag() {
       return tags;
