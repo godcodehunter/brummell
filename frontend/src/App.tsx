@@ -71,7 +71,8 @@ interface ArticleLine {
 export const app = StyleSheet.create({
   root: {
     // Sizing properties
-    height: "100hv",
+    height: "100vh",
+    overflow: "hidden",
 
     // Container properties
     display: "flex",
@@ -96,6 +97,9 @@ export const app = StyleSheet.create({
   },
   middlePanel: {
     width: "100%",
+    height: "100vh",
+    overflowY: "auto",
+    overflowX: "hidden",
 
     // Spacing properties
     paddingTop: constants.gap,
