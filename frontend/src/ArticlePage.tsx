@@ -1,4 +1,4 @@
-import React, { SVGProps } from 'react';
+import React from 'react';
 import Markdown from 'react-markdown'
 import { palette } from './global_styles';
 import { globalStyles, constants } from './global_styles';
@@ -27,7 +27,7 @@ const page = StyleSheet.create({
         boxSizing: "border-box",
     },
     middlePanel: {
-        width: "100%",
+        flex: "1 1 0",
         height: "100vh",
         overflowY: "auto",
         overflowX: "hidden",
@@ -38,6 +38,19 @@ const page = StyleSheet.create({
         gap: constants.gap,
         boxSizing: "border-box",
         minWidth: 0,
+    },
+    rightPanel: {
+        flex: "0 0 340px",
+        height: "100vh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        paddingTop: constants.gap + 18,
+        paddingRight: constants.gap,
+        paddingBottom: constants.gap,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        gap: 32,
     },
     backButton: {
         display: "flex",
@@ -130,6 +143,200 @@ const styles = StyleSheet.create({
     },
 });
 
+const chat = StyleSheet.create({
+    title: {
+        fontFamily: "Monda",
+        fontSize: 14,
+        fontWeight: "bold",
+        color: palette.darkenedUninteractive,
+        letterSpacing: 2,
+        paddingLeft: 8,
+        marginBottom: -8,
+    },
+    cardWrap: {
+        position: "relative",
+    },
+    card: {
+        padding: 14,
+        paddingTop: 28,
+    },
+    header: {
+        position: "absolute",
+        top: -16,
+        left: 12,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        height: 32,
+    },
+    avatar: {
+        width: 32,
+        height: 32,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Monda",
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#1a1a1a",
+        flexShrink: 0,
+    },
+    guestAvatar: {
+        width: 32,
+        height: 32,
+        boxSizing: "border-box",
+        border: "2px dashed #585858",
+        backgroundColor: palette.mainColor,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Monda",
+        fontSize: 18,
+        fontWeight: "bold",
+        color: "#585858",
+        flexShrink: 0,
+    },
+    name: {
+        fontFamily: "Monda",
+        fontSize: 13,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        backgroundColor: palette.mainColor,
+        padding: "2px 8px",
+        letterSpacing: 0.5,
+        lineHeight: 1,
+    },
+    text: {
+        fontFamily: "Roboto",
+        fontSize: 13,
+        lineHeight: 1.5,
+        color: "#D4D4D4",
+        display: "block",
+    },
+    loginPrompt: {
+        fontFamily: "Roboto",
+        fontSize: 12,
+        color: palette.darkenedUninteractive,
+        display: "block",
+        marginBottom: 10,
+    },
+    loginRow: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+    },
+    loginButton: {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        backgroundColor: "#1E1E1F",
+        fontFamily: "Monda",
+        fontSize: 13,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        letterSpacing: 0.5,
+    },
+    loginIcon: {
+        width: 18,
+        height: 18,
+        flexShrink: 0,
+    },
+});
+
+const GitHubIcon = () => (
+    <svg className={css(chat.loginIcon)} viewBox="0 0 24 24" fill="#D4D4D4">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+    </svg>
+);
+
+const GoogleIcon = () => (
+    <svg className={css(chat.loginIcon)} viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+        <path fill="#FBBC04" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+);
+
+interface AvatarSpec {
+    color: string;
+    initial: string;
+}
+
+interface ChatMessage {
+    avatar: AvatarSpec;
+    name: string;
+    text: string;
+}
+
+const Avatar: React.FC<AvatarSpec> = ({ color, initial }) => (
+    <div className={css(chat.avatar)} style={{ backgroundColor: color }}>
+        {initial}
+    </div>
+);
+
+const MessageCard: React.FC<ChatMessage> = ({ avatar, name, text }) => (
+    <div className={css(chat.cardWrap)}>
+        <div className={css(globalStyles.substrate, chat.card)}>
+            <span className={css(chat.text)}>{text}</span>
+        </div>
+        <div className={css(chat.header)}>
+            <Avatar {...avatar} />
+            <span className={css(chat.name)}>{name}</span>
+        </div>
+    </div>
+);
+
+const LoginCard = () => (
+    <div className={css(chat.cardWrap)}>
+        <div className={css(globalStyles.substrate, chat.card)}>
+            <span className={css(chat.loginPrompt)}>
+                Sign in to leave a message
+            </span>
+            <div className={css(chat.loginRow)}>
+                <div className={css(globalStyles.pressable, chat.loginButton)}>
+                    <GitHubIcon />
+                    <span>CONTINUE WITH GITHUB</span>
+                </div>
+                <div className={css(globalStyles.pressable, chat.loginButton)}>
+                    <GoogleIcon />
+                    <span>CONTINUE WITH GOOGLE</span>
+                </div>
+            </div>
+        </div>
+        <div className={css(chat.header)}>
+            <div className={css(chat.guestAvatar)}>?</div>
+            <span className={css(chat.name)}>guest</span>
+        </div>
+    </div>
+);
+
+const chatStub: ChatMessage[] = [
+    {
+        avatar: { color: "#7AB8FF", initial: "L" },
+        name: "linus",
+        text: "Concurrency model looks suspect — what guarantees ordering across the barriers here?",
+    },
+    {
+        avatar: { color: "#FFB87A", initial: "A" },
+        name: "ada",
+        text: "Agree on the ordering question. The acquire/release pair downstream should cover it, but I'd want a written invariant.",
+    },
+    {
+        avatar: { color: "#B87AFF", initial: "G" },
+        name: "grace",
+        text: "Why not a lock-free queue? You'd avoid this whole class of issue.",
+    },
+    {
+        avatar: { color: "#7AFFB8", initial: "D" },
+        name: "dijkstra",
+        text: "Premature. Establish correctness first, performance second.",
+    },
+];
+
 const BackToMain = () => {
     const navigate = useNavigate();
     return (
@@ -174,6 +381,11 @@ export const ArticlePage = () => {
                         <Markdown>{markdown}</Markdown>
                     </div>
                 </div>
+            </div>
+            <div className={css(page.rightPanel)}>
+                <span className={css(chat.title)}>CHAT</span>
+                <LoginCard />
+                {chatStub.map((m, i) => <MessageCard key={i} {...m} />)}
             </div>
         </div>
     );
