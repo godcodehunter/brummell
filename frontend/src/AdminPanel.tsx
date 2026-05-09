@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { StyleSheet, css } from "aphrodite";
 import { globalStyles, palette } from "./global_styles";
+import { ArticleCreator } from "./components/ArticleCreator";
 
 const TOKEN_STORAGE_KEY = "authToken";
 
@@ -295,7 +296,7 @@ export const AdminPanel = () => {
 
     return (
         <div style={{ color: palette.fontColor }}>
-            {/* TODO: admin content */}
+            <ArticleCreator />
         </div>
     );
 };

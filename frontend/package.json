@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.11.8",
+    "@monaco-editor/react": "^4.7.0",
     "aphrodite": "^2.4.0",
     "chroma-js": "^3.1.2",
     "graphql": "^16.9.0",
