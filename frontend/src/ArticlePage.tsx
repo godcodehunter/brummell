@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown'
 import { palette } from './global_styles';
 import { globalStyles, constants } from './global_styles';
 import { StyleSheet, css } from 'aphrodite';
-import { Category, NodeTag, TreeCard } from './components/TreeCard';
+import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as Arrow } from './resource/back.svg';
 
@@ -88,49 +88,107 @@ const page = StyleSheet.create({
     },
 });
 
+const cat = (id: string, label: string, items: [string, string][]): Category => ({
+    tag: NodeTag.Category,
+    id,
+    label,
+    children: items.map(([itemId, itemLabel]) => ({
+        tag: NodeTag.Item,
+        id: itemId,
+        label: itemLabel,
+    } as Item)),
+});
+
 const tocStub: Category[] = [
-    {
-        tag: NodeTag.Category,
-        label: "Introduction",
-        children: [
-            { tag: NodeTag.Item, label: "Motivation" },
-            { tag: NodeTag.Item, label: "Goals" },
-        ],
-    },
-    {
-        tag: NodeTag.Category,
-        label: "Background",
-        children: [
-            { tag: NodeTag.Item, label: "Prior work" },
-            { tag: NodeTag.Item, label: "Definitions" },
-        ],
-    },
-    {
-        tag: NodeTag.Category,
-        label: "Approach",
-        children: [
-            { tag: NodeTag.Item, label: "Method" },
-            { tag: NodeTag.Item, label: "Implementation" },
-            { tag: NodeTag.Item, label: "Edge cases" },
-        ],
-    },
-    {
-        tag: NodeTag.Category,
-        label: "Results",
-        children: [
-            { tag: NodeTag.Item, label: "Benchmarks" },
-            { tag: NodeTag.Item, label: "Discussion" },
-        ],
-    },
-    {
-        tag: NodeTag.Category,
-        label: "Conclusion",
-        children: [
-            { tag: NodeTag.Item, label: "Summary" },
-            { tag: NodeTag.Item, label: "Future work" },
-        ],
-    },
+    cat("introduction", "Introduction", [
+        ["intro-motivation", "Motivation"],
+        ["intro-goals", "Goals"],
+    ]),
+    cat("background", "Background", [
+        ["bg-prior-work", "Prior work"],
+        ["bg-definitions", "Definitions"],
+    ]),
+    cat("approach", "Approach", [
+        ["app-method", "Method"],
+        ["app-implementation", "Implementation"],
+        ["app-edge-cases", "Edge cases"],
+    ]),
+    cat("results", "Results", [
+        ["res-benchmarks", "Benchmarks"],
+        ["res-discussion", "Discussion"],
+    ]),
+    cat("conclusion", "Conclusion", [
+        ["concl-summary", "Summary"],
+        ["concl-future-work", "Future work"],
+    ]),
 ];
+
+// Walk the TOC in document order. Categories and items both produce sections
+// (a Category section is the heading + lead-in, then its child items follow).
+const flattenForScroll = (nodes: Node[]): { id: string, level: number, label: string }[] => {
+    const out: { id: string, level: number, label: string }[] = [];
+    const walk = (ns: Node[], level: number) => {
+        for (const n of ns) {
+            out.push({ id: n.id, level, label: n.label });
+            if (n.tag === NodeTag.Category) walk(n.children, level + 1);
+        }
+    };
+    walk(nodes, 0);
+    return out;
+};
+
+const FILLER = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.`;
+
+const sectionStyles = StyleSheet.create({
+    section: {
+        scrollMarginTop: 80,
+        marginBottom: 24,
+    },
+    h2: {
+        fontFamily: "Monda",
+        fontSize: 22,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        marginTop: 32,
+        marginBottom: 8,
+    },
+    h3: {
+        fontFamily: "Monda",
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        marginTop: 20,
+        marginBottom: 6,
+    },
+    p: {
+        fontFamily: "Roboto",
+        fontSize: 14,
+        lineHeight: 1.6,
+        color: "#D4D4D4",
+        marginBottom: 12,
+    },
+});
+
+const ArticleBody: React.FC = () => (
+    <>
+        {tocStub.map(category => (
+            <React.Fragment key={category.id}>
+                <section id={category.id} className={css(sectionStyles.section)}>
+                    <h2 className={css(sectionStyles.h2)}>{category.label}</h2>
+                    <p className={css(sectionStyles.p)}>{FILLER}</p>
+                </section>
+                {category.children.map(item => (
+                    <section key={item.id} id={item.id} className={css(sectionStyles.section)}>
+                        <h3 className={css(sectionStyles.h3)}>{item.label}</h3>
+                        <p className={css(sectionStyles.p)}>{FILLER}</p>
+                        <p className={css(sectionStyles.p)}>{FILLER}</p>
+                        <p className={css(sectionStyles.p)}>{FILLER}</p>
+                    </section>
+                ))}
+            </React.Fragment>
+        ))}
+    </>
+);
 
 const styles = StyleSheet.create({
     headline: {
@@ -352,8 +410,84 @@ const BackToMain = () => {
     );
 };
 
+// Active = section whose body covers the reading point at ~40% of the
+// viewport height. Picking a point well below the top edge means the
+// highlighted item matches what the user is actually looking at, not the
+// section whose heading just barely scrolled past the top.
+const READING_POINT_RATIO = 0.4;
+
+interface ScrollState {
+    activeId: string | undefined;
+    visibleIds: string[];
+}
+
+const useScrollState = (
+    scrollerRef: React.RefObject<HTMLElement>,
+    sectionIds: string[],
+): ScrollState => {
+    const [state, setState] = useState<ScrollState>({ activeId: sectionIds[0], visibleIds: [] });
+    const idsKey = sectionIds.join("|");
+
+    useEffect(() => {
+        const scroller = scrollerRef.current;
+        if (!scroller) return;
+
+        let pending = false;
+        const compute = () => {
+            pending = false;
+            const scrollerRect = scroller.getBoundingClientRect();
+            const readingPoint = scrollerRect.height * READING_POINT_RATIO;
+            let activeCandidate: string | undefined = sectionIds[0];
+            const visible: string[] = [];
+            for (const id of sectionIds) {
+                const el = scroller.querySelector(`#${CSS.escape(id)}`) as HTMLElement | null;
+                if (!el) continue;
+                const rect = el.getBoundingClientRect();
+                const offsetTop = rect.top - scrollerRect.top;
+                const offsetBottom = rect.bottom - scrollerRect.top;
+                if (offsetBottom > 0 && offsetTop < scrollerRect.height) {
+                    visible.push(id);
+                }
+                if (offsetTop <= readingPoint) {
+                    activeCandidate = id;
+                }
+            }
+            setState(prev => {
+                const sameActive = prev.activeId === activeCandidate;
+                const sameVisible = prev.visibleIds.length === visible.length
+                    && prev.visibleIds.every((v, i) => v === visible[i]);
+                if (sameActive && sameVisible) return prev;
+                return { activeId: activeCandidate, visibleIds: sameVisible ? prev.visibleIds : visible };
+            });
+        };
+
+        const onScroll = () => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(compute);
+        };
+
+        compute();
+        scroller.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll);
+        return () => {
+            scroller.removeEventListener("scroll", onScroll);
+            window.removeEventListener("resize", onScroll);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scrollerRef, idsKey]);
+
+    return state;
+};
+
 export const ArticlePage = () => {
     const markdown = '# Hi, *Pluto*!'
+    const middlePanelRef = useRef<HTMLDivElement>(null);
+    const sectionIds = useMemo(
+        () => flattenForScroll(tocStub).map(s => s.id),
+        []
+    );
+    const { activeId, visibleIds } = useScrollState(middlePanelRef, sectionIds);
 
     return (
         <div className={css(page.root)}>
@@ -364,13 +498,16 @@ export const ArticlePage = () => {
                 <TreeCard
                     title={"CONTENTS"}
                     data={tocStub}
+                    activeId={activeId}
+                    expandIds={visibleIds}
                     onNodeClick={(node) => {
-                        const kind = node.tag === NodeTag.Category ? "category" : "item";
-                        console.log(`[TreeCard] click ${kind}: "${node.label}"`, node);
+                        const scroller = middlePanelRef.current;
+                        const target = scroller?.querySelector(`#${CSS.escape(node.id)}`) as HTMLElement | null;
+                        if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
                 />
             </div>
-            <div className={css(page.middlePanel)}>
+            <div ref={middlePanelRef} className={css(page.middlePanel)}>
                 <div
                     className={css(globalStyles.substrate)}
                 >
@@ -386,6 +523,7 @@ export const ArticlePage = () => {
                         paddingBottom: constants.gap
                     }}>
                         <Markdown>{markdown}</Markdown>
+                        <ArticleBody />
                     </div>
                 </div>
             </div>

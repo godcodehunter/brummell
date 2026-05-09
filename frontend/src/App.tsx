@@ -233,12 +233,14 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
   byMonths.forEach((v: string[], k: string) => {
     let root : Category = {
       tag: NodeTag.Category,
+      id: k,
       label: k,
       children: [],
     }
     root.children = v.map((i: string) => {
       return {
         tag: NodeTag.Item,
+        id: `${k}/${i}`,
         label: i,
       }
     })
