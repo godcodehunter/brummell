@@ -471,6 +471,38 @@ const chat = StyleSheet.create({
         height: 18,
         flexShrink: 0,
     },
+    composeArea: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+    },
+    composeInput: {
+        backgroundColor: "#1E1E1F",
+        border: "none",
+        outline: "none",
+        resize: "vertical",
+        minHeight: 72,
+        padding: 10,
+        fontFamily: "Roboto",
+        fontSize: 13,
+        lineHeight: 1.5,
+        color: "#D4D4D4",
+    },
+    composeRow: {
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        gap: 8,
+    },
+    composeButton: {
+        padding: "8px 14px",
+        backgroundColor: "#1E1E1F",
+        fontFamily: "Monda",
+        fontSize: 13,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        letterSpacing: 0.5,
+    },
 });
 
 const GitHubIcon = () => (
@@ -517,29 +549,71 @@ const MessageCard: React.FC<ChatMessage> = ({ avatar, name, text }) => (
     </div>
 );
 
-const LoginCard = () => (
-    <div className={css(chat.cardWrap)}>
-        <div className={css(globalStyles.substrate, chat.card)}>
-            <span className={css(chat.loginPrompt)}>
-                Sign in to leave a message
-            </span>
-            <div className={css(chat.loginRow)}>
-                <div className={css(globalStyles.pressable, chat.loginButton)}>
-                    <GitHubIcon />
-                    <span>CONTINUE WITH GITHUB</span>
-                </div>
-                <div className={css(globalStyles.pressable, chat.loginButton)}>
-                    <GoogleIcon />
-                    <span>CONTINUE WITH GOOGLE</span>
+interface ComposerIdentity {
+    avatar: AvatarSpec;
+    name: string;
+}
+
+const ComposeCard: React.FC<{ identity: ComposerIdentity }> = ({ identity }) => {
+    const [text, setText] = useState("");
+    return (
+        <div className={css(chat.cardWrap)}>
+            <div className={css(globalStyles.substrate, chat.card)}>
+                <div className={css(chat.composeArea)}>
+                    <textarea
+                        className={css(chat.composeInput)}
+                        placeholder="Write a message…"
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                    />
+                    <div className={css(chat.composeRow)}>
+                        <div className={css(globalStyles.pressable, chat.composeButton)}>
+                            <span>SEND</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+            <div className={css(chat.header)}>
+                <Avatar {...identity.avatar} />
+                <span className={css(chat.name)}>{identity.name}</span>
+            </div>
         </div>
-        <div className={css(chat.header)}>
-            <div className={css(chat.guestAvatar)}>?</div>
-            <span className={css(chat.name)}>guest</span>
+    );
+};
+
+const LoginCard = () => {
+    const [identity, setIdentity] = useState<ComposerIdentity | null>(null);
+    if (identity) return <ComposeCard identity={identity} />;
+    return (
+        <div className={css(chat.cardWrap)}>
+            <div className={css(globalStyles.substrate, chat.card)}>
+                <span className={css(chat.loginPrompt)}>
+                    Sign in to leave a message
+                </span>
+                <div className={css(chat.loginRow)}>
+                    <div
+                        className={css(globalStyles.pressable, chat.loginButton)}
+                        onClick={() => setIdentity({ avatar: { color: "#D4D4D4", initial: "O" }, name: "octocat" })}
+                    >
+                        <GitHubIcon />
+                        <span>CONTINUE WITH GITHUB</span>
+                    </div>
+                    <div
+                        className={css(globalStyles.pressable, chat.loginButton)}
+                        onClick={() => setIdentity({ avatar: { color: "#7AB8FF", initial: "G" }, name: "google-user" })}
+                    >
+                        <GoogleIcon />
+                        <span>CONTINUE WITH GOOGLE</span>
+                    </div>
+                </div>
+            </div>
+            <div className={css(chat.header)}>
+                <div className={css(chat.guestAvatar)}>?</div>
+                <span className={css(chat.name)}>guest</span>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const chatStub: ChatMessage[] = [
     {
