@@ -23,8 +23,11 @@ const page = StyleSheet.create({
         justifyContent: "flex-start",
         paddingTop: constants.gap,
         paddingLeft: constants.gap,
+        paddingBottom: constants.gap,
         gap: constants.gap,
         boxSizing: "border-box",
+        minHeight: 0,
+        overflow: "hidden",
     },
     middlePanel: {
         flex: "1 1 0",
@@ -38,6 +41,11 @@ const page = StyleSheet.create({
         gap: constants.gap,
         boxSizing: "border-box",
         minWidth: 0,
+        scrollbarWidth: "none",
+        msOverflowStyle: "none",
+        "::-webkit-scrollbar": {
+            display: "none",
+        },
     },
     rightPanel: {
         flex: "0 0 340px",
@@ -88,38 +96,68 @@ const page = StyleSheet.create({
     },
 });
 
-const cat = (id: string, label: string, items: [string, string][]): Category => ({
+const cat = (id: string, label: string, children: Node[]): Category => ({
     tag: NodeTag.Category,
     id,
     label,
-    children: items.map(([itemId, itemLabel]) => ({
-        tag: NodeTag.Item,
-        id: itemId,
-        label: itemLabel,
-    } as Item)),
+    children,
+});
+
+const item = (id: string, label: string): Item => ({
+    tag: NodeTag.Item,
+    id,
+    label,
 });
 
 const tocStub: Category[] = [
-    cat("introduction", "Introduction", [
-        ["intro-motivation", "Motivation"],
-        ["intro-goals", "Goals"],
+    cat("part-1", "Part 1: Survey", [
+        cat("p1-c1", "Chapter 1: Foundations", [
+            cat("p1-c1-s1", "1.1 Definitions", [
+                cat("p1-c1-s1-ss1", "1.1.1 Core terms", [
+                    cat("p1-c1-s1-ss1-sss1", "1.1.1.1 Primitives", [
+                        cat("p1-c1-s1-ss1-sss1-ssss1", "1.1.1.1.1 Atoms", [
+                            item("p1-c1-s1-ss1-sss1-ssss1-i1", "Quark"),
+                            item("p1-c1-s1-ss1-sss1-ssss1-i2", "Lepton"),
+                            item("p1-c1-s1-ss1-sss1-ssss1-i3", "Boson"),
+                        ]),
+                        item("p1-c1-s1-ss1-sss1-i1", "Composition"),
+                        item("p1-c1-s1-ss1-sss1-i2", "Decomposition"),
+                    ]),
+                    item("p1-c1-s1-ss1-i1", "Operators"),
+                    item("p1-c1-s1-ss1-i2", "Relations"),
+                ]),
+                item("p1-c1-s1-i1", "Notation"),
+                item("p1-c1-s1-i2", "Glossary"),
+            ]),
+            cat("p1-c1-s2", "1.2 Axioms", [
+                item("p1-c1-s2-i1", "Reflexivity"),
+                item("p1-c1-s2-i2", "Transitivity"),
+            ]),
+            item("p1-c1-i1", "Conventions"),
+        ]),
+        cat("p1-c2", "Chapter 2: Notation", [
+            item("p1-c2-i1", "Symbols"),
+            item("p1-c2-i2", "Indices"),
+        ]),
+        item("p1-i1", "Roadmap"),
     ]),
-    cat("background", "Background", [
-        ["bg-prior-work", "Prior work"],
-        ["bg-definitions", "Definitions"],
+    cat("part-2", "Part 2: Method", [
+        cat("p2-c1", "Chapter 1: Setup", [
+            item("p2-c1-i1", "Environment"),
+            item("p2-c1-i2", "Tooling"),
+        ]),
+        cat("p2-c2", "Chapter 2: Procedure", [
+            cat("p2-c2-s1", "2.1 Pipeline", [
+                item("p2-c2-s1-i1", "Inputs"),
+                item("p2-c2-s1-i2", "Outputs"),
+            ]),
+            item("p2-c2-i1", "Validation"),
+        ]),
     ]),
-    cat("approach", "Approach", [
-        ["app-method", "Method"],
-        ["app-implementation", "Implementation"],
-        ["app-edge-cases", "Edge cases"],
-    ]),
-    cat("results", "Results", [
-        ["res-benchmarks", "Benchmarks"],
-        ["res-discussion", "Discussion"],
-    ]),
-    cat("conclusion", "Conclusion", [
-        ["concl-summary", "Summary"],
-        ["concl-future-work", "Future work"],
+    cat("part-3", "Part 3: Discussion", [
+        item("p3-i1", "Findings"),
+        item("p3-i2", "Limitations"),
+        item("p3-i3", "Open questions"),
     ]),
 ];
 
@@ -137,7 +175,118 @@ const flattenForScroll = (nodes: Node[]): { id: string, level: number, label: st
     return out;
 };
 
-const FILLER = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.`;
+const itemMarkdown = (label: string) => `
+We turn now to **${label}**, considered from several angles before the synthesis at the end of this section.
+
+Key observations:
+
+- First angle: how *${label}* appears in practice, where the assumptions of the previous chapter no longer hold.
+- Second angle: the trade-offs unique to ${label} — bounded recall vs. unbounded latency, and the cost of refusing either.
+- Third angle: where ${label} interacts with adjacent concerns (caching, retries, idempotency).
+
+A short illustration:
+
+\`\`\`ts
+function evaluate(input: Input): Result {
+    // hot path for ${label}
+    const ctx = prepare(input);
+    return ctx.kind === "fast"
+        ? analyzeFast(ctx)
+        : analyze(ctx);
+}
+\`\`\`
+
+> Authors disagree on the precise framing of **${label}**. The treatment here favours clarity over completeness; readers wanting a more rigorous account should consult the appendix.
+
+Looking ahead, **${label}** sets up the discussion of subsequent sections, where the implications become more concrete. The remaining paragraphs collect supplementary notes that did not fit the main flow.
+
+A second pass over the same material, with more emphasis on edge cases: when ${label} appears alongside concurrent constraints, the picture changes. Most treatments gloss over this — we will not.
+
+The reframing: rather than treating ${label} as a static property, view it as a process. Each invariant we previously described as fixed can instead be examined as a dynamic equilibrium. This perspective dissolves several apparent paradoxes and motivates the construction of the next section.
+
+One last note before moving on. The shorthand \`${label.toLowerCase().replace(/\s+/g, "_")}\` will recur in code samples below; treat it as the canonical identifier.
+`;
+
+const categoryMarkdown = (label: string) => `
+This part covers **${label}**. Each subsection takes one facet and develops it independently; readers comfortable with ${label} may skim the lead-in and jump straight to the topic of interest.
+`;
+
+const markdownBody = StyleSheet.create({
+    p: {
+        fontFamily: "Roboto",
+        fontSize: 14,
+        lineHeight: 1.6,
+        color: "#D4D4D4",
+        marginTop: 0,
+        marginBottom: 12,
+    },
+    ul: {
+        color: "#D4D4D4",
+        fontFamily: "Roboto",
+        fontSize: 14,
+        lineHeight: 1.6,
+        paddingLeft: 24,
+        marginTop: 0,
+        marginBottom: 12,
+    },
+    ol: {
+        color: "#D4D4D4",
+        fontFamily: "Roboto",
+        fontSize: 14,
+        lineHeight: 1.6,
+        paddingLeft: 24,
+        marginTop: 0,
+        marginBottom: 12,
+    },
+    li: {
+        marginBottom: 4,
+    },
+    inlineCode: {
+        fontFamily: "monospace",
+        fontSize: 13,
+        backgroundColor: "#1E1E1F",
+        color: "#FFB87A",
+        padding: "2px 6px",
+        borderRadius: 2,
+    },
+    pre: {
+        backgroundColor: "#1E1E1F",
+        padding: 12,
+        marginTop: 0,
+        marginBottom: 16,
+        overflowX: "auto",
+        fontFamily: "monospace",
+        fontSize: 13,
+        color: "#D4D4D4",
+        borderLeft: "3px solid #4A9EFF",
+    },
+    blockquote: {
+        borderLeft: "3px solid #585858",
+        paddingLeft: 12,
+        margin: "12px 0",
+        color: "#ABABAB",
+        fontStyle: "italic",
+    },
+    strong: {
+        fontWeight: "bold",
+        color: "#FFFFFF",
+    },
+});
+
+const mdComponents = {
+    p: ({children}: any) => <p className={css(markdownBody.p)}>{children}</p>,
+    ul: ({children}: any) => <ul className={css(markdownBody.ul)}>{children}</ul>,
+    ol: ({children}: any) => <ol className={css(markdownBody.ol)}>{children}</ol>,
+    li: ({children}: any) => <li className={css(markdownBody.li)}>{children}</li>,
+    pre: ({children}: any) => <pre className={css(markdownBody.pre)}>{children}</pre>,
+    // Inside <pre>, react-markdown gives <code> a `language-*` className; outside it's bare.
+    code: ({children, className}: any) =>
+        className?.startsWith("language-")
+            ? <code className={className}>{children}</code>
+            : <code className={css(markdownBody.inlineCode)}>{children}</code>,
+    blockquote: ({children}: any) => <blockquote className={css(markdownBody.blockquote)}>{children}</blockquote>,
+    strong: ({children}: any) => <strong className={css(markdownBody.strong)}>{children}</strong>,
+};
 
 const sectionStyles = StyleSheet.create({
     section: {
@@ -169,26 +318,36 @@ const sectionStyles = StyleSheet.create({
     },
 });
 
-const ArticleBody: React.FC = () => (
+const headingStyle = (depth: number): React.CSSProperties => ({
+    fontFamily: "Monda",
+    fontSize: Math.max(13, 24 - depth * 2),
+    fontWeight: "bold",
+    color: "#D4D4D4",
+    marginTop: depth === 0 ? 32 : 20,
+    marginBottom: 8,
+});
+
+const SectionTree: React.FC<{nodes: Node[], depth: number}> = ({nodes, depth}) => (
     <>
-        {tocStub.map(category => (
-            <React.Fragment key={category.id}>
-                <section id={category.id} className={css(sectionStyles.section)}>
-                    <h2 className={css(sectionStyles.h2)}>{category.label}</h2>
-                    <p className={css(sectionStyles.p)}>{FILLER}</p>
-                </section>
-                {category.children.map(item => (
-                    <section key={item.id} id={item.id} className={css(sectionStyles.section)}>
-                        <h3 className={css(sectionStyles.h3)}>{item.label}</h3>
-                        <p className={css(sectionStyles.p)}>{FILLER}</p>
-                        <p className={css(sectionStyles.p)}>{FILLER}</p>
-                        <p className={css(sectionStyles.p)}>{FILLER}</p>
+        {nodes.map(node => {
+            const HeadingTag = (`h${Math.min(depth + 2, 6)}` as React.ElementType);
+            const md = node.tag === NodeTag.Category ? categoryMarkdown(node.label) : itemMarkdown(node.label);
+            return (
+                <React.Fragment key={node.id}>
+                    <section id={node.id} className={css(sectionStyles.section)}>
+                        <HeadingTag style={headingStyle(depth)}>{node.label}</HeadingTag>
+                        <Markdown components={mdComponents}>{md}</Markdown>
                     </section>
-                ))}
-            </React.Fragment>
-        ))}
+                    {node.tag === NodeTag.Category && node.children.length > 0 && (
+                        <SectionTree nodes={node.children} depth={depth + 1}/>
+                    )}
+                </React.Fragment>
+            );
+        })}
     </>
 );
+
+const ArticleBody: React.FC = () => <SectionTree nodes={tocStub} depth={0}/>;
 
 const styles = StyleSheet.create({
     headline: {

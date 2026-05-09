@@ -5,10 +5,13 @@ import { globalStyles, palette } from '../global_styles';
 
 const INDENT_STEP = 12;
 const BASE_PADDING_X = 12;
+const ROW_HEIGHT = 24;
+const SCROLL_AREA_BG = "#1E1E1F";
 
 const rowPadding = (depth: number) => ({
     paddingLeft: BASE_PADDING_X + depth * INDENT_STEP,
     paddingRight: BASE_PADDING_X,
+    lineHeight: `${ROW_HEIGHT}px`,
 });
 
 const baseRow = StyleSheet.create({
@@ -31,6 +34,23 @@ const categoryRow = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
+        position: "sticky",
+        backgroundColor: SCROLL_AREA_BG,
+        zIndex: 1,
+    },
+    // VSCode-style depth shadow — applied only when the header is actually
+    // pinned (detected via scroll listener), not when it's at its natural row.
+    stuck: {
+        "::after": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "100%",
+            height: 6,
+            background: "linear-gradient(rgba(0, 0, 0, 0.35), transparent)",
+            pointerEvents: "none",
+        },
     },
     label: {
         flexGrow: 1,
@@ -54,6 +74,7 @@ interface CategoryRowProps {
     onClick?: () => void,
     isOpen: boolean,
     active: boolean,
+    stuck: boolean,
     depth: number,
 }
 
@@ -65,14 +86,16 @@ const GroupRow: React.FC<CategoryRowProps> = ({
     onToggle,
     onClick,
     active,
+    stuck,
     depth,
 }) => {
     const Icon = isOpen ? MinusInSquare : PlusInSquare;
     return (
         <div
             data-tree-node-id={nodeId}
-            className={css(onClick && baseRow.interactive, active && baseRow.active, categoryRow.row)}
-            style={rowPadding(depth)}
+            data-tree-category=""
+            className={css(categoryRow.row, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
+            style={{...rowPadding(depth), top: depth * ROW_HEIGHT}}
             onClick={onClick}
         >
             <Icon
@@ -118,20 +141,29 @@ interface TreeProps {
     openIds: Set<string>,
     onToggle: (id: string) => void,
     highlightedIds: Set<string>,
+    stuckIds: Set<string>,
 }
 
-const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedIds}: TreeProps) => {
+const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedIds, stuckIds}: TreeProps) => {
     const isOpen = openIds.has(node.id);
+    const renderedNode = (
+        <Component
+            node={node}
+            isOpen={isOpen}
+            depth={depth}
+            active={highlightedIds.has(node.id)}
+            stuck={stuckIds.has(node.id)}
+            onToggle={() => onToggle(node.id)}
+        />
+    );
+    if (node.tag !== NodeTag.Category) return renderedNode;
+    // Wrap each Category subtree so position:sticky on the header is scoped
+    // to this subtree's bounds — when scrolled past the wrapper, the header
+    // releases instead of staying pinned over unrelated siblings.
     return (
-        <>
-            <Component
-                node={node}
-                isOpen={isOpen}
-                depth={depth}
-                active={highlightedIds.has(node.id)}
-                onToggle={() => onToggle(node.id)}
-            />
-            {node.tag === NodeTag.Category && isOpen && node.children.map((n) =>
+        <div>
+            {renderedNode}
+            {isOpen && node.children.map((n) =>
                 <Tree
                     key={n.id}
                     node={n}
@@ -140,9 +172,10 @@ const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedId
                     openIds={openIds}
                     onToggle={onToggle}
                     highlightedIds={highlightedIds}
+                    stuckIds={stuckIds}
                 />
             )}
-        </>
+        </div>
     );
 });
 
@@ -169,10 +202,25 @@ const timelineCard = StyleSheet.create({
     content: {
         display: "flex",
         flexDirection: "column",
+        flexGrow: 1,
+        minHeight: 0,
     },
     headline: {
         marginLeft: 8,
-    }
+    },
+    scrollArea: {
+        backgroundColor: SCROLL_AREA_BG,
+        flexGrow: 1,
+        flexShrink: 1,
+        flexBasis: "auto",
+        minHeight: 0,
+        paddingTop: 8,
+        paddingBottom: 8,
+        display: "flex",
+        flexDirection: "column",
+        overflowY: "auto",
+        overflowX: "hidden",
+    },
 });
 
 // Returns the path from the root to `targetId` inclusive, or null if not found.
@@ -201,7 +249,48 @@ interface TreeCardProps {
 
 export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNodeClick, activeId, expandIds}) => {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
+    const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // Detect which sticky category headers are actually pinned (vs at their
+    // natural position). A row is pinned when it sits below its wrapper's
+    // top — meaning the wrapper has scrolled past but hasn't ended yet.
+    useEffect(() => {
+        const scroller = containerRef.current;
+        if (!scroller) return;
+        let pending = false;
+        const compute = () => {
+            pending = false;
+            const scrollerTop = scroller.getBoundingClientRect().top;
+            const next = new Set<string>();
+            scroller.querySelectorAll<HTMLElement>("[data-tree-category]").forEach(row => {
+                const wrapper = row.parentElement;
+                if (!wrapper) return;
+                const wrapperTop = wrapper.getBoundingClientRect().top - scrollerTop;
+                const rowTop = row.getBoundingClientRect().top - scrollerTop;
+                if (rowTop > wrapperTop + 0.5) {
+                    const id = row.getAttribute("data-tree-node-id");
+                    if (id) next.add(id);
+                }
+            });
+            setStuckIds(prev => {
+                if (prev.size === next.size) {
+                    let same = true;
+                    for (const id of prev) if (!next.has(id)) { same = false; break; }
+                    if (same) return prev;
+                }
+                return next;
+            });
+        };
+        const onScroll = () => {
+            if (pending) return;
+            pending = true;
+            requestAnimationFrame(compute);
+        };
+        compute();
+        scroller.addEventListener("scroll", onScroll, { passive: true });
+        return () => scroller.removeEventListener("scroll", onScroll);
+    }, [openIds, data]);
 
     const expandKey = (expandIds ?? []).join("|");
     // Highlighted set: anything in expandIds is highlighted, plus activeId (kept
@@ -261,8 +350,8 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
         });
     };
 
-    const Component = ({node, onToggle, isOpen, depth, active}: {
-        node: Node, onToggle: () => void, isOpen: boolean, depth: number, active: boolean
+    const Component = ({node, onToggle, isOpen, depth, active, stuck}: {
+        node: Node, onToggle: () => void, isOpen: boolean, depth: number, active: boolean, stuck: boolean
     }) => {
         switch(node.tag) {
             case NodeTag.Category:
@@ -276,6 +365,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         onClick={onNodeClick ? () => onNodeClick(node) : undefined}
                         depth={depth}
                         active={active}
+                        stuck={stuck}
                     />
                 );
             case NodeTag.Item:
@@ -292,26 +382,15 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
     };
 
     return (
-        <div className={css(globalStyles.substrate)} style={{...style}}>
+        <div className={css(globalStyles.substrate)} style={{display: "flex", flexDirection: "column", minHeight: 0, ...style}}>
             <div className={css(timelineCard.content)}>
                 <span className={css(globalStyles.headline, timelineCard.headline)}>
                     {title}
                 </span>
                 <div
                     ref={containerRef}
-                    style={{
-                        // substrate
-                        backgroundColor: "#1E1E1F",
-                        flexGrow: 1,
-                        paddingTop: 8,
-                        paddingBottom: 8,
-                        // container
-                        display: "flex",
-                        flexDirection: "column",
-                        // scrollable
-                        maxHeight: 500,
-                        overflowX: "auto",
-                    }}>
+                    className={css(timelineCard.scrollArea)}
+                >
                     {data.length !== 0 ? data.map((e) => (
                         <Tree
                             key={e.id}
@@ -320,6 +399,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                             openIds={openIds}
                             onToggle={handleToggle}
                             highlightedIds={highlightedIds}
+                            stuckIds={stuckIds}
                         />)
                     ) : (
                         <ContentRow
