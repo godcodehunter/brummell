@@ -371,14 +371,18 @@ const styles = StyleSheet.create({
 });
 
 const chat = StyleSheet.create({
+    titleCard: {
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+        padding: "10px 14px",
+    },
     title: {
         fontFamily: "Monda",
         fontSize: 14,
         fontWeight: "bold",
         color: palette.darkenedUninteractive,
         letterSpacing: 2,
-        paddingLeft: 8,
-        marginBottom: -8,
     },
     cardWrap: {
         position: "relative",
@@ -771,9 +775,11 @@ export const ArticlePage = () => {
                 </div>
             </div>
             <div className={css(page.rightPanel)}>
-                <span className={css(chat.title)}>CHAT</span>
-                <LoginCard />
+                <div className={css(globalStyles.substrate, chat.titleCard)}>
+                    <span className={css(chat.title)}>CHAT</span>
+                </div>
                 {chatStub.map((m, i) => <MessageCard key={i} {...m} />)}
+                <LoginCard />
             </div>
         </div>
     );
