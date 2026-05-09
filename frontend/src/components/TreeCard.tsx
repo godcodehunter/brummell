@@ -33,9 +33,15 @@ const categoryRow = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: 6,
-        position: "sticky",
         backgroundColor: SCROLL_AREA_BG,
-        zIndex: 1,
+    },
+    // Sticky behavior is applied only to categories on the path to the active
+    // item — sibling branches that happen to be open shouldn't compete for
+    // sticky slots in the header stack. z-index is set inline per-row from
+    // depth so outer (root-side) headers always paint above inner ones, even
+    // mid-scroll when an inner row slides up through an outer's pinned slot.
+    sticky: {
+        position: "sticky",
     },
     // VSCode-style depth shadow — applied only when the header is actually
     // pinned (detected via scroll listener), not when it's at its natural row.
@@ -89,12 +95,16 @@ const GroupRow: React.FC<CategoryRowProps> = ({
     depth,
 }) => {
     const Icon = isOpen ? MinusInSquare : PlusInSquare;
+    // Sticky for any open category with rendered children — wrapper-scoped
+    // sticky lets each subtree pin its header while its own children scroll,
+    // and sibling subtrees take over as the user scrolls between them.
+    const isSticky = isOpen && itemCount > 0;
     return (
         <div
             data-tree-node-id={nodeId}
-            data-tree-category=""
-            className={css(categoryRow.row, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
-            style={{...rowPadding(depth), top: depth * ROW_HEIGHT}}
+            data-tree-category={isSticky ? "" : undefined}
+            className={css(categoryRow.row, isSticky && categoryRow.sticky, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
+            style={isSticky ? {...rowPadding(depth), top: depth * ROW_HEIGHT, zIndex: 100 - depth} : rowPadding(depth)}
             onClick={onClick}
         >
             <Icon
@@ -251,9 +261,14 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
     const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // Detect which sticky category headers are actually pinned (vs at their
-    // natural position). A row is pinned when it sits below its wrapper's
-    // top — meaning the wrapper has scrolled past but hasn't ended yet.
+    // Detect pinned sticky headers, then keep only those that are EITHER:
+    //   (a) the deepest pinned in their chain — the row directly under them
+    //       is real scrolling content (items), or
+    //   (b) themselves in release/slide phase — wrapper bottom dropped below
+    //       sticky-top + height, so the header is sliding up over the next
+    //       sticky slot.
+    // Both cases are moments where something is actually moving under/at the
+    // pinned header, which is when a depth shadow is meaningful.
     useEffect(() => {
         const scroller = containerRef.current;
         if (!scroller) return;
@@ -261,17 +276,36 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
         const compute = () => {
             pending = false;
             const scrollerTop = scroller.getBoundingClientRect().top;
-            const next = new Set<string>();
+            const pinned: { id: string; wrapper: HTMLElement; sliding: boolean }[] = [];
             scroller.querySelectorAll<HTMLElement>("[data-tree-category]").forEach(row => {
                 const wrapper = row.parentElement;
                 if (!wrapper) return;
                 const wrapperTop = wrapper.getBoundingClientRect().top - scrollerTop;
                 const rowTop = row.getBoundingClientRect().top - scrollerTop;
-                if (rowTop > wrapperTop + 0.5) {
-                    const id = row.getAttribute("data-tree-node-id");
-                    if (id) next.add(id);
-                }
+                const stickyTop = parseFloat(row.style.top || "0");
+                const isPinned = rowTop > wrapperTop + 0.5;
+                if (!isPinned) return;
+                const id = row.getAttribute("data-tree-node-id");
+                if (!id) return;
+                const sliding = rowTop < stickyTop - 0.5;
+                pinned.push({ id, wrapper, sliding });
             });
+            // Only STATICALLY-pinned descendants block the shadow — they sit
+            // motionless directly below their parent. A sliding descendant is
+            // itself moving, so the parent above it sees motion and qualifies
+            // for shadow (covers the case: Atoms sliding ⇒ shadow on Primitives).
+            const staticPinnedIds = new Set(pinned.filter(p => !p.sliding).map(p => p.id));
+            const next = new Set<string>();
+            for (const { id, wrapper } of pinned) {
+                let hasStaticPinnedDescendant = false;
+                wrapper.querySelectorAll<HTMLElement>("[data-tree-category]").forEach(descRow => {
+                    const descId = descRow.getAttribute("data-tree-node-id");
+                    if (descId && descId !== id && staticPinnedIds.has(descId)) {
+                        hasStaticPinnedDescendant = true;
+                    }
+                });
+                if (!hasStaticPinnedDescendant) next.add(id);
+            }
             setStuckIds(prev => {
                 if (prev.size === next.size) {
                     let same = true;

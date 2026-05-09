@@ -120,6 +120,16 @@ const tocStub: Category[] = [
                             item("p1-c1-s1-ss1-sss1-ssss1-i2", "Lepton"),
                             item("p1-c1-s1-ss1-sss1-ssss1-i3", "Boson"),
                         ]),
+                        cat("p1-c1-s1-ss1-sss1-ssss2", "1.1.1.1.2 Forces", [
+                            item("p1-c1-s1-ss1-sss1-ssss2-i1", "Strong"),
+                            item("p1-c1-s1-ss1-sss1-ssss2-i2", "Weak"),
+                            item("p1-c1-s1-ss1-sss1-ssss2-i3", "Electromagnetic"),
+                            item("p1-c1-s1-ss1-sss1-ssss2-i4", "Gravity"),
+                        ]),
+                        cat("p1-c1-s1-ss1-sss1-ssss3", "1.1.1.1.3 Fields", [
+                            item("p1-c1-s1-ss1-sss1-ssss3-i1", "Higgs"),
+                            item("p1-c1-s1-ss1-sss1-ssss3-i2", "Gauge"),
+                        ]),
                         item("p1-c1-s1-ss1-sss1-i1", "Composition"),
                         item("p1-c1-s1-ss1-sss1-i2", "Decomposition"),
                     ]),
