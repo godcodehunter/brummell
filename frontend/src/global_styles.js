@@ -20,5 +20,16 @@ export const globalStyles = StyleSheet.create({
     fontSize: "12px",
     lineHeight: "26px",
     alignItems: "center",
-  },  
+  },
+  pressable: {
+    cursor: "pointer",
+    transition: "transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out",
+    ":hover": {
+      backgroundColor: "#3A3A3A",
+    },
+    ":active": {
+      transform: "translate(4px, 4px)",
+      boxShadow: "4px 4px 0px rgba(0, 0, 0, 0.25)",
+    },
+  },
 });

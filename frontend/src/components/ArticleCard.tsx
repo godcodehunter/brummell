@@ -70,12 +70,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <>
         <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-        <div 
-            className={css(globalStyles.substrate)}
-            style={{
-                cursor: "pointer",
-                ...style,
-            }} 
+        <div
+            className={css(globalStyles.substrate, globalStyles.pressable)}
+            style={style}
             onClick={onOpen}
         >
             <div style={{display: "flex", flexDirection: "column"}}>
