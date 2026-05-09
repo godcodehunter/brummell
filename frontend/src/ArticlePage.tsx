@@ -361,7 +361,14 @@ export const ArticlePage = () => {
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
             <div className={css(page.leftPanel)}>
                 <BackToMain />
-                <TreeCard title={"CONTENTS"} data={tocStub} />
+                <TreeCard
+                    title={"CONTENTS"}
+                    data={tocStub}
+                    onNodeClick={(node) => {
+                        const kind = node.tag === NodeTag.Category ? "category" : "item";
+                        console.log(`[TreeCard] click ${kind}: "${node.label}"`, node);
+                    }}
+                />
             </div>
             <div className={css(page.middlePanel)}>
                 <div

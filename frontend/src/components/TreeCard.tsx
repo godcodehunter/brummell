@@ -3,9 +3,21 @@ import { StyleSheet, css } from 'aphrodite';
 import { PlusInSquare, MinusInSquare } from '../resource/icons';
 import { globalStyles, palette } from '../global_styles';
 
+const INDENT_STEP = 12;
+const BASE_PADDING_X = 12;
+
+const rowPadding = (depth: number) => ({
+    paddingLeft: BASE_PADDING_X + depth * INDENT_STEP,
+    paddingRight: BASE_PADDING_X,
+});
+
 const baseRow = StyleSheet.create({
-    row: {
-        // height: 18,
+    interactive: {
+        cursor: "pointer",
+        transition: "background-color 80ms ease-out",
+        ":hover": {
+            backgroundColor: "#3A3A3A",
+        },
     },
 });
 
@@ -33,24 +45,32 @@ const categoryRow = StyleSheet.create({
 interface CategoryRowProps {
     label: string,
     itemCount: number,
-    onClick: () => void,
+    onToggle: () => void,
+    onClick?: () => void,
     isOpen: boolean,
+    depth: number,
 }
 
 const GroupRow: React.FC<CategoryRowProps> = ({
-    label, 
-    itemCount, 
-    isOpen, 
+    label,
+    itemCount,
+    isOpen,
+    onToggle,
     onClick,
+    depth,
 }) => {
-    const Icon = isOpen ? MinusInSquare : PlusInSquare;    
+    const Icon = isOpen ? MinusInSquare : PlusInSquare;
     return (
-        <div className={css(baseRow.row, categoryRow.row)}>
-            <Icon 
+        <div
+            className={css(onClick && baseRow.interactive, categoryRow.row)}
+            style={rowPadding(depth)}
+            onClick={onClick}
+        >
+            <Icon
                 className={css(categoryRow.toggleIcon)}
                 //TODO: try move to style
-                fill="#ABABAB" 
-                onClick={onClick}
+                fill="#ABABAB"
+                onClick={(e) => { e.stopPropagation(); onToggle(); }}
             />
             <span className={css(categoryRow.label)}>
                 {label}
@@ -62,29 +82,34 @@ const GroupRow: React.FC<CategoryRowProps> = ({
     );
 };
 
-const ContentRow = ({label, style}: {label: string, style?: any}) => (
-    <div className={css(baseRow.row)} style={style}>{label}</div>
+const ContentRow = ({label, style, onClick, depth = 0}: {label: string, style?: any, onClick?: () => void, depth?: number}) => (
+    <div
+        className={css(onClick && baseRow.interactive)}
+        style={{...rowPadding(depth), ...style}}
+        onClick={onClick}
+    >
+        {label}
+    </div>
 );
 
-const Tree = memo(({node, Component}: {node: any, Component: any}) => {
+const Tree = memo(({node, Component, depth = 0}: {node: any, Component: any, depth?: number}) => {
     const [isOpen, setOpen] = useState(false);
     return (
         <>
-            <Component 
-                onClick={()=>setOpen(!isOpen)} 
-                node={node} 
+            <Component
+                onToggle={() => setOpen(!isOpen)}
+                node={node}
                 isOpen={isOpen}
+                depth={depth}
             />
-            {node.children && isOpen && <div style={{paddingLeft: 12}}>
-                {node.children.map((n: any, i: number) => 
-                    <Tree key={i} node={n} Component={Component}/>
-                )}
-            </div>}
+            {node.children && isOpen && node.children.map((n: any, i: number) =>
+                <Tree key={i} node={n} Component={Component} depth={depth + 1}/>
+            )}
         </>
     );
 });
 
-type Node = Category | Item;
+export type Node = Category | Item;
 export enum NodeTag {
     Category,
     Item,
@@ -96,7 +121,7 @@ export interface Category {
     children: Node[],
 }
 
-interface Item {
+export interface Item {
     tag: NodeTag.Item,
     label: string,
 }
@@ -111,21 +136,27 @@ const timelineCard = StyleSheet.create({
     }
 });
 
-export const TreeCard = ({data, title, style={}}: {data: Node[], title: string, style?: any}) => {
-    const Component = ({node, onClick, isOpen}: {node: Node, onClick: any, isOpen: any}) => {
+export const TreeCard = ({data, title, style={}, onNodeClick}: {data: Node[], title: string, style?: any, onNodeClick?: (node: Node) => void}) => {
+    const Component = ({node, onToggle, isOpen, depth}: {node: Node, onToggle: () => void, isOpen: boolean, depth: number}) => {
         switch(node.tag) {
-            case NodeTag.Category: 
+            case NodeTag.Category:
                 return (
-                    <GroupRow 
-                        label={node.label} 
+                    <GroupRow
+                        label={node.label}
                         itemCount={node.children.length}
                         isOpen={isOpen}
-                        onClick={onClick}
+                        onToggle={onToggle}
+                        onClick={onNodeClick ? () => onNodeClick(node) : undefined}
+                        depth={depth}
                     />
                 );
             case NodeTag.Item:
                 return (
-                    <ContentRow label={node.label}/>
+                    <ContentRow
+                        label={node.label}
+                        onClick={onNodeClick ? () => onNodeClick(node) : undefined}
+                        depth={depth}
+                    />
                 );
         }
     };
@@ -136,12 +167,13 @@ export const TreeCard = ({data, title, style={}}: {data: Node[], title: string, 
                 <span className={css(globalStyles.headline, timelineCard.headline)}>
                     {title}
                 </span>
-                <div 
+                <div
                 style={{
                     // substrate
-                    backgroundColor: "#1E1E1F", 
-                    flexGrow: 1, 
-                    padding: 8,
+                    backgroundColor: "#1E1E1F",
+                    flexGrow: 1,
+                    paddingTop: 8,
+                    paddingBottom: 8,
                     // container
                     display: "flex",
                     flexDirection: "column",
