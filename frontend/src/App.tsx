@@ -19,6 +19,7 @@ import { IconButton } from './components/InconButton';
 import { gql, useQuery, useSubscription } from "@apollo/client";
 import { ArticlePage } from './ArticlePage';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { AdminPanel } from './AdminPanel';
 
 const GET_LATEST_ARTICLE_COVER = gql`
   subscription GetNewArticle {
@@ -320,6 +321,7 @@ function App() {
       <Routes>
         <Route path='/' element={<MainPage/>}/>
         <Route path="/:id" element={<ArticlePage/>} />
+        <Route path="/admin" element={<AdminPanel/>}/>
       </Routes>
     </BrowserRouter>
   );
