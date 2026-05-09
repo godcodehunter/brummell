@@ -1,13 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { StyleSheet, css } from "aphrodite";
 import { globalStyles, palette } from "./global_styles";
+
+const TOKEN_STORAGE_KEY = "authToken";
 
 const GET_OWNER = gql`
     query GetOwner {
         getOwner {
             id
         }
+    }
+`;
+
+const VALIDATE_TOKEN = gql`
+    query ValidateToken {
+        validateToken
     }
 `;
 
@@ -240,15 +248,51 @@ const SetupCard = ({ onAuthorized }: AuthCardProps) => {
 };
 
 export const AdminPanel = () => {
-    const [token, setToken] = useState<string | null>(null);
-    const { data, loading } = useQuery<{ getOwner: { id: string } | null }>(GET_OWNER);
+    // Hydrate from localStorage so a reload doesn't drop the user back to
+    // the password form. The token is still verified against the server
+    // below (it can be stale if the server restarted and lost its session
+    // set, or tampered with from devtools).
+    const [token, setToken] = useState<string | null>(
+        () => localStorage.getItem(TOKEN_STORAGE_KEY),
+    );
 
-    if (loading) return null;
-    if (!token) {
-        return data?.getOwner
-            ? <SignInCard onAuthorized={setToken} />
-            : <SetupCard onAuthorized={setToken} />;
+    const { data: ownerData, loading: ownerLoading } = useQuery<{
+        getOwner: { id: string } | null;
+    }>(GET_OWNER);
+
+    const { data: validateData, loading: validateLoading } = useQuery<{
+        validateToken: boolean;
+    }>(VALIDATE_TOKEN, {
+        skip: !token,
+        // Don't trust the cache here — the question "is this token still
+        // good" must hit the server on every mount.
+        fetchPolicy: "network-only",
+    });
+
+    // Server says the persisted token isn't live anymore — drop it.
+    useEffect(() => {
+        if (token && validateData && validateData.validateToken === false) {
+            localStorage.removeItem(TOKEN_STORAGE_KEY);
+            setToken(null);
+        }
+    }, [token, validateData]);
+
+    const handleAuthorized = (newToken: string) => {
+        localStorage.setItem(TOKEN_STORAGE_KEY, newToken);
+        setToken(newToken);
+    };
+
+    if (ownerLoading) return null;
+    if (token && validateLoading) return null;
+
+    const authorized = token && validateData?.validateToken === true;
+
+    if (!authorized) {
+        return ownerData?.getOwner
+            ? <SignInCard onAuthorized={handleAuthorized} />
+            : <SetupCard onAuthorized={handleAuthorized} />;
     }
+
     return (
         <div style={{ color: palette.fontColor }}>
             {/* TODO: admin content */}

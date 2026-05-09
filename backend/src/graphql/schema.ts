@@ -63,7 +63,22 @@ function issueToken(): string {
   return token;
 }
 
+// Exported so the Yoga context factory in server.ts can decide whether
+// the incoming Authorization header carries a live session.
+export function isValidToken(token: string): boolean {
+  return sessions.has(token);
+}
+
+// Available in every resolver as the third argument. The context is built
+// per-request by Yoga (see server.ts); resolvers consult `isAuthorized` to
+// gate authenticated operations.
+export interface Context {
+  token: string | null;
+  isAuthorized: boolean;
+}
+
 const builder = new SchemaBuilder<{
+  Context: Context;
   Objects: {
     Article: Article;
     Tag: TagShape;
@@ -157,6 +172,13 @@ builder.queryType({
       type: "Owner",
       nullable: true,
       resolve: () => db.select().from(owners).all()[0] ?? null,
+    }),
+    // True iff the request carries a still-live token. Client uses it to
+    // decide whether the cached localStorage token is worth trusting after
+    // a server restart (which wipes the in-memory `sessions` set).
+    validateToken: t.field({
+      type: "Boolean",
+      resolve: (_root, _args, ctx) => ctx.isAuthorized,
     }),
   }),
 });

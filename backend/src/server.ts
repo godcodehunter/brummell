@@ -10,12 +10,20 @@ import { createServer } from "node:http";
 import { createYoga } from "graphql-yoga";
 import { useServer } from "graphql-ws/lib/use/ws";
 import { WebSocketServer } from "ws";
-import { schema } from "./graphql/schema.js";
+import { schema, isValidToken, type Context } from "./graphql/schema.js";
 import { initDatabase } from "./db/seed.js";
 import { config } from "./config.js";
 
 // Bring up tables and seed demo data (no-op if the DB is already populated).
 initDatabase();
+
+// Pull a "Bearer <token>" out of the Authorization header. Lower-cases
+// the prefix check so clients that send "bearer ..." also work.
+function extractBearerToken(headerValue: string | null): string | null {
+  if (!headerValue) return null;
+  const m = /^Bearer\s+(.+)$/i.exec(headerValue);
+  return m ? m[1]!.trim() : null;
+}
 
 // Yoga is a self-contained GraphQL HTTP handler. It implements the GraphQL
 // over HTTP spec, including CORS handling and the GraphiQL playground UI
@@ -24,6 +32,16 @@ const yoga = createYoga({
   schema,
   graphqlEndpoint: "/graphql",
   cors: { origin: "*", credentials: true },
+  // Built once per request. Resolvers receive this object as the third
+  // arg. We resolve `isAuthorized` here so individual resolvers can stay
+  // a simple `ctx.isAuthorized` check.
+  context: ({ request }): Context => {
+    const token = extractBearerToken(request.headers.get("authorization"));
+    return {
+      token,
+      isAuthorized: token !== null && isValidToken(token),
+    };
+  },
 });
 
 // Plain Node HTTP server. Yoga is the request handler.
