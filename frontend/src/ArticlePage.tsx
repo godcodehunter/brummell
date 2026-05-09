@@ -599,6 +599,12 @@ const LoginCard = () => {
                         className={css(globalStyles.pressable, chat.loginButton)}
                         onClick={() => setIdentity({ avatar: { color: "#D4D4D4", initial: "O" }, name: "octocat" })}
                     >
+                        <span>STAY ANONYMOUS</span>
+                    </div>
+                    <div
+                        className={css(globalStyles.pressable, chat.loginButton)}
+                        onClick={() => setIdentity({ avatar: { color: "#D4D4D4", initial: "O" }, name: "octocat" })}
+                    >
                         <GitHubIcon />
                         <span>CONTINUE WITH GITHUB</span>
                     </div>
