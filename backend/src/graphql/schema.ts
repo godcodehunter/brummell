@@ -15,8 +15,18 @@
 
 import SchemaBuilder from "@pothos/core";
 import { eq } from "drizzle-orm";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db } from "../db/client.js";
-import { articles, articleTags, tags, type Article } from "../db/schema.js";
+import {
+  articles,
+  articleTags,
+  tags,
+  owners,
+  externalLinks,
+  type Article,
+  type Owner,
+  type ExternalLink,
+} from "../db/schema.js";
 import { pubsub } from "./pubsub.js";
 
 // The shape of a tag as the GraphQL layer sees it. Both `articleTags` rows
@@ -24,10 +34,42 @@ import { pubsub } from "./pubsub.js";
 // `label/color/tooltip` — so we use one GraphQL type for both.
 type TagShape = { label: string; color: string; tooltip: string };
 
+type AuthPayloadShape = { token: string };
+
+// Password hashing via Node's built-in scrypt — no extra deps. Salt is per-row
+// (so identical passwords produce different hashes) and stored next to the
+// hash. timingSafeEqual avoids leaking equality info via comparison time.
+const SCRYPT_KEYLEN = 64;
+
+function hashPassword(password: string, salt: string): string {
+  return scryptSync(password, salt, SCRYPT_KEYLEN).toString("hex");
+}
+
+function verifyPassword(password: string, salt: string, expectedHex: string): boolean {
+  const computed = scryptSync(password, salt, SCRYPT_KEYLEN);
+  const expected = Buffer.from(expectedHex, "hex");
+  if (computed.length !== expected.length) return false;
+  return timingSafeEqual(computed, expected);
+}
+
+// In-memory session store. Lost on restart — fine for a single-owner demo.
+// For persistence move to a `sessions` table and check by token on each
+// authenticated mutation.
+const sessions = new Set<string>();
+
+function issueToken(): string {
+  const token = randomBytes(32).toString("hex");
+  sessions.add(token);
+  return token;
+}
+
 const builder = new SchemaBuilder<{
   Objects: {
     Article: Article;
     Tag: TagShape;
+    Owner: Owner;
+    ExternalLink: ExternalLink;
+    AuthPayload: AuthPayloadShape;
   };
 }>({});
 
@@ -64,6 +106,40 @@ builder.objectType("Article", {
   }),
 });
 
+builder.objectType("ExternalLink", {
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    svg_icon: t.exposeString("svg_icon"),
+    url: t.exposeString("url"),
+  }),
+});
+
+// Public profile of the blog owner. Note: password_hash/password_salt are
+// columns on the `Owner` row but deliberately not exposed here.
+builder.objectType("Owner", {
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    nickname: t.exposeString("nickname"),
+    about_myself: t.exposeString("about_myself"),
+    avatar: t.exposeString("avatar"),
+    external_links: t.field({
+      type: ["ExternalLink"],
+      resolve: (owner) =>
+        db
+          .select()
+          .from(externalLinks)
+          .where(eq(externalLinks.owner_id, owner.id))
+          .all(),
+    }),
+  }),
+});
+
+builder.objectType("AuthPayload", {
+  fields: (t) => ({
+    token: t.exposeString("token"),
+  }),
+});
+
 // Read-only entry points.
 builder.queryType({
   fields: (t) => ({
@@ -74,6 +150,13 @@ builder.queryType({
     getTag: t.field({
       type: ["Tag"],
       resolve: () => db.select().from(tags).all(),
+    }),
+    // Returns null when no owner has been set up yet — that's the signal
+    // for the client to switch into "create owner" mode.
+    getOwner: t.field({
+      type: "Owner",
+      nullable: true,
+      resolve: () => db.select().from(owners).all()[0] ?? null,
     }),
   }),
 });
@@ -104,6 +187,46 @@ builder.mutationType({
         // Notify everyone subscribed to `newArticle`.
         pubsub.publish("newArticle", created);
         return created;
+      },
+    }),
+
+    // First-run bootstrap: creates the single Owner row with a freshly
+    // generated salt + hashed password. Errors out if an owner already
+    // exists, so this can't be used to overwrite credentials.
+    setupOwner: t.field({
+      type: "AuthPayload",
+      args: {
+        password: t.arg.string({ required: true }),
+      },
+      resolve: (_, { password }) => {
+        const existing = db.select().from(owners).all();
+        if (existing.length > 0) {
+          throw new Error("OWNER_ALREADY_EXISTS");
+        }
+        const salt = randomBytes(16).toString("hex");
+        const password_hash = hashPassword(password, salt);
+        db.insert(owners)
+          .values({ password_hash, password_salt: salt })
+          .run();
+        return { token: issueToken() };
+      },
+    }),
+
+    // Verifies a password against the stored hash and issues a session
+    // token. Distinguishable error codes let the client tell "no owner
+    // yet" apart from "wrong password".
+    signIn: t.field({
+      type: "AuthPayload",
+      args: {
+        password: t.arg.string({ required: true }),
+      },
+      resolve: (_, { password }) => {
+        const owner = db.select().from(owners).all()[0];
+        if (!owner) throw new Error("OWNER_NOT_FOUND");
+        if (!verifyPassword(password, owner.password_salt, owner.password_hash)) {
+          throw new Error("INVALID_PASSWORD");
+        }
+        return { token: issueToken() };
       },
     }),
   }),

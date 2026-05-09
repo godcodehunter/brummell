@@ -53,8 +53,43 @@ export const articleTagsRelations = relations(articleTags, ({ one }) => ({
   }),
 }));
 
+// Single-owner blog: there's always at most one row in this table. The
+// password hash + salt back the admin sign-in flow; nickname/about/avatar
+// are public profile fields rendered on the front page.
+export const owners = sqliteTable("owners", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  password_hash: text("password_hash").notNull(),
+  password_salt: text("password_salt").notNull(),
+  nickname: text("nickname").notNull().default(""),
+  about_myself: text("about_myself").notNull().default(""),
+  // Stored inline as a data URL, same convention as articles.illustration.
+  avatar: text("avatar").notNull().default(""),
+});
+
+export const externalLinks = sqliteTable("external_links", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  owner_id: integer("owner_id")
+    .notNull()
+    .references(() => owners.id, { onDelete: "cascade" }),
+  svg_icon: text("svg_icon").notNull(),
+  url: text("url").notNull(),
+});
+
+export const ownersRelations = relations(owners, ({ many }) => ({
+  external_links: many(externalLinks),
+}));
+
+export const externalLinksRelations = relations(externalLinks, ({ one }) => ({
+  owner: one(owners, {
+    fields: [externalLinks.owner_id],
+    references: [owners.id],
+  }),
+}));
+
 // Inferred TypeScript types for read rows. `$inferSelect` reflects what a
 // SELECT returns; `$inferInsert` would reflect what INSERT accepts.
 export type Article = typeof articles.$inferSelect;
 export type ArticleTag = typeof articleTags.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
+export type Owner = typeof owners.$inferSelect;
+export type ExternalLink = typeof externalLinks.$inferSelect;

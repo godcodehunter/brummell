@@ -68,6 +68,25 @@ function ensureSchema() {
     -- Helps queries like "all tags for article X" stay fast.
     CREATE INDEX IF NOT EXISTS idx_article_tags_article_id
       ON article_tags(article_id);
+
+    CREATE TABLE IF NOT EXISTS owners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      password_hash TEXT NOT NULL,
+      password_salt TEXT NOT NULL,
+      nickname TEXT NOT NULL DEFAULT '',
+      about_myself TEXT NOT NULL DEFAULT '',
+      avatar TEXT NOT NULL DEFAULT ''
+    );
+
+    CREATE TABLE IF NOT EXISTS external_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_id INTEGER NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+      svg_icon TEXT NOT NULL,
+      url TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_external_links_owner_id
+      ON external_links(owner_id);
   `);
 }
 
