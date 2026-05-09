@@ -24,7 +24,6 @@ const baseRow = StyleSheet.create({
     },
     active: {
         backgroundColor: "#2A2A2A",
-        boxShadow: "inset 3px 0 0 #4A9EFF",
     },
 });
 
