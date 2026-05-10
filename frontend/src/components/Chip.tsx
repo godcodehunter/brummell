@@ -6,14 +6,19 @@ import { CloseInSquare } from '../resource/icons';
 
 const chip = StyleSheet.create({
   container: {
-    height: 20,
-    width: "min-content",
+    width: "max-content",
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     padding: 5,
     boxSizing: "border-box",
+  },
+  label: {
+    margin: 0,
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+    fontSize: 11,
   },
 });
 
@@ -39,7 +44,7 @@ export const Chip: React.FC<ChipProps> = ({
         className={css(chip.container)}
         style={{ border: `0.4px solid ${color}`, backgroundColor: String(chroma(color).alpha(0.2)) }}
       >
-        <p style={{ color }}>{label}</p>
+        <p className={css(chip.label)} style={{ color }}>{label}</p>
         {removable && <CloseInSquare
           style={{ width: 11, height: 11, cursor: "pointer", }}
           fill={hovered ? String(chroma(color).alpha(0.6)) : color}
