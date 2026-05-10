@@ -17,8 +17,9 @@ import { getMainDefinition } from "@apollo/client/utilities";
 
 // setting configuration for http connect for Query and Mutation
 const httpLink = new HttpLink({
-  // backend link, check backend console for link
-  uri: "http://localhost:4000/graphql",
+  // Relative path — nginx proxies /graphql to the backend in production,
+  // and Vite's dev server proxies it during local development.
+  uri: "/graphql",
 });
 
 // Reads the persisted admin token from localStorage on every request and
@@ -37,8 +38,7 @@ const authLink = setContext((_, { headers }) => {
 // setting configuration for websocket connect for subscription
 const wsLink = new GraphQLWsLink(
   createClient({
-    // backend link, check backend console for link
-    url: "ws://localhost:4000/graphql",
+    url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/graphql`,
   })
 );
 
