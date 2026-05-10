@@ -1,3 +1,11 @@
+# What is that?
+
+This is a blog I wrote for my own personal use. You can see what it looks like [here](http://godcodehunter.com/).
+
+# Why did you do this?
+
+<!-- TODO -->
+
 # How to host?
 
 This guide walks through deploying the blog to a fresh Ubuntu 24.04 VPS.
