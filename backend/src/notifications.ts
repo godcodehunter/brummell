@@ -81,7 +81,9 @@ export function notifyNewComment(comment: Comment) {
     .where(eq(commentTargets.id, comment.target_id))
     .get()!;
 
-  const targetLink = `${config.publicUrl}/${commentTarget.type}?id=${commentTarget.entity_id}&msg=${comment.id}`;
+  const targetLink =
+    `${config.publicUrl}/${commentTarget.type}` +
+    `?id=${commentTarget.entity_id}&msg=${comment.id}`;
 
   notify(
     `💬 A new message has been posted\n\n` +
