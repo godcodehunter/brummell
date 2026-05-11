@@ -301,7 +301,7 @@ const MainPage = () => {
             preview_txt = {item.preview_txt}
             reading_time={Duration.fromMillis(item.reading_time_min * 60000)}
             publication_time={DateTime.fromJSDate(new Date(item.publication_time * 1000))}
-            onOpen={() => { navigate(item.id) }}
+            onOpen={() => { navigate(`/article?id=${item.id}`) }}
           />
         )}
         </StackGrid>
@@ -320,7 +320,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path='/' element={<MainPage/>}/>
-        <Route path="/:id" element={<ArticlePage/>} />
+        <Route path="/article" element={<ArticlePage/>} />
         <Route path="/admin" element={<AdminPanel/>}/>
       </Routes>
     </BrowserRouter>

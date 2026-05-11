@@ -553,11 +553,16 @@ const articleHead = StyleSheet.create({
         width: 14,
         height: 14,
     },
+    eyeIcon: {
+        width: 14 * 22 / 15,
+        height: 14,
+    },
     metaText: {
         fontFamily: "Roboto",
         fontSize: 12,
         color: "#ABABAB",
         letterSpacing: 0.5,
+        textTransform: "uppercase",
     },
 });
 
@@ -594,7 +599,7 @@ const ArticleHead: React.FC<{
                     <span className={css(articleHead.metaText)}>{readingTime}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <Eye className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <Eye className={css(articleHead.eyeIcon)} fill="#ABABAB" />
                     <span className={css(articleHead.metaText)}>{views}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>

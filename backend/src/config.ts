@@ -20,6 +20,11 @@
 //                        bot token itself contains a colon, so the
 //                        chat id is parsed off the LAST colon.
 //                        Notifications are disabled when missing.
+//
+//  --public-url <string> Public base URL of the site (no trailing
+//                        slash), used to build links in Telegram
+//                        notifications. Falls back to
+//                        "http://localhost:<port>" when missing.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -31,6 +36,7 @@ const { values } = parseArgs({
     "port": { type: "string", default: "4000" },
     "llm-token": { type: "string" },
     "tg": { type: "string" },
+    "public-url": { type: "string" },
   },
   allowPositionals: false,
 });
@@ -59,4 +65,5 @@ export const config = {
   port,
   llmToken: values["llm-token"],
   tg: parseTg(values["tg"]),
+  publicUrl: values["public-url"] ?? `http://localhost:${port}`,
 };

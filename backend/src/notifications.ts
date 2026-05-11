@@ -1,10 +1,11 @@
 import { config } from "./config";
+import { Article, Comment } from "./db/schema";
 
 const TELEGRAM_TIMEOUT_MS = 5_000;
 
 // Fire-and-forget Telegram DM. Never throws — a broken notification
 // must not break the caller's flow. No-ops when --tg was not supplied.
-export async function notify(text: string): Promise<void> {
+async function notify(text: string): Promise<void> {
   if (!config.tg) return;
   const { botToken, chatId } = config.tg;
 
@@ -26,4 +27,20 @@ export async function notify(text: string): Promise<void> {
   } catch (err) {
     console.error("Telegram notify failed:", err);
   }
+}
+
+export function notifyBecameHot(article: Article) {
+  notify(
+    `🔥 An article is heating up\n\n` +
+    `${article.headline}\n\n` +
+    `Link: ${config.publicUrl}/article?id=${article.id}`,
+  );
+}
+
+export function notifyNewComment(comment: Comment) {
+  const msg = `
+
+  `
+
+  notify(msg)
 }
