@@ -1,20 +1,11 @@
 import { sqliteTable, integer, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 
-// A "target" is anything that can receive comments: an article, a shot,
-// a podcast, etc. Each commentable entity gets a single row here, and
-// comments reference target_id rather than the entity directly. This
-// lets one comments table serve many content types.
-//
-// entity_id is the primary key in the table named by `type`. We can't
-// enforce that with a single FK because it points at different tables —
-// the application code is responsible for keeping it in sync.
-export const targets = sqliteTable("targets", {
+export const commentTargets = sqliteTable("comment_targets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   type: text("type", { enum: ["article", "shot", "podcast"] }).notNull(),
   entity_id: integer("entity_id").notNull(),
 }, (t) => ({
-  // One target row per (type, entity_id) pair.
   uniqueEntity: uniqueIndex("targets_type_entity_uq").on(t.type, t.entity_id),
 }));
 
@@ -22,7 +13,7 @@ export const comments = sqliteTable("comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   target_id: integer("target_id")
     .notNull()
-    .references(() => targets.id, { onDelete: "cascade" }),
+    .references(() => commentTargets.id, { onDelete: "cascade" }),
   poster: integer("poster_id").notNull(),
   text: text("text").notNull(),
 });
@@ -128,8 +119,8 @@ export const externalLinksRelations = relations(externalLinks, ({ one }) => ({
 // Inferred TypeScript types for read rows. `$inferSelect` reflects what a
 // SELECT returns; `$inferInsert` would reflect what INSERT accepts.\
 export type Comment = typeof comments.$inferSelect;
-export type Target = typeof targets.$inferSelect;
-export type TargetType = Target["type"];
+export type CommentTarget = typeof commentTargets.$inferSelect;
+export type CommentTargetType = CommentTarget["type"];
 export type Article = typeof articles.$inferSelect;
 export type Shot = typeof shots.$inferSelect;
 export type Podcast = typeof podcasts.$inferSelect;

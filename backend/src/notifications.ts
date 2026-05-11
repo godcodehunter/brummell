@@ -1,7 +1,14 @@
 import { eq } from "drizzle-orm";
 import { config } from "./config";
 import { db } from "./db/client";
-import { Article, Comment, Target, articles, podcasts, targets } from "./db/schema";
+import {
+  Article,
+  Comment,
+  CommentTarget,
+  articles,
+  commentTargets,
+  podcasts
+} from "./db/schema";
 
 
 const TELEGRAM_TIMEOUT_MS = 5_000;
@@ -41,7 +48,7 @@ export function notifyBecameHot(article: Article) {
 
 // Human-readable label for a target. Articles and podcasts have a
 // headline; shots don't, so fall back to the numeric id.
-function describeTarget(target: Target): string {
+function describeCommentTarget(target: CommentTarget): string {
   switch (target.type) {
     case "article": {
       const a = db.select()
@@ -59,7 +66,7 @@ function describeTarget(target: Target): string {
           eq(podcasts.id, target.entity_id)
         )
         .get()!;
-        
+
       return `podcast "${p.headline}"`;
     }
     case "shot":
@@ -68,17 +75,17 @@ function describeTarget(target: Target): string {
 }
 
 export function notifyNewComment(comment: Comment) {
-  const target = db
+  const commentTarget = db
     .select()
-    .from(targets)
-    .where(eq(targets.id, comment.target_id))
+    .from(commentTargets)
+    .where(eq(commentTargets.id, comment.target_id))
     .get()!;
 
-  const targetLink = `${config.publicUrl}/${target.type}?id=${target.entity_id}&msg=${comment.id}`;
+  const targetLink = `${config.publicUrl}/${commentTarget.type}?id=${commentTarget.entity_id}&msg=${comment.id}`;
 
   notify(
     `💬 A new message has been posted\n\n` +
-    `Target: ${describeTarget(target)}\n\n` +
+    `Target: ${describeCommentTarget(commentTarget)}\n\n` +
     `Text:\n${comment.text}\n\n` +
     `Link: ${targetLink}`,
   );
