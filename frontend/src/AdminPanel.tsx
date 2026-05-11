@@ -37,11 +37,22 @@ const SETUP_OWNER = gql`
 `;
 
 const styles = StyleSheet.create({
+    authBackdrop: {
+        minHeight: "100vh",
+        width: "100%",
+        backgroundColor: palette.mainColor,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+        boxSizing: "border-box",
+    },
     cardWrap: {
         display: "flex",
         flexDirection: "column",
         gap: 8,
-        maxWidth: 360,
+        width: 360,
+        maxWidth: "100%",
     },
     card: {
         padding: 12,
@@ -289,9 +300,13 @@ export const AdminPanel = () => {
     const authorized = token && validateData?.validateToken === true;
 
     if (!authorized) {
-        return ownerData?.getOwner
-            ? <SignInCard onAuthorized={handleAuthorized} />
-            : <SetupCard onAuthorized={handleAuthorized} />;
+        return (
+            <div className={css(styles.authBackdrop)}>
+                {ownerData?.getOwner
+                    ? <SignInCard onAuthorized={handleAuthorized} />
+                    : <SetupCard onAuthorized={handleAuthorized} />}
+            </div>
+        );
     }
 
     return (
