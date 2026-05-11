@@ -15,7 +15,11 @@
 //                        `llmIntegration.ts`. The review endpoint is
 //                        disabled when this flag is missing.
 //
-//  --email <string>      Used for notifications.
+//  --tg <string>         Telegram bot credentials for notifications,
+//                        in the form "<bot-token>:<chat-id>". The
+//                        bot token itself contains a colon, so the
+//                        chat id is parsed off the LAST colon.
+//                        Notifications are disabled when missing.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -26,7 +30,7 @@ const { values } = parseArgs({
     "db-dir": { type: "string", default: "./data" },
     "port": { type: "string", default: "4000" },
     "llm-token": { type: "string" },
-    "email": { type: "string" },
+    "tg": { type: "string" },
   },
   allowPositionals: false,
 });
@@ -37,8 +41,22 @@ const dbDir = path.resolve(values["db-dir"]!);
 
 fs.mkdirSync(dbDir, { recursive: true });
 
+function parseTg(raw: string | undefined): { botToken: string; chatId: string } | undefined {
+  if (!raw) return undefined;
+  const lastColon = raw.lastIndexOf(":");
+  if (lastColon <= 0 || lastColon === raw.length - 1) {
+    throw new Error(`--tg must be in "<bot-token>:<chat-id>" form`);
+  }
+  return {
+    botToken: raw.slice(0, lastColon),
+    chatId: raw.slice(lastColon + 1),
+  };
+}
+
 export const config = {
   dbDir,
   dbFile: path.join(dbDir, "app.db"),
   port,
+  llmToken: values["llm-token"],
+  tg: parseTg(values["tg"]),
 };
