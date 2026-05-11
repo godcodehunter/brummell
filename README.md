@@ -2,9 +2,33 @@
 
 This is a blog I wrote for my own personal use. You can see what it looks like [here](http://godcodehunter.com/).
 
-# Why did you do this?
+# Why did I do this?
+
+## Articles with dynamic content
 
 <!-- TODO -->
+
+### MDX space to rule tham all
+
+<!-- TODO -->
+
+## Podcasts
+
+I often enjoy chatting with someone or writing down my thoughts. They're often of questionable value, but sometimes I stumble upon gems that would be a shame to lose. Many of my friends say I should post them, since they like to listen while going about their own activities. So I decided to integrate podcasts natively into my blog.
+
+<!-- TODO -->
+
+## The usefulness of short posts
+
+Size-limited short posts are useful in two situations: when you want to share something quickly, and when the constraint itself forces you to shape a thought into something tight and worth reading. Twitter's core idea — that a hard character limit makes writing better, not worse — is genuinely brilliant.
+
+<!-- TODO -->
+
+# A little about code design
+
+The classic client-server model was chosen for the project.
+I've heard of polymorphic code — a single codebase shared between client and server, which the toolset then splits automatically using a DAG — but I have no experience with it, so the result would be unpredictable.
+The only thing I wish I had was Solid instead of React — its granular reactivity really does sound cool — but back when the project started, Solid simply didn't exist 🤣.
 
 # How to host?
 
