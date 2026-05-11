@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { config } from "./config";
-import { Article, Comment } from "./db/schema";
+import { db } from "./db/client";
+import { Article, Comment, articles, targets } from "./db/schema";
 
 const TELEGRAM_TIMEOUT_MS = 5_000;
 
@@ -38,9 +40,28 @@ export function notifyBecameHot(article: Article) {
 }
 
 export function notifyNewComment(comment: Comment) {
-  const msg = `
+  const target = db.select().from(targets).where(eq(targets.id, comment.target_id)).get()!;
 
-  `
+  let targetLabel: string;
+  let targetLink: string;
+  switch (target.type) {
+    case "article": {
+      const article = db.select().from(articles).where(eq(articles.id, target.entity_id)).get()!;
+      targetLabel = `article "${article.headline}"`;
+      targetLink = `${config.publicUrl}/article?id=${article.id}&msg=${comment.id}`;
+      break;
+    }
+    // TODO: shots and podcasts aren't wired up yet — add cases when those
+    // tables and frontend routes exist.
+    case "shot":
+    case "podcast":
+      return;
+  }
 
-  notify(msg)
+  notify(
+    `💬 A new message has been posted\n\n` +
+    `Target: ${targetLabel}\n\n` +
+    `Text:\n${comment.text}\n\n` +
+    `Link: ${targetLink}`,
+  );
 }
