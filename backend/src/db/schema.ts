@@ -40,6 +40,20 @@ export const articles = sqliteTable("articles", {
   publication_time: integer("publication_time").notNull(),
 });
 
+// Short text-only post. Comments hang off it via the targets table.
+export const shots = sqliteTable("shots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  text: text("text").notNull(),
+});
+
+// Audio post: a headline plus the audio itself, stored inline as a
+// base64 data URL (same convention as articles.illustration).
+export const podcasts = sqliteTable("podcasts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  headline: text("headline").notNull(),
+  sound: text("sound").notNull(),
+});
+
 // Tags attached to a specific article (denormalised on purpose — each row
 // carries its own label/color/tooltip rather than referencing a shared tag).
 // This matches the original demo data which had inline tag arrays.
@@ -117,6 +131,8 @@ export type Comment = typeof comments.$inferSelect;
 export type Target = typeof targets.$inferSelect;
 export type TargetType = Target["type"];
 export type Article = typeof articles.$inferSelect;
+export type Shot = typeof shots.$inferSelect;
+export type Podcast = typeof podcasts.$inferSelect;
 export type ArticleTag = typeof articleTags.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
 export type Owner = typeof owners.$inferSelect;
