@@ -5,6 +5,7 @@ import { palette } from './global_styles';
 import { globalStyles, constants } from './global_styles';
 import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
+import { Chat, ChatMessage } from './components/Chat';
 import { ChipHolder, Tag } from './components/Chip';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as Arrow } from './resource/back.svg';
