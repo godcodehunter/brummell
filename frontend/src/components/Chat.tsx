@@ -87,7 +87,7 @@ const chat = StyleSheet.create({
     loginRow: {
         display: "flex",
         flexDirection: "column",
-        gap: 8,
+        gap: 10,
     },
     loginButton: {
         display: "flex",
