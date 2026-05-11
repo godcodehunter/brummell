@@ -11,6 +11,8 @@ import { useNavigate } from 'react-router-dom';
 import { ReactComponent as Arrow } from './resource/back.svg';
 import { ReactComponent as Clock } from './resource/clock.svg';
 import { ReactComponent as Calendar } from './resource/calendar.svg';
+import { ReactComponent as Eye } from './resource/eye.svg';
+import { ReactComponent as Lvl } from './resource/lvl.svg';
 
 const page = StyleSheet.create({
     root: {
@@ -536,8 +538,10 @@ const articleHead = StyleSheet.create({
     footer: {
         display: "flex",
         flexDirection: "row",
-        justifyContent: "space-between",
+        justifyContent: "flex-start",
         alignItems: "center",
+        gap: 18,
+        flexWrap: "wrap",
     },
     metaGroup: {
         display: "flex",
@@ -563,9 +567,11 @@ const ArticleHead: React.FC<{
     tags: Tag[];
     imageSrc: string;
     kicker?: string;
+    difficulty: string;
     readingTime: string;
+    views: string;
     publishedAt: string;
-}> = ({ title, preview, tags, imageSrc, kicker, readingTime, publishedAt }) => (
+}> = ({ title, preview, tags, imageSrc, kicker, difficulty, readingTime, views, publishedAt }) => (
     <div className={css(globalStyles.substrate, articleHead.container)}>
         <div className={css(articleHead.heroWrap)}>
             <img className={css(articleHead.hero)} src={imageSrc} alt="" />
@@ -580,8 +586,16 @@ const ArticleHead: React.FC<{
             <div className={css(articleHead.divider)} />
             <div className={css(articleHead.footer)}>
                 <div className={css(articleHead.metaGroup)}>
+                    <Lvl className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText)}>{difficulty}</span>
+                </div>
+                <div className={css(articleHead.metaGroup)}>
                     <Clock className={css(articleHead.metaIcon)} fill="#ABABAB" />
                     <span className={css(articleHead.metaText)}>{readingTime}</span>
+                </div>
+                <div className={css(articleHead.metaGroup)}>
+                    <Eye className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText)}>{views}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
                     <Calendar className={css(articleHead.metaIcon)} fill="#ABABAB" />
@@ -630,7 +644,9 @@ export const ArticlePage = () => {
                         { label: "performance", color: chroma("#7AFFB8"), tooltip: "performance" },
                     ]}
                     imageSrc={HERO_IMAGE}
+                    difficulty="hard"
                     readingTime="8 min read"
+                    views="42"
                     publishedAt="today at 14:32"
                 />
                 <div
