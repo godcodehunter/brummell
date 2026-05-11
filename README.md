@@ -298,4 +298,4 @@ systemctl restart brummell-backend
 1. Create new bot and copy token.
 2. Start chat with bot and write any msg.
 3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` where `<TOKEN>` is your token and find in result Json update with your chat id.
-4. Reran backend with `tg` flag
+4. Rerгn backend with `tg` flag
