@@ -1,4 +1,8 @@
+# Folder of DB commonly used in dev mode
+data
+# Library folder
 node_modules
+# Output folder of build
 dist
 # Lockfile (project doesn't pin versions)
 package-lock.json
