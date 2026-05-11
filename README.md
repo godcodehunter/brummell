@@ -6,23 +6,16 @@ This is a blog I wrote for my own personal use. You can see what it looks like [
 
 ## Articles with dynamic content
 
-<!-- TODO -->
-
-### MDX space to rule tham all
-
-<!-- TODO -->
+As a child, when I read books, my imagination carried me far away, sometimes even to other worlds. But later, when I got a PC, I felt a certain disappointment. Books were no match for the color palette of a lamp monitor.
+That was the first time the idea came to me: what if books were filled with dynamic content? 
 
 ## Podcasts
 
 I often enjoy chatting with someone or writing down my thoughts. They're often of questionable value, but sometimes I stumble upon gems that would be a shame to lose. Many of my friends say I should post them, since they like to listen while going about their own activities. So I decided to integrate podcasts natively into my blog.
 
-<!-- TODO -->
-
 ## The usefulness of short posts
 
 Size-limited short posts are useful in two situations: when you want to share something quickly, and when the constraint itself forces you to shape a thought into something tight and worth reading. Twitter's core idea — that a hard character limit makes writing better, not worse — is genuinely brilliant.
-
-<!-- TODO -->
 
 # A little about code design
 
@@ -299,3 +292,10 @@ git pull
 cd backend && npm install   # only if package.json changed
 systemctl restart brummell-backend
 ```
+
+# How integrate tg bot for notifies?
+
+1. Create new bot and copy token.
+2. Start chat with bot and write any msg.
+3. Open `https://api.telegram.org/bot<TOKEN>/getUpdates` where `<TOKEN>` is your token and find in result Json update with your chat id.
+4. Reran backend with `tg` flag
