@@ -564,6 +564,10 @@ const articleHead = StyleSheet.create({
         letterSpacing: 0.5,
         textTransform: "uppercase",
     },
+    metaLabel: {
+        fontWeight: "bold",
+        color: "#D4D4D4",
+    },
 });
 
 const ArticleHead: React.FC<{
@@ -591,19 +595,19 @@ const ArticleHead: React.FC<{
             <div className={css(articleHead.divider)} />
             <div className={css(articleHead.footer)}>
                 <div className={css(articleHead.metaGroup)}>
-                    <Lvl className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"COMPLEXITY: "}</span>
                     <span className={css(articleHead.metaText)}>{difficulty}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <Clock className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"READ TIME: "}</span>
                     <span className={css(articleHead.metaText)}>{readingTime}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <Eye className={css(articleHead.eyeIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"VIEWS: "}</span>
                     <span className={css(articleHead.metaText)}>{views}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <Calendar className={css(articleHead.metaIcon)} fill="#ABABAB" />
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"POST DATE: "}</span>
                     <span className={css(articleHead.metaText)}>{publishedAt}</span>
                 </div>
             </div>
