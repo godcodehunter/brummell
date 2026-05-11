@@ -3,10 +3,10 @@ import { config } from "./config";
 import { db } from "./db/client";
 import { Article, Comment, articles, targets } from "./db/schema";
 
+
 const TELEGRAM_TIMEOUT_MS = 5_000;
 
-// Fire-and-forget Telegram DM. Never throws — a broken notification
-// must not break the caller's flow. No-ops when --tg was not supplied.
+
 async function notify(text: string): Promise<void> {
   if (!config.tg) return;
   const { botToken, chatId } = config.tg;
@@ -40,13 +40,24 @@ export function notifyBecameHot(article: Article) {
 }
 
 export function notifyNewComment(comment: Comment) {
-  const target = db.select().from(targets).where(eq(targets.id, comment.target_id)).get()!;
+  const target = db
+    .select()
+    .from(targets)
+    .where(
+      eq(targets.id, comment.target_id)
+    ).get()!;
 
   let targetLabel: string;
   let targetLink: string;
   switch (target.type) {
     case "article": {
-      const article = db.select().from(articles).where(eq(articles.id, target.entity_id)).get()!;
+      const article = db
+        .select()
+        .from(articles)
+        .where(
+          eq(articles.id, target.entity_id)
+        ).get()!;
+
       targetLabel = `article "${article.headline}"`;
       targetLink = `${config.publicUrl}/article?id=${article.id}&msg=${comment.id}`;
       break;
