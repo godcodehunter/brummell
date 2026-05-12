@@ -595,19 +595,19 @@ const ArticleHead: React.FC<{
             <div className={css(articleHead.divider)} />
             <div className={css(articleHead.footer)}>
                 <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"COMPLEXITY: "}</span>
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"COMPLEXITY "}</span>
                     <span className={css(articleHead.metaText)}>{difficulty}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"READ TIME: "}</span>
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"READ TIME "}</span>
                     <span className={css(articleHead.metaText)}>{readingTime}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"VIEWS: "}</span>
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"VIEWS "}</span>
                     <span className={css(articleHead.metaText)}>{views}</span>
                 </div>
                 <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"POST DATE: "}</span>
+                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"POST DATE "}</span>
                     <span className={css(articleHead.metaText)}>{publishedAt}</span>
                 </div>
             </div>
