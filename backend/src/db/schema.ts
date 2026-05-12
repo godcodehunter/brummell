@@ -31,7 +31,7 @@ export const comments = sqliteTable("comments", {
     .references(() => commentTargets.id, { onDelete: "cascade" }),
   poster: integer("poster_id").notNull(),
   text: text("text").notNull(),
-  // Unix timestamp in seconds.
+  // Unix timestamp
   created_at: integer("created_at").notNull(),
 });
 
@@ -42,15 +42,16 @@ export const articles = sqliteTable("articles", {
   // Stored inline as a base64 data URL.
   illustration: text("illustration").notNull(),
   preview_txt: text("preview_txt").notNull(),
+  difficulty: text("difficulty", { enum: ["easy", "medium", "hard", "extra_hard"] }).notNull(),
   reading_time_min: integer("reading_time_min").notNull(),
-  // Unix timestamp in seconds.
+  // Unix timestamp
   created_at: integer("created_at").notNull(),
 });
 
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   text: text("text").notNull(),
-  // Unix timestamp in seconds.
+  // Unix timestamp
   created_at: integer("created_at").notNull(),
 });
 
@@ -121,6 +122,17 @@ export const owners = sqliteTable("owners", {
     .notNull()
     .default([]),
 });
+
+export const pageViews = sqliteTable("page_views", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  target_type: text("target_type", { enum: ["article", "shot", "podcast"] }).notNull(),
+  target_id: integer("target_id").notNull(),
+  // Unix timestamp rounded to the beginning of the day UTC
+  day: integer("day").notNull(),       
+  count: integer("count").notNull().default(0),
+}, (t) => ({
+  uniqueDay: uniqueIndex("page_views_target_day_uq").on(t.target_type, t.target_id, t.day),
+}));
 
 // Inferred TypeScript types for read rows. `$inferSelect` reflects what a
 // SELECT returns; `$inferInsert` would reflect what INSERT accepts.

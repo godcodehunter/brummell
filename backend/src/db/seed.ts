@@ -48,7 +48,8 @@ function ensureSchema() {
       illustration TEXT NOT NULL,
       preview_txt TEXT NOT NULL,
       reading_time_min INTEGER NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      difficulty TEXT NOT NULL DEFAULT 'easy'
     );
 
     CREATE TABLE IF NOT EXISTS tags (
@@ -109,6 +110,7 @@ export function initDatabase() {
       reading_time_min: 9,
       created_at: 1706416211,
       tag_indices: [0],
+      difficulty: "medium" as const,
     },
     {
       kicker: "Opinion",
@@ -117,6 +119,7 @@ export function initDatabase() {
       reading_time_min: 9,
       created_at: 1709094611,
       tag_indices: [] as number[],
+      difficulty: "medium" as const,
     },
   ];
 
@@ -142,6 +145,7 @@ export function initDatabase() {
             preview_txt: article.preview_txt,
             reading_time_min: article.reading_time_min,
             created_at: article.created_at,
+            difficulty: article.difficulty,
           })
           .returning()
           .all()[0]!;
