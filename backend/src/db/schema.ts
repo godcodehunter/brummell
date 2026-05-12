@@ -31,6 +31,8 @@ export const comments = sqliteTable("comments", {
     .references(() => commentTargets.id, { onDelete: "cascade" }),
   poster: integer("poster_id").notNull(),
   text: text("text").notNull(),
+  // Unix timestamp in seconds.
+  created_at: integer("created_at").notNull(),
 });
 
 export const articles = sqliteTable("articles", {
@@ -47,6 +49,8 @@ export const articles = sqliteTable("articles", {
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   text: text("text").notNull(),
+  // Unix timestamp in seconds.
+  created_at: integer("created_at").notNull(),
 });
 
 // Half-open interval over the podcast's audio timeline, in seconds.
@@ -72,6 +76,8 @@ export const podcasts = sqliteTable("podcasts", {
     .$type<PodcastSegment[]>()
     .notNull()
     .default([]),
+  // Unix timestamp in seconds.
+  created_at: integer("created_at").notNull(),
 });
 
 export const tags = sqliteTable("tags", {
