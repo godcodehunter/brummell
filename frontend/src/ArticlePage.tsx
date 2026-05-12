@@ -501,6 +501,7 @@ export const ArticlePage = () => {
             <div ref={middlePanelRef} className={css(page.middlePanel)}>
                 <ArticleHead
                     article={{
+                        bage: "new",
                         kicker: "Systems",
                         title: "Article Title",
                         preview: "A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters.",
@@ -510,10 +511,12 @@ export const ArticlePage = () => {
                             { label: "performance", color: chroma("#7AFFB8"), tooltip: "performance" },
                         ],
                         imageSrc: HERO_IMAGE,
-                        difficulty: "hard",
-                        readingTime: "8 min read",
-                        views: "42",
-                        publishedAt: "today at 14:32",
+                        metaItems: {
+                            difficulty: "hard",
+                            readingTime: "8 min read",
+                            views: "42",
+                            publishedAt: "today at 14:32",
+                        },
                     }}
                 />
                 <div

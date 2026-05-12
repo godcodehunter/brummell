@@ -11,16 +11,21 @@ const HERO_OVERLAY_GRADIENT = [
     "rgba(0,0,0,0) 100%)",
 ].join(" ");
 
+export interface MetaIntems {
+    difficulty: string;
+    readingTime: string;
+    views: string;
+    publishedAt: string;
+}
+
 export interface Article {
+    bage?: "hot" | "new",
     title: string;
     preview: string;
     tags: Tag[];
     imageSrc: string;
     kicker: string;
-    difficulty: string;
-    readingTime: string;
-    views: string;
-    publishedAt: string;
+    metaItems: MetaIntems,
 }
 
 const styles = StyleSheet.create({
@@ -131,7 +136,7 @@ const ArticleHero = (
     <div className={css(styles.heroWrap)}>
         <img className={css(styles.hero)} src={imageSrc} alt="" />
         <div className={css(styles.heroOverlay)}>
-            {kicker && <span className={css(styles.kicker)}>{kicker}</span>}
+            <span className={css(styles.kicker)}>{kicker}</span>
             <h1 className={css(styles.title)}>{title}</h1>
             <p className={css(styles.preview)}>{preview}</p>
         </div>
@@ -139,14 +144,13 @@ const ArticleHero = (
 );
 
 const ArticleMeta = (
-    { tags, difficulty, readingTime, views, publishedAt }:
-        Pick<Article, "tags" | "difficulty" | "readingTime" | "views" | "publishedAt">
+    { tags, metaItems }: Pick<Article, "tags" | "metaItems">
 ) => {
     const metaEntries: { label: string; value: string }[] = [
-        { label: "COMPLEXITY", value: difficulty },
-        { label: "READ TIME", value: readingTime },
-        { label: "VIEWS", value: views },
-        { label: "POST DATE", value: publishedAt },
+        { label: "COMPLEXITY", value: metaItems.difficulty },
+        { label: "READ TIME", value: metaItems.readingTime },
+        { label: "VIEWS", value: metaItems.views },
+        { label: "POST DATE", value: metaItems.publishedAt },
     ];
     return (
         <div className={css(styles.body)}>
@@ -161,21 +165,25 @@ const ArticleMeta = (
     );
 };
 
+const BAGE_VARIANTS: Record<NonNullable<Article["bage"]>, { color: string; text: string }> = {
+    hot: { color: "#B33A3A", text: "HOT" },
+    new: { color: "#2D8C5C", text: "NEW" },
+};
+
 export const ArticleHead: React.FC<{ article: Article }> = ({ article }) => (
     <div className={css(globalStyles.substrate, styles.container)}>
-        <Badge color="red" text="HOT" />
+        {article.bage && (
+            <Badge
+                color={BAGE_VARIANTS[article.bage].color}
+                text={BAGE_VARIANTS[article.bage].text}
+            />
+        )}
         <ArticleHero
             imageSrc={article.imageSrc}
             kicker={article.kicker}
             title={article.title}
             preview={article.preview}
         />
-        <ArticleMeta
-            tags={article.tags}
-            difficulty={article.difficulty}
-            readingTime={article.readingTime}
-            views={article.views}
-            publishedAt={article.publishedAt}
-        />
+        <ArticleMeta tags={article.tags} metaItems={article.metaItems} />
     </div>
 );
