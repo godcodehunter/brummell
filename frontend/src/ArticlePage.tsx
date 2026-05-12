@@ -13,6 +13,7 @@ import { ReactComponent as Clock } from './resource/clock.svg';
 import { ReactComponent as Calendar } from './resource/calendar.svg';
 import { ReactComponent as Eye } from './resource/eye.svg';
 import { ReactComponent as Lvl } from './resource/lvl.svg';
+import Badge from './components/Bage';
 
 const page = StyleSheet.create({
     root: {
@@ -581,7 +582,8 @@ const ArticleHead: React.FC<{
     views: string;
     publishedAt: string;
 }> = ({ title, preview, tags, imageSrc, kicker, difficulty, readingTime, views, publishedAt }) => (
-    <div className={css(globalStyles.substrate, articleHead.container)}>
+    <div className={css(globalStyles.substrate, articleHead.container)} style={{ position: "relative" }}>
+        <Badge color="red" text="HOT"/>
         <div className={css(articleHead.heroWrap)}>
             <img className={css(articleHead.hero)} src={imageSrc} alt="" />
             <div className={css(articleHead.heroOverlay)}>
@@ -667,6 +669,11 @@ export const ArticlePage = () => {
                     <Markdown>{markdown}</Markdown>
                     <ArticleBody />
                 </div>
+                {/* 
+                    A placeholder that allows you to raise the article 
+                    by another half of the screen 
+                */}
+                <div style={{ height: "50vh", flexShrink: 0 }} /> 
             </div>
             <div className={css(page.rightPanel)}>
                 <Chat messages={chatStub} />
