@@ -14,22 +14,21 @@
 //   4. `builder.toSchema()` — produce the executable schema for Yoga.
 
 import SchemaBuilder from "@pothos/core";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db } from "../db/client.js";
 import {
   articles,
-  articleTags,
+  tagSets,
   tags,
   owners,
-  externalLinks,
   type Article,
   type Owner,
   type ExternalLink,
 } from "../db/schema.js";
 import { pubsub } from "./pubsub.js";
 
-// The shape of a tag as the GraphQL layer sees it. Both `articleTags` rows
+// The shape of a tag as the GraphQL layer sees it. Both `entityTags` rows
 // and `tags` rows are structurally compatible with this — they both have
 // `label/color/tooltip` — so we use one GraphQL type for both.
 type TagShape = { label: string; color: string; tooltip: string };
@@ -111,19 +110,23 @@ builder.objectType("Article", {
     // demo, but a real app would batch with DataLoader.
     tags: t.field({
       type: ["Tag"],
-      resolve: (article) =>
-        db
+      resolve: (article) => {
+        const target = db
           .select()
-          .from(articleTags)
-          .where(eq(articleTags.article_id, article.id))
-          .all(),
+          .from(tagSets)
+          .where(
+            and(eq(tagSets.type, "article"), eq(tagSets.entity_id, article.id)),
+          )
+          .all()[0];
+        if (!target || target.tag_ids.length === 0) return [];
+        return db.select().from(tags).where(inArray(tags.id, target.tag_ids)).all();
+      },
     }),
   }),
 });
 
 builder.objectType("ExternalLink", {
   fields: (t) => ({
-    id: t.exposeID("id"),
     svg_icon: t.exposeString("svg_icon"),
     url: t.exposeString("url"),
   }),
@@ -139,12 +142,7 @@ builder.objectType("Owner", {
     avatar: t.exposeString("avatar"),
     external_links: t.field({
       type: ["ExternalLink"],
-      resolve: (owner) =>
-        db
-          .select()
-          .from(externalLinks)
-          .where(eq(externalLinks.owner_id, owner.id))
-          .all(),
+      resolve: (owner) => owner.external_links,
     }),
   }),
 });

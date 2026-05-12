@@ -1,5 +1,20 @@
 import { sqliteTable, integer, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { relations } from "drizzle-orm";
+
+export const posters = sqliteTable("posters", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  provider: text("provider", { enum: ["github", "google", "anonymous"] }).notNull(),
+  // String to hold both the GitHub numeric id and the Google sub.
+  provider_user_id: text("provider_user_id").notNull(),
+  display_name: text("display_name").notNull(),
+  avatar_url: text("avatar_url"),  
+  email: text("email"),       
+  // Unix timestamp    
+  created_at: integer("created_at").notNull(),
+}, (t) => ({
+  uniqueProviderUser: uniqueIndex("posters_provider_user_uq")
+    .on(t.provider, t.provider_user_id),
+}));
+
 
 export const commentTargets = sqliteTable("comment_targets", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -21,9 +36,7 @@ export const comments = sqliteTable("comments", {
 export const articles = sqliteTable("articles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
-  // The illustration is stored inline as a base64 data URL — see seed.ts.
-  // For a real app you'd usually store a path/URL and serve the file
-  // separately. Keeping it inline makes the demo self-contained.
+  // Stored inline as a base64 data URL.
   illustration: text("illustration").notNull(),
   preview_txt: text("preview_txt").notNull(),
   reading_time_min: integer("reading_time_min").notNull(),
@@ -31,37 +44,18 @@ export const articles = sqliteTable("articles", {
   publication_time: integer("publication_time").notNull(),
 });
 
-// Short text-only post. Comments hang off it via the targets table.
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   text: text("text").notNull(),
 });
 
-// Audio post: a headline plus the audio itself, stored inline as a
-// base64 data URL (same convention as articles.illustration).
 export const podcasts = sqliteTable("podcasts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
+  // Stored inline as a base64 data URL
   sound: text("sound").notNull(),
 });
 
-// Tags attached to a specific article (denormalised on purpose — each row
-// carries its own label/color/tooltip rather than referencing a shared tag).
-// This matches the original demo data which had inline tag arrays.
-export const articleTags = sqliteTable("article_tags", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  article_id: integer("article_id")
-    .notNull()
-    // ON DELETE CASCADE: when an article is removed, its tags go with it.
-    .references(() => articles.id, { onDelete: "cascade" }),
-  label: text("label").notNull(),
-  color: text("color").notNull(),
-  tooltip: text("tooltip").notNull(),
-});
-
-// Global tag list used by the search/picker UI on the frontend. Separate
-// from `article_tags` because those serve a different purpose (per-article
-// display) and may diverge in fields later.
 export const tags = sqliteTable("tags", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   label: text("label").notNull(),
@@ -69,62 +63,40 @@ export const tags = sqliteTable("tags", {
   tooltip: text("tooltip").notNull(),
 });
 
-// Relations let Drizzle's relational query API understand "an article has
-// many tags". We don't use that API yet, but it's good practice to declare
-// it for future joins.
-export const articlesRelations = relations(articles, ({ many }) => ({
-  tags: many(articleTags),
+export const tagSets = sqliteTable("tag_sets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type", { enum: ["article", "shot", "podcast"] }).notNull(),
+  entity_id: integer("entity_id").notNull(),
+  tag_ids: text("tag_ids", { mode: "json" }).$type<number[]>().notNull(),
+}, (t) => ({
+  uniqueEntity: uniqueIndex("tag_sets_type_entity_uq").on(t.type, t.entity_id),
 }));
 
-export const articleTagsRelations = relations(articleTags, ({ one }) => ({
-  article: one(articles, {
-    fields: [articleTags.article_id],
-    references: [articles.id],
-  }),
-}));
+export type ExternalLink = { svg_icon: string; url: string };
 
-// Single-owner blog: there's always at most one row in this table. The
-// password hash + salt back the admin sign-in flow; nickname/about/avatar
-// are public profile fields rendered on the front page.
 export const owners = sqliteTable("owners", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   password_hash: text("password_hash").notNull(),
   password_salt: text("password_salt").notNull(),
+  // Stored inline as a base64 data URL.
+  avatar: text("avatar").notNull().default(""),
   nickname: text("nickname").notNull().default(""),
   about_myself: text("about_myself").notNull().default(""),
-  // Stored inline as a data URL, same convention as articles.illustration.
-  avatar: text("avatar").notNull().default(""),
-});
-
-export const externalLinks = sqliteTable("external_links", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  owner_id: integer("owner_id")
+  external_links: text("external_links", { mode: "json" })
+    .$type<ExternalLink[]>()
     .notNull()
-    .references(() => owners.id, { onDelete: "cascade" }),
-  svg_icon: text("svg_icon").notNull(),
-  url: text("url").notNull(),
+    .default([]),
 });
-
-export const ownersRelations = relations(owners, ({ many }) => ({
-  external_links: many(externalLinks),
-}));
-
-export const externalLinksRelations = relations(externalLinks, ({ one }) => ({
-  owner: one(owners, {
-    fields: [externalLinks.owner_id],
-    references: [owners.id],
-  }),
-}));
 
 // Inferred TypeScript types for read rows. `$inferSelect` reflects what a
-// SELECT returns; `$inferInsert` would reflect what INSERT accepts.\
+// SELECT returns; `$inferInsert` would reflect what INSERT accepts.
 export type Comment = typeof comments.$inferSelect;
 export type CommentTarget = typeof commentTargets.$inferSelect;
 export type CommentTargetType = CommentTarget["type"];
 export type Article = typeof articles.$inferSelect;
 export type Shot = typeof shots.$inferSelect;
 export type Podcast = typeof podcasts.$inferSelect;
-export type ArticleTag = typeof articleTags.$inferSelect;
 export type Tag = typeof tags.$inferSelect;
+export type TagSet = typeof tagSets.$inferSelect;
+export type TagSetType = TagSet["type"];
 export type Owner = typeof owners.$inferSelect;
-export type ExternalLink = typeof externalLinks.$inferSelect;

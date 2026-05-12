@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { sqlite, db } from "./client.js";
-import { articles, articleTags, tags } from "./schema.js";
+import { articles, tagSets, tags } from "./schema.js";
 
 // In ES modules `__dirname` is not defined automatically; this is the
 // canonical replacement.
@@ -50,14 +50,6 @@ function ensureSchema() {
       publication_time INTEGER NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS article_tags (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      article_id INTEGER NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
-      label TEXT NOT NULL,
-      color TEXT NOT NULL,
-      tooltip TEXT NOT NULL
-    );
-
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       label TEXT NOT NULL,
@@ -65,9 +57,15 @@ function ensureSchema() {
       tooltip TEXT NOT NULL
     );
 
-    -- Helps queries like "all tags for article X" stay fast.
-    CREATE INDEX IF NOT EXISTS idx_article_tags_article_id
-      ON article_tags(article_id);
+    CREATE TABLE IF NOT EXISTS tag_sets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      entity_id INTEGER NOT NULL,
+      tag_ids TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS tag_sets_type_entity_uq
+      ON tag_sets(type, entity_id);
 
     CREATE TABLE IF NOT EXISTS owners (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,18 +73,9 @@ function ensureSchema() {
       password_salt TEXT NOT NULL,
       nickname TEXT NOT NULL DEFAULT '',
       about_myself TEXT NOT NULL DEFAULT '',
-      avatar TEXT NOT NULL DEFAULT ''
+      avatar TEXT NOT NULL DEFAULT '',
+      external_links TEXT NOT NULL DEFAULT '[]'
     );
-
-    CREATE TABLE IF NOT EXISTS external_links (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      owner_id INTEGER NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
-      svg_icon TEXT NOT NULL,
-      url TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_external_links_owner_id
-      ON external_links(owner_id);
   `);
 }
 
@@ -102,6 +91,14 @@ export function initDatabase() {
     path.join(__dirname, "..", "resources", "illustration.jpg"),
   );
 
+  const seedTags = [
+    { label: "banana", color: "#327878", tooltip: "Test tooltip" },
+    { label: "ball", color: "#327878", tooltip: "Test tooltip" },
+    { label: "beicon", color: "#327878", tooltip: "Test tooltip" },
+  ];
+
+  // Each article references tags by index into `seedTags` — resolved to
+  // real tag ids after the tag rows are inserted.
   const seedArticles = [
     {
       headline: "January Yepp",
@@ -109,26 +106,24 @@ export function initDatabase() {
         "In November 2011, Amazon added what it called “Time To Read” to its new Kindle Touch, but disabled it by default. With the release of Kindle Paperwhite in October 2012, it enabled Time To Read and started advertising the feature. It was so popular that people with older versions of Kindle tried to figure out how to get it.",
       reading_time_min: 9,
       publication_time: 1706416211,
-      tags: [{ label: "Test", color: "#327878", tooltip: "Test tooltip" }],
+      tag_indices: [0],
     },
     {
       headline: "February Oyy",
       preview_txt: "Test txt",
       reading_time_min: 9,
       publication_time: 1709094611,
-      tags: [],
+      tag_indices: [] as number[],
     },
-  ];
-
-  const seedTags = [
-    { label: "banana", color: "#327878", tooltip: "Test tooltip" },
-    { label: "ball", color: "#327878", tooltip: "Test tooltip" },
-    { label: "beicon", color: "#327878", tooltip: "Test tooltip" },
   ];
 
   // A transaction either commits everything or nothing. If any insert
   // throws, the database stays empty and we won't have half-seeded state.
   db.transaction((tx) => {
+    const insertedTags = seedTags.map(
+      (tag) => tx.insert(tags).values(tag).returning().all()[0]!,
+    );
+
     // Repeat 6 times so the grid on the front page has enough cards
     // to look interesting.
     for (let i = 0; i < 6; i++) {
@@ -147,21 +142,16 @@ export function initDatabase() {
           .returning()
           .all()[0]!;
 
-        for (const tag of article.tags) {
-          tx.insert(articleTags)
+        if (article.tag_indices.length > 0) {
+          tx.insert(tagSets)
             .values({
-              article_id: inserted.id,
-              label: tag.label,
-              color: tag.color,
-              tooltip: tag.tooltip,
+              type: "article",
+              entity_id: inserted.id,
+              tag_ids: article.tag_indices.map((idx) => insertedTags[idx]!.id),
             })
             .run();
         }
       }
-    }
-
-    for (const tag of seedTags) {
-      tx.insert(tags).values(tag).run();
     }
   });
 
