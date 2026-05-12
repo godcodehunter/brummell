@@ -100,6 +100,7 @@ builder.objectType("Tag", {
 builder.objectType("Article", {
   fields: (t) => ({
     id: t.exposeID("id"),
+    kicker: t.exposeString("kicker"),
     headline: t.exposeString("headline"),
     illustration: t.exposeString("illustration"),
     preview_txt: t.exposeString("preview_txt"),
@@ -195,6 +196,7 @@ builder.mutationType({
         const created = db
           .insert(articles)
           .values({
+            kicker: "",
             headline: content.slice(0, 80),
             illustration: "",
             preview_txt: content,

@@ -43,6 +43,7 @@ function ensureSchema() {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kicker TEXT NOT NULL,
       headline TEXT NOT NULL,
       illustration TEXT NOT NULL,
       preview_txt TEXT NOT NULL,
@@ -101,6 +102,7 @@ export function initDatabase() {
   // real tag ids after the tag rows are inserted.
   const seedArticles = [
     {
+      kicker: "Industry",
       headline: "January Yepp",
       preview_txt:
         "In November 2011, Amazon added what it called “Time To Read” to its new Kindle Touch, but disabled it by default. With the release of Kindle Paperwhite in October 2012, it enabled Time To Read and started advertising the feature. It was so popular that people with older versions of Kindle tried to figure out how to get it.",
@@ -109,6 +111,7 @@ export function initDatabase() {
       tag_indices: [0],
     },
     {
+      kicker: "Opinion",
       headline: "February Oyy",
       preview_txt: "Test txt",
       reading_time_min: 9,
@@ -133,6 +136,7 @@ export function initDatabase() {
         const inserted = tx
           .insert(articles)
           .values({
+            kicker: article.kicker,
             headline: article.headline,
             illustration,
             preview_txt: article.preview_txt,

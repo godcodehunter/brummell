@@ -37,6 +37,7 @@ export const comments = sqliteTable("comments", {
 
 export const articles = sqliteTable("articles", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  kicker: text("kicker").notNull(),
   headline: text("headline").notNull(),
   // Stored inline as a base64 data URL.
   illustration: text("illustration").notNull(),
