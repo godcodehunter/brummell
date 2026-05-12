@@ -104,7 +104,7 @@ builder.objectType("Article", {
     illustration: t.exposeString("illustration"),
     preview_txt: t.exposeString("preview_txt"),
     reading_time_min: t.exposeInt("reading_time_min"),
-    publication_time: t.exposeInt("publication_time"),
+    created_at: t.exposeInt("created_at"),
     // `tags` is computed: for each Article we run a separate query to fetch
     // its tags. Note: this is the classic "N+1" pattern — fine for a tiny
     // demo, but a real app would batch with DataLoader.
@@ -199,7 +199,7 @@ builder.mutationType({
             illustration: "",
             preview_txt: content,
             reading_time_min: 1,
-            publication_time: Math.floor(Date.now() / 1000),
+            created_at: Math.floor(Date.now() / 1000),
           })
           .returning()
           .all()[0]!;

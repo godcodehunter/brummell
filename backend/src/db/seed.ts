@@ -47,7 +47,7 @@ function ensureSchema() {
       illustration TEXT NOT NULL,
       preview_txt TEXT NOT NULL,
       reading_time_min INTEGER NOT NULL,
-      publication_time INTEGER NOT NULL
+      created_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS tags (
@@ -105,14 +105,14 @@ export function initDatabase() {
       preview_txt:
         "In November 2011, Amazon added what it called “Time To Read” to its new Kindle Touch, but disabled it by default. With the release of Kindle Paperwhite in October 2012, it enabled Time To Read and started advertising the feature. It was so popular that people with older versions of Kindle tried to figure out how to get it.",
       reading_time_min: 9,
-      publication_time: 1706416211,
+      created_at: 1706416211,
       tag_indices: [0],
     },
     {
       headline: "February Oyy",
       preview_txt: "Test txt",
       reading_time_min: 9,
-      publication_time: 1709094611,
+      created_at: 1709094611,
       tag_indices: [] as number[],
     },
   ];
@@ -137,7 +137,7 @@ export function initDatabase() {
             illustration,
             preview_txt: article.preview_txt,
             reading_time_min: article.reading_time_min,
-            publication_time: article.publication_time,
+            created_at: article.created_at,
           })
           .returning()
           .all()[0]!;

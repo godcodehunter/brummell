@@ -41,7 +41,7 @@ export const articles = sqliteTable("articles", {
   preview_txt: text("preview_txt").notNull(),
   reading_time_min: integer("reading_time_min").notNull(),
   // Unix timestamp in seconds.
-  publication_time: integer("publication_time").notNull(),
+  created_at: integer("created_at").notNull(),
 });
 
 export const shots = sqliteTable("shots", {
@@ -49,11 +49,29 @@ export const shots = sqliteTable("shots", {
   text: text("text").notNull(),
 });
 
+// Half-open interval over the podcast's audio timeline, in seconds.
+export type TimeRange = { start: number; end: number };
+// Guest image is stored inline as a base64 data URL
+export type PodcastGuest = { image: string; name: string; who_is: string };
+export type PodcastSegment = { range: TimeRange; text: string };
+
 export const podcasts = sqliteTable("podcasts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
   // Stored inline as a base64 data URL
   sound: text("sound").notNull(),
+  guests: text("guests", { mode: "json" })
+    .$type<PodcastGuest[]>()
+    .notNull()
+    .default([]),
+  topics: text("topics", { mode: "json" })
+    .$type<PodcastSegment[]>()
+    .notNull()
+    .default([]),
+  subtitles: text("subtitles", { mode: "json" })
+    .$type<PodcastSegment[]>()
+    .notNull()
+    .default([]),
 });
 
 export const tags = sqliteTable("tags", {
