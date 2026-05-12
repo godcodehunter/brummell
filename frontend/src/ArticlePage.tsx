@@ -6,14 +6,13 @@ import { globalStyles, constants } from './global_styles';
 import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
 import { Chat, ChatMessage } from './components/Chat';
-import { ChipHolder, Tag } from './components/Chip';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as Arrow } from './resource/back.svg';
 import { ReactComponent as Clock } from './resource/clock.svg';
 import { ReactComponent as Calendar } from './resource/calendar.svg';
 import { ReactComponent as Eye } from './resource/eye.svg';
 import { ReactComponent as Lvl } from './resource/lvl.svg';
-import Badge from './components/Bage';
+import { ArticleHead } from './components/ArticleHead';
 
 const page = StyleSheet.create({
     root: {
@@ -472,151 +471,6 @@ const useScrollState = (
     return state;
 };
 
-const articleHead = StyleSheet.create({
-    container: {
-        display: "flex",
-        flexDirection: "column",
-    },
-    heroWrap: {
-        position: "relative",
-        width: "100%",
-    },
-    hero: {
-        width: "100%",
-        height: 420,
-        objectFit: "cover",
-        display: "block",
-    },
-    heroOverlay: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
-        padding: "40px 32px 28px",
-        background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0) 100%)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-    },
-    kicker: {
-        fontFamily: "Monda",
-        fontSize: 11,
-        fontWeight: "bold",
-        letterSpacing: 4,
-        color: "#FFFFFF",
-        textTransform: "uppercase",
-        opacity: 0.85,
-    },
-    title: {
-        fontFamily: "Monda",
-        fontSize: 48,
-        fontWeight: "bold",
-        lineHeight: 1.05,
-        color: "#FFFFFF",
-        margin: 0,
-        textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-    },
-    preview: {
-        fontFamily: "Roboto",
-        fontStyle: "italic",
-        fontWeight: "normal",
-        fontSize: 16,
-        lineHeight: 1.5,
-        color: "#E6E6E6",
-        margin: 0,
-        maxWidth: "75%",
-    },
-    body: {
-        padding: "20px 32px 22px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: "#4A4A4A",
-    },
-    footer: {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "flex-start",
-        alignItems: "center",
-        gap: 18,
-        flexWrap: "wrap",
-    },
-    metaGroup: {
-        display: "flex",
-        flexDirection: "row",
-        gap: 6,
-        alignItems: "center",
-    },
-    metaIcon: {
-        width: 14,
-        height: 14,
-    },
-    eyeIcon: {
-        width: 14 * 22 / 15,
-        height: 14,
-    },
-    metaText: {
-        fontFamily: "Roboto",
-        fontSize: 12,
-        color: "#ABABAB",
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-    },
-    metaLabel: {
-        fontWeight: "bold",
-        color: "#D4D4D4",
-    },
-});
-
-const ArticleHead: React.FC<{
-    title: string;
-    preview: string;
-    tags: Tag[];
-    imageSrc: string;
-    kicker?: string;
-    difficulty: string;
-    readingTime: string;
-    views: string;
-    publishedAt: string;
-}> = ({ title, preview, tags, imageSrc, kicker, difficulty, readingTime, views, publishedAt }) => (
-    <div className={css(globalStyles.substrate, articleHead.container)} style={{ position: "relative" }}>
-        <Badge color="red" text="HOT"/>
-        <div className={css(articleHead.heroWrap)}>
-            <img className={css(articleHead.hero)} src={imageSrc} alt="" />
-            <div className={css(articleHead.heroOverlay)}>
-                {kicker && <span className={css(articleHead.kicker)}>{kicker}</span>}
-                <h1 className={css(articleHead.title)}>{title}</h1>
-                <p className={css(articleHead.preview)}>{preview}</p>
-            </div>
-        </div>
-        <div className={css(articleHead.body)}>
-            <ChipHolder data={tags} />
-            <div className={css(articleHead.divider)} />
-            <div className={css(articleHead.footer)}>
-                <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"COMPLEXITY "}</span>
-                    <span className={css(articleHead.metaText)}>{difficulty}</span>
-                </div>
-                <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"READ TIME "}</span>
-                    <span className={css(articleHead.metaText)}>{readingTime}</span>
-                </div>
-                <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"VIEWS "}</span>
-                    <span className={css(articleHead.metaText)}>{views}</span>
-                </div>
-                <div className={css(articleHead.metaGroup)}>
-                    <span className={css(articleHead.metaText, articleHead.metaLabel)}>{"POST DATE "}</span>
-                    <span className={css(articleHead.metaText)}>{publishedAt}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-);
-
 export const ArticlePage = () => {
     const markdown = '# Hi, *Pluto*!'
     const middlePanelRef = useRef<HTMLDivElement>(null);
@@ -646,19 +500,21 @@ export const ArticlePage = () => {
             </div>
             <div ref={middlePanelRef} className={css(page.middlePanel)}>
                 <ArticleHead
-                    kicker="Systems"
-                    title="Article Title"
-                    preview="A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters."
-                    tags={[
-                        { label: "concurrency", color: chroma("#7AB8FF"), tooltip: "concurrency" },
-                        { label: "memory model", color: chroma("#FFB87A"), tooltip: "memory model" },
-                        { label: "performance", color: chroma("#7AFFB8"), tooltip: "performance" },
-                    ]}
-                    imageSrc={HERO_IMAGE}
-                    difficulty="hard"
-                    readingTime="8 min read"
-                    views="42"
-                    publishedAt="today at 14:32"
+                    article={{
+                        kicker: "Systems",
+                        title: "Article Title",
+                        preview: "A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters.",
+                        tags: [
+                            { label: "concurrency", color: chroma("#7AB8FF"), tooltip: "concurrency" },
+                            { label: "memory model", color: chroma("#FFB87A"), tooltip: "memory model" },
+                            { label: "performance", color: chroma("#7AFFB8"), tooltip: "performance" },
+                        ],
+                        imageSrc: HERO_IMAGE,
+                        difficulty: "hard",
+                        readingTime: "8 min read",
+                        views: "42",
+                        publishedAt: "today at 14:32",
+                    }}
                 />
                 <div
                     className={css(globalStyles.substrate)}
@@ -673,7 +529,7 @@ export const ArticlePage = () => {
                     A placeholder that allows you to raise the article 
                     by another half of the screen 
                 */}
-                <div style={{ height: "50vh", flexShrink: 0 }} /> 
+                <div style={{ height: "50vh", flexShrink: 0 }} />
             </div>
             <div className={css(page.rightPanel)}>
                 <Chat messages={chatStub} />
