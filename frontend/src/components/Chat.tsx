@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
-import { globalStyles, palette } from '../global_styles';
+import { globalStyles, palette } from '../globalStyles';
 
 const chat = StyleSheet.create({
     titleCard: {

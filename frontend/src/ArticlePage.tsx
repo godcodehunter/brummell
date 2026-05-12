@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown'
 import chroma from 'chroma-js';
-import { palette } from './global_styles';
-import { globalStyles, constants } from './global_styles';
+import { palette } from './globalStyles';
+import { globalStyles, constants } from './globalStyles';
 import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
 import { Chat, ChatMessage } from './components/Chat';

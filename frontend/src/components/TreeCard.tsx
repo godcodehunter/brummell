@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { PlusInSquare, MinusInSquare } from '../resource/icons';
-import { globalStyles, palette } from '../global_styles';
+import { globalStyles, palette } from '../globalStyles';
 
 const INDENT_STEP = 12;
 const BASE_PADDING_X = 12;

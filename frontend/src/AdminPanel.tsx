@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { gql, useMutation, useQuery } from "@apollo/client";
 import { StyleSheet, css } from "aphrodite";
-import { globalStyles, palette } from "./global_styles";
+import { globalStyles, palette } from "./globalStyles";
 import { ArticleCreator } from "./components/ArticleCreator";
 
 const TOKEN_STORAGE_KEY = "authToken";

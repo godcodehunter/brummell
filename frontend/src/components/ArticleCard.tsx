@@ -4,7 +4,7 @@ import { Tag, ChipHolder } from './Chip';
 import { ReactComponent as Clock } from '../resource/clock.svg';
 import { ReactComponent as Calendar } from '../resource/calendar.svg';
 import { DateTime, Duration } from 'luxon';
-import { globalStyles } from '../global_styles';
+import { globalStyles } from '../globalStyles';
 
 interface ArticleCardProps {
     illustration: string,
