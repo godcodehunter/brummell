@@ -5,7 +5,7 @@ import { palette } from './globalStyles';
 import { globalStyles, constants } from './globalStyles';
 import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
-import { Chat, ChatMessage } from './components/Chat';
+import { Chat } from './components/Chat';
 import { useNavigate } from 'react-router-dom';
 import { ReactComponent as Arrow } from './resource/back.svg';
 import { ReactComponent as Clock } from './resource/clock.svg';
@@ -363,29 +363,6 @@ const styles = StyleSheet.create({
     },
 });
 
-const chatStub: ChatMessage[] = [
-    {
-        avatar: { color: "#7AB8FF", initial: "L" },
-        name: "linus",
-        text: "Concurrency model looks suspect — what guarantees ordering across the barriers here?",
-    },
-    {
-        avatar: { color: "#FFB87A", initial: "A" },
-        name: "ada",
-        text: "Agree on the ordering question. The acquire/release pair downstream should cover it, but I'd want a written invariant.",
-    },
-    {
-        avatar: { color: "#B87AFF", initial: "G" },
-        name: "grace",
-        text: "Why not a lock-free queue? You'd avoid this whole class of issue.",
-    },
-    {
-        avatar: { color: "#7AFFB8", initial: "D" },
-        name: "dijkstra",
-        text: "Premature. Establish correctness first, performance second.",
-    },
-];
-
 const BackToMain = () => {
     const navigate = useNavigate();
     return (
@@ -535,7 +512,7 @@ export const ArticlePage = () => {
                 <div style={{ height: "50vh", flexShrink: 0 }} />
             </div>
             <div className={css(page.rightPanel)}>
-                <Chat messages={chatStub} />
+                <Chat messages={[]} />
             </div>
         </div>
     );

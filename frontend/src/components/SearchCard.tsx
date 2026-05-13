@@ -154,9 +154,9 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                        {label: "Posts", isActive: true, value: "Posts"}, 
-                        {label: "Tweets", isActive: true, value: "Tweets"}, 
-                        {label: "Talks", isActive: true, value: "Talks"},
+                        {label: "POSTS", isActive: true, value: "Posts"}, 
+                        {label: "SHOTS", isActive: true, value: "Tweets"}, 
+                        {label: "PODCAST", isActive: true, value: "Talks"},
                     ]}
                     onUpdate={setContentType}
                 />
