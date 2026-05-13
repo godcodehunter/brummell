@@ -86,31 +86,17 @@ export function useChat(targetType: ChatTargetType, targetId: number) {
   const liveModeRef = useRef(false);
   const bufferRef = useRef<ChatComment[]>([]);
 
-  const subResult = useSubscription(NEW_COMMENT, {
+  useSubscription(NEW_COMMENT, {
     variables: { targetType, targetId },
     onData: ({ data }) => {
-      console.log("[useChat] onData fired", data);
       const c = data?.data?.newComment as ChatComment | undefined;
-      if (!c) {
-        console.warn("[useChat] onData received empty/unexpected payload", data);
-        return;
-      }
+      if (!c) return;
       if (liveModeRef.current) {
-        console.log("[useChat] live → setMessages");
         setMessages((prev) => mergeDedup(prev, [c]));
       } else {
-        console.log("[useChat] not live yet → buffering");
         bufferRef.current.push(c);
       }
     },
-    onError: (err) => {
-      console.error("[useChat] subscription error", err);
-    },
-  });
-  console.log("[useChat] subResult", {
-    loading: subResult.loading,
-    error: subResult.error,
-    data: subResult.data,
   });
 
   const { data, loading, error } = useQuery(GET_COMMENTS, {
@@ -123,10 +109,6 @@ export function useChat(targetType: ChatTargetType, targetId: number) {
   useEffect(() => {
     if (loading || !data) return;
     const history = (data.getComments ?? []) as ChatComment[];
-    console.log("[useChat] query loaded, flushing buffer", {
-      history: history.length,
-      buffered: bufferRef.current.length,
-    });
     setMessages(mergeDedup(history, bufferRef.current));
     bufferRef.current = [];
     liveModeRef.current = true;
@@ -137,14 +119,12 @@ export function useChat(targetType: ChatTargetType, targetId: number) {
   const sendMessage = useCallback(
     async (text: string, displayName: string) => {
       if (!text.trim()) return;
-      console.log("[useChat] sendMessage →", { targetType, targetId, text, displayName });
       // We don't need to push the returned comment into state ourselves —
       // the subscription receives the same event (because the resolver
       // calls pubsub.publish) and will add it via onData.
-      const res = await postComment({
+      await postComment({
         variables: { targetType, targetId, text, displayName },
       });
-      console.log("[useChat] sendMessage response", res);
     },
     [postComment, targetType, targetId],
   );
