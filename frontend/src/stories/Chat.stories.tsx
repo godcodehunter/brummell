@@ -23,6 +23,26 @@ const chatStub: ChatMessage[] = [
         name: "dijkstra",
         text: "Premature. Establish correctness first, performance second.",
     },
+    {
+        avatar: { color: "#7AB8FF", initial: "L" },
+        name: "linus",
+        text: "Concurrency model looks suspect — what guarantees ordering across the barriers here?",
+    },
+    {
+        avatar: { color: "#FFB87A", initial: "A" },
+        name: "ada",
+        text: "Agree on the ordering question. The acquire/release pair downstream should cover it, but I'd want a written invariant.",
+    },
+    {
+        avatar: { color: "#B87AFF", initial: "G" },
+        name: "grace",
+        text: "Why not a lock-free queue? You'd avoid this whole class of issue.",
+    },
+    {
+        avatar: { color: "#7AFFB8", initial: "D" },
+        name: "dijkstra",
+        text: "Premature. Establish correctness first, performance second.",
+    },
 ];
 
 const meta: Meta<typeof Chat> = {

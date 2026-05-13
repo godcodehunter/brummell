@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { globalStyles, palette } from '../globalStyles';
+import { ReactComponent as ArrowDown } from '../resource/back.svg';
 
 const chat = StyleSheet.create({
     titleCard: {
@@ -12,6 +13,34 @@ const chat = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+    },
+    bottomCard: {
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 10,
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 6,
+    },
+    jumpArrow: {
+        width: 12,
+        height: 12,
+        flexShrink: 0,
+        transform: "rotate(-90deg)",
+        color: "#D4D4D4",
+    },
+    jumpText: {
+        fontFamily: "Roboto",
+        fontStyle: "normal",
+        fontWeight: "bold",
+        fontSize: "12px",
+        lineHeight: 1,
+        color: "#D4D4D4",
     },
     title: {
         fontFamily: "Monda",
@@ -26,6 +55,13 @@ const chat = StyleSheet.create({
         fontWeight: "bold",
         color: palette.darkenedUninteractive,
         letterSpacing: 2,
+    },
+    scrollWrap: {
+        position: "relative",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
     },
     scroll: {
         display: "flex",
@@ -285,15 +321,51 @@ const LoginCard = () => {
     );
 };
 
-export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => (
-    <>
-        <div className={css(globalStyles.substrate, chat.titleCard)}>
-            <span className={css(chat.title)}>CHAT</span>
-            <span className={css(chat.count)}>[{messages.length}]</span>
-        </div>
-        <div className={css(chat.scroll)}>
-            {messages.map((m, i) => <MessageCard key={i} {...m} />)}
-            <LoginCard />
-        </div>
-    </>
-);
+export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const loginRef = useRef<HTMLDivElement>(null);
+    const [loginVisible, setLoginVisible] = useState(true);
+
+    useEffect(() => {
+        const root = scrollRef.current;
+        const target = loginRef.current;
+        if (!root || !target) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setLoginVisible(entry.isIntersecting),
+            { root, threshold: 0.01 },
+        );
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, []);
+
+    const scrollToBottom = () => {
+        const root = scrollRef.current;
+        if (root) root.scrollTo({ top: root.scrollHeight, behavior: "smooth" });
+    };
+
+    return (
+        <>
+            <div className={css(globalStyles.substrate, chat.titleCard)}>
+                <span className={css(chat.title)}>CHAT</span>
+                <span className={css(chat.count)}>[{messages.length}]</span>
+            </div>
+            <div className={css(chat.scrollWrap)}>
+                <div ref={scrollRef} className={css(chat.scroll)}>
+                    {messages.map((m, i) => <MessageCard key={i} {...m} />)}
+                    <div ref={loginRef}>
+                        <LoginCard />
+                    </div>
+                </div>
+                {!loginVisible && (
+                    <div
+                        className={css(globalStyles.substrate, globalStyles.pressable, chat.bottomCard)}
+                        onClick={scrollToBottom}
+                    >
+                        <ArrowDown className={css(chat.jumpArrow)} />
+                        <span className={css(chat.jumpText)}>JUMP TO LEAVE A MESSAGE</span>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+};
