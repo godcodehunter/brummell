@@ -44,7 +44,7 @@ const GET_ARTICLE_COVER = gql`
       },
       preview_txt,
       reading_time_min,
-      publication_time,
+      created_at,
     }
   }
 `;
@@ -62,12 +62,12 @@ interface ArticleCover {
   tags: Tag[],
   preview_txt: string,
   reading_time_min: number, 
-  publication_time: number,
+  created_at: number,
 }
 
 interface ArticleLine {
   headline: string,
-  publication_time: number,
+  created_at: number,
 }
 
 export const app = StyleSheet.create({
@@ -174,7 +174,7 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
   }
   
   content.map((i) => {
-    var date = new Date(i.publication_time * 1000);
+    var date = new Date(i.created_at * 1000);
     let month = date.getMonth()
     
     switch(month) {
@@ -256,13 +256,14 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
 
 const MainPage = () => {
   const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
-  const { data } = useQuery(GET_ARTICLE_COVER);
-  
+  const { data, loading, error } = useQuery(GET_ARTICLE_COVER);
+
   React.useEffect(() => {
+    console.log("GET_ARTICLE_COVER", { loading, error, data });
     if (data?.getArticle?.length > 0) {
-      setArticleCovers(data?.getArticle);
+      setArticleCovers(data.getArticle);
     }
-  }, [data]);
+  }, [data, loading, error]);
 
   useSubscription(GET_LATEST_ARTICLE_COVER, {
     onData: (onData) => {
@@ -300,7 +301,7 @@ const MainPage = () => {
             })}
             preview_txt = {item.preview_txt}
             reading_time={Duration.fromMillis(item.reading_time_min * 60000)}
-            publication_time={DateTime.fromJSDate(new Date(item.publication_time * 1000))}
+            created_at={DateTime.fromJSDate(new Date(item.created_at * 1000))}
             onOpen={() => { navigate(`/article?id=${item.id}`) }}
           />
         )}

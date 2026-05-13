@@ -12,7 +12,7 @@ interface ArticleCardProps {
     tags: Tag[], 
     preview_txt: string,
     reading_time: Duration, 
-    publication_time: DateTime,
+    created_at: DateTime,
     onOpen: () => void,
     style?: any,
 }
@@ -23,7 +23,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     tags,
     preview_txt,
     reading_time,
-    publication_time,
+    created_at,
     onOpen,
     style={}
 }) => {
@@ -124,7 +124,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontSize: "12px",
                                 // lineHeight: "14px",
                                 color: "#D4D4D4",
-                            }}>{stringifyPublicationTime(publication_time)}</span>
+                            }}>{stringifyPublicationTime(created_at)}</span>
                         </div>
                     </div>
                 </div>
