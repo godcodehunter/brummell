@@ -3,6 +3,7 @@ import { gql, useMutation, useQuery } from "@apollo/client";
 import { StyleSheet, css } from "aphrodite";
 import { globalStyles, palette } from "./globalStyles";
 import { ArticleCreator } from "./components/ArticleCreator";
+import { ErrorMsg } from "./components/ErrorMsg";
 
 const TOKEN_STORAGE_KEY = "authToken";
 
@@ -114,11 +115,6 @@ const styles = StyleSheet.create({
         opacity: 0.5,
         cursor: "default",
     },
-    error: {
-        fontFamily: "Roboto",
-        fontSize: 12,
-        color: "#E06C6C",
-    },
 });
 
 interface PasswordFieldProps {
@@ -205,7 +201,7 @@ const SignInCard = ({ onAuthorized }: AuthCardProps) => {
                     onChange={setPassword}
                     onEnter={submit}
                 />
-                {error && <span className={css(styles.error)}>{error.message}</span>}
+                {error && <ErrorMsg title={error.name} text={error.message}/>}
                 <SubmitButton label="SUBMIT" enabled={canSubmit} loading={loading} onClick={submit} />
             </div>
         </div>
@@ -251,8 +247,8 @@ const SetupCard = ({ onAuthorized }: AuthCardProps) => {
                     onChange={setConfirm}
                     onEnter={submit}
                 />
-                {mismatch && <span className={css(styles.error)}>Passwords do not match</span>}
-                {error && <span className={css(styles.error)}>{error.message}</span>}
+                {mismatch && <ErrorMsg title="Validation" text="Passwords do not match"/>}
+                {error && <ErrorMsg title={error.name} text={error.message}/>}
                 <SubmitButton label="CREATE" enabled={canSubmit} loading={loading} onClick={submit} />
             </div>
         </div>
