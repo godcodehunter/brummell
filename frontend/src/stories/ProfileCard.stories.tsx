@@ -9,11 +9,18 @@ export default {
     component: ProfileCard,
 };
 
+const OVERVIEW = [
+    "Welcom to my blog. open source, Rust,",
+    "I am a programmer who is interested in",
+    "microelectronics, computer sience,",
+    "various translators.",
+].join(" ");
+
 export const Default = {
     args: {
         avatar: avatar,
         nickname: "mrsmith",
-        overview: "Welcom to my blog. open source, Rust, I am a programmer who is interested in microelectronics, computer sience, various translators.",
+        overview: OVERVIEW,
         social: [
             <Twitter fill="#ABABAB" />,
             <Github fill="#ABABAB" />,
