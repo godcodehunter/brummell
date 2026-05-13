@@ -14,6 +14,16 @@ const chat = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        "::before": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: "100%",
+            height: 40,
+            background: `linear-gradient(to top, rgba(33,33,33,0), ${palette.mainColor})`,
+            pointerEvents: "none",
+        },
     },
     bottomCard: {
         position: "absolute",
@@ -355,15 +365,15 @@ const JumpToMessage: React.FC<{ visible: boolean; onClick: () => void }> = ({ vi
 
 export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const loginRef = useRef<HTMLDivElement>(null);
-    const [loginVisible, setLoginVisible] = useState(true);
+    const bottomSpacerRef = useRef<HTMLDivElement>(null);
+    const [scrollStart, setsCrollStart] = useState(true);
 
     useEffect(() => {
         const root = scrollRef.current;
-        const target = loginRef.current;
+        const target = bottomSpacerRef.current;
         if (!root || !target) return;
         const observer = new IntersectionObserver(
-            ([entry]) => setLoginVisible(entry.isIntersecting),
+            ([entry]) => setsCrollStart(entry.isIntersecting),
             { root, threshold: 0.01 },
         );
         observer.observe(target);
@@ -384,11 +394,12 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
             <div className={css(chat.scrollWrap)}>
                 <div ref={scrollRef} className={css(chat.scroll)}>
                     {messages.map((m, i) => <MessageCard key={i} {...m} />)}
-                    <div ref={loginRef}>
+                    <div>
                         <LoginCard />
                     </div>
+                    <div ref={bottomSpacerRef} style={{height: 20}}/>
                 </div>
-                <JumpToMessage visible={!loginVisible} onClick={scrollToBottom} />
+                <JumpToMessage visible={!scrollStart} onClick={scrollToBottom} />
             </div>
         </>
     );

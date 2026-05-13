@@ -60,7 +60,6 @@ const meta: Meta<typeof Chat> = {
                     boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 32,
                     overflow: 'hidden',
                 }}
             >

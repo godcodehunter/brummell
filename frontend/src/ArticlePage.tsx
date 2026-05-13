@@ -67,7 +67,6 @@ const page = StyleSheet.create({
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        gap: 32,
     },
     backButton: {
         display: "flex",
