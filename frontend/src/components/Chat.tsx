@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
+import { useTransition, animated } from 'react-spring';
 import { globalStyles, palette } from '../globalStyles';
 import { ReactComponent as ArrowDown } from '../resource/back.svg';
 
@@ -321,6 +322,27 @@ const LoginCard = () => {
     );
 };
 
+const JumpToMessage: React.FC<{ visible: boolean; onClick: () => void }> = ({ visible, onClick }) => {
+    const transitions = useTransition(visible, {
+        from: { opacity: 0, transform: "translateY(8px)" },
+        enter: { opacity: 1, transform: "translateY(0px)" },
+        leave: { opacity: 0, transform: "translateY(8px)" },
+        config: { tension: 210, friction: 26 },
+    });
+    return transitions((style, show) =>
+        show ? (
+            <animated.div
+                style={style}
+                className={css(globalStyles.substrate, globalStyles.pressable, chat.bottomCard)}
+                onClick={onClick}
+            >
+                <ArrowDown className={css(chat.jumpArrow)} />
+                <span className={css(chat.jumpText)}>JUMP TO LEAVE A MESSAGE</span>
+            </animated.div>
+        ) : null,
+    );
+};
+
 export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const loginRef = useRef<HTMLDivElement>(null);
@@ -356,15 +378,7 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
                         <LoginCard />
                     </div>
                 </div>
-                {!loginVisible && (
-                    <div
-                        className={css(globalStyles.substrate, globalStyles.pressable, chat.bottomCard)}
-                        onClick={scrollToBottom}
-                    >
-                        <ArrowDown className={css(chat.jumpArrow)} />
-                        <span className={css(chat.jumpText)}>JUMP TO LEAVE A MESSAGE</span>
-                    </div>
-                )}
+                <JumpToMessage visible={!loginVisible} onClick={scrollToBottom} />
             </div>
         </>
     );
