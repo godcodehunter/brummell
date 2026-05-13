@@ -35,8 +35,18 @@ const yoga = createYoga({
   // Built once per request. Resolvers receive this object as the third
   // arg. We resolve `isAuthorized` here so individual resolvers can stay
   // a simple `ctx.isAuthorized` check.
+  //
+  // Note: this factory runs for both HTTP and WebSocket operations. For
+  // HTTP, `request` is a real Fetch `Request` with `headers.get`. For WS
+  // subscriptions the envelope may pass a different (or no) request, so
+  // we defensively bail to unauthenticated rather than crashing — without
+  // this guard the whole subscription connection dies with code 4500.
   context: ({ request }): Context => {
-    const token = extractBearerToken(request.headers.get("authorization"));
+    const authHeader =
+      typeof request?.headers?.get === "function"
+        ? request.headers.get("authorization")
+        : null;
+    const token = extractBearerToken(authHeader);
     return {
       token,
       isAuthorized: token !== null && isValidToken(token),

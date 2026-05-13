@@ -22,11 +22,17 @@ import {
   tagSets,
   tags,
   owners,
+  comments,
+  commentTargets,
+  posters,
   type Article,
   type Owner,
   type ExternalLink,
+  type Comment,
+  type Poster,
+  type CommentTargetType,
 } from "../db/schema.js";
-import { pubsub } from "./pubsub.js";
+import { pubsub, commentTopicKey } from "./pubsub.js";
 
 // The shape of a tag as the GraphQL layer sees it. Both `entityTags` rows
 // and `tags` rows are structurally compatible with this — they both have
@@ -84,8 +90,17 @@ const builder = new SchemaBuilder<{
     Owner: Owner;
     ExternalLink: ExternalLink;
     AuthPayload: AuthPayloadShape;
+    Comment: Comment;
+    Poster: Poster;
   };
 }>({});
+
+// Enum of supported chat targets — kept in sync with the `type` column on
+// `comment_targets`. Pothos will surface this as a GraphQL enum so clients
+// get autocompletion and the server rejects garbage values.
+const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
+  values: ["article", "shot", "podcast"] as const,
+});
 
 builder.objectType("Tag", {
   // `t.exposeString("label")` is shorthand for "this GraphQL field is
@@ -154,6 +169,33 @@ builder.objectType("AuthPayload", {
   }),
 });
 
+builder.objectType("Poster", {
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    provider: t.exposeString("provider"),
+    display_name: t.exposeString("display_name"),
+    avatar_url: t.exposeString("avatar_url", { nullable: true }),
+  }),
+});
+
+builder.objectType("Comment", {
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    text: t.exposeString("text"),
+    created_at: t.exposeInt("created_at"),
+    // The row stores poster as an integer FK. We load the row lazily here
+    // — fine for chat-sized result sets, would need DataLoader for scale.
+    poster: t.field({
+      type: "Poster",
+      resolve: (comment) => {
+        const row = db.select().from(posters).where(eq(posters.id, comment.poster)).all()[0];
+        if (!row) throw new Error("POSTER_NOT_FOUND");
+        return row;
+      },
+    }),
+  }),
+});
+
 // Read-only entry points.
 builder.queryType({
   fields: (t) => ({
@@ -178,6 +220,34 @@ builder.queryType({
     validateToken: t.field({
       type: "Boolean",
       resolve: (_root, _args, ctx) => ctx.isAuthorized,
+    }),
+
+    // All comments for a given target, oldest first. Returns an empty list
+    // if no `comment_targets` row exists yet (i.e. nobody has posted here).
+    getComments: t.field({
+      type: ["Comment"],
+      args: {
+        targetType: t.arg({ type: CommentTargetTypeEnum, required: true }),
+        targetId: t.arg.int({ required: true }),
+      },
+      resolve: (_, { targetType, targetId }) => {
+        const target = db
+          .select()
+          .from(commentTargets)
+          .where(
+            and(
+              eq(commentTargets.type, targetType),
+              eq(commentTargets.entity_id, targetId),
+            ),
+          )
+          .all()[0];
+        if (!target) return [];
+        return db
+          .select()
+          .from(comments)
+          .where(eq(comments.target_id, target.id))
+          .all();
+      },
     }),
   }),
 });
@@ -251,6 +321,73 @@ builder.mutationType({
         return { token: issueToken() };
       },
     }),
+
+    // Anonymous-only for now: each message creates a fresh `posters` row
+    // tagged provider="anonymous" with a random provider_user_id (the unique
+    // index on (provider, provider_user_id) requires uniqueness). OAuth
+    // sign-in paths will reuse an existing poster instead.
+    postComment: t.field({
+      type: "Comment",
+      args: {
+        targetType: t.arg({ type: CommentTargetTypeEnum, required: true }),
+        targetId: t.arg.int({ required: true }),
+        text: t.arg.string({ required: true }),
+        displayName: t.arg.string({ required: true }),
+      },
+      resolve: (_, { targetType, targetId, text, displayName }) => {
+        const now = Math.floor(Date.now() / 1000);
+
+        // Find-or-create the target row. Two concurrent posts on a brand
+        // new target would race here; the unique index would force one to
+        // fail. Good enough for a single-process demo.
+        let target = db
+          .select()
+          .from(commentTargets)
+          .where(
+            and(
+              eq(commentTargets.type, targetType),
+              eq(commentTargets.entity_id, targetId),
+            ),
+          )
+          .all()[0];
+        if (!target) {
+          target = db
+            .insert(commentTargets)
+            .values({ type: targetType, entity_id: targetId })
+            .returning()
+            .all()[0]!;
+        }
+
+        const poster = db
+          .insert(posters)
+          .values({
+            provider: "anonymous",
+            provider_user_id: randomBytes(8).toString("hex"),
+            display_name: displayName,
+            created_at: now,
+          })
+          .returning()
+          .all()[0]!;
+
+        const created = db
+          .insert(comments)
+          .values({
+            target_id: target.id,
+            poster: poster.id,
+            text,
+            created_at: now,
+          })
+          .returning()
+          .all()[0]!;
+
+        pubsub.publish(
+          "newComment",
+          commentTopicKey(targetType as CommentTargetType, targetId),
+          created,
+        );
+        return created;
+      },
+    }),
   }),
 });
 
@@ -265,6 +402,23 @@ builder.subscriptionType({
       // `resolve` shapes each payload before it goes to the client. Here
       // we just hand it through unchanged.
       resolve: (payload: Article) => payload,
+    }),
+
+    // Each subscriber gets only events whose routing key matches the
+    // (targetType, targetId) they supplied — the pubsub bus does the
+    // filtering for us via the second arg to `subscribe`.
+    newComment: t.field({
+      type: "Comment",
+      args: {
+        targetType: t.arg({ type: CommentTargetTypeEnum, required: true }),
+        targetId: t.arg.int({ required: true }),
+      },
+      subscribe: (_, { targetType, targetId }) =>
+        pubsub.subscribe(
+          "newComment",
+          commentTopicKey(targetType as CommentTargetType, targetId),
+        ),
+      resolve: (payload: Comment) => payload,
     }),
   }),
 });

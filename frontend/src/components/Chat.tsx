@@ -274,8 +274,16 @@ interface ComposerIdentity {
     name: string;
 }
 
-const ComposeCard: React.FC<{ identity: ComposerIdentity }> = ({ identity }) => {
+type SendHandler = (text: string, displayName: string) => void | Promise<void>;
+
+const ComposeCard: React.FC<{ identity: ComposerIdentity; onSend?: SendHandler }> = ({ identity, onSend }) => {
     const [text, setText] = useState("");
+    const handleSend = async () => {
+        const trimmed = text.trim();
+        if (!trimmed || !onSend) return;
+        await onSend(trimmed, identity.name);
+        setText("");
+    };
     return (
         <div className={css(chat.cardWrap)}>
             <div className={css(globalStyles.substrate, chat.card)}>
@@ -287,7 +295,10 @@ const ComposeCard: React.FC<{ identity: ComposerIdentity }> = ({ identity }) => 
                         onChange={(e) => setText(e.target.value)}
                     />
                     <div className={css(chat.composeRow)}>
-                        <div className={css(globalStyles.pressable, chat.composeButton)}>
+                        <div
+                            className={css(globalStyles.pressable, chat.composeButton)}
+                            onClick={handleSend}
+                        >
                             <span>SEND</span>
                         </div>
                     </div>
@@ -301,9 +312,9 @@ const ComposeCard: React.FC<{ identity: ComposerIdentity }> = ({ identity }) => 
     );
 };
 
-const LoginCard = () => {
+const LoginCard: React.FC<{ onSend?: SendHandler }> = ({ onSend }) => {
     const [identity, setIdentity] = useState<ComposerIdentity | null>(null);
-    if (identity) return <ComposeCard identity={identity} />;
+    if (identity) return <ComposeCard identity={identity} onSend={onSend} />;
     return (
         <div className={css(chat.cardWrap)}>
             <div className={css(globalStyles.substrate, chat.card)}>
@@ -363,7 +374,7 @@ const JumpToMessage: React.FC<{ visible: boolean; onClick: () => void }> = ({ vi
     );
 };
 
-export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
+export const Chat: React.FC<{ messages: ChatMessage[]; onSend?: SendHandler }> = ({ messages, onSend }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomTriggerRef = useRef<HTMLDivElement>(null);
     const [scrollStart, setsCrollStart] = useState(true);
@@ -397,7 +408,7 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
                     <div/>
                     {messages.map((m, i) => <MessageCard key={i} {...m} />)}
                     <div>
-                        <LoginCard />
+                        <LoginCard onSend={onSend} />
                     </div>
                     {/* 
                         The element adds gap on bottom 

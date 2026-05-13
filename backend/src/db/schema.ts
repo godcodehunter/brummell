@@ -139,6 +139,7 @@ export const pageViews = sqliteTable("page_views", {
 export type Comment = typeof comments.$inferSelect;
 export type CommentTarget = typeof commentTargets.$inferSelect;
 export type CommentTargetType = CommentTarget["type"];
+export type Poster = typeof posters.$inferSelect;
 export type Article = typeof articles.$inferSelect;
 export type Shot = typeof shots.$inferSelect;
 export type Podcast = typeof podcasts.$inferSelect;
