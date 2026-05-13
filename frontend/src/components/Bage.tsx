@@ -25,7 +25,12 @@ const badge = StyleSheet.create({
 
 const Badge = ({ color, text }: { color: string, text: string }) => {
   return (
-    <div className={css(badge.ribbon)} style={{ background: color }}>
+    <div
+      className={css(badge.ribbon)}
+      style={{
+        background: `linear-gradient(to right, color-mix(in srgb, ${color}, white 18%), ${color})`,
+      }}
+    >
       {text}
       <span
         className={css(badge.fold)}
