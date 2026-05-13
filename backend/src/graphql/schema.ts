@@ -33,6 +33,7 @@ import {
   type CommentTargetType,
 } from "../db/schema.js";
 import { pubsub, commentTopicKey } from "./pubsub.js";
+import { notifyNewComment } from "../notifications.js"
 
 // The shape of a tag as the GraphQL layer sees it. Both `entityTags` rows
 // and `tags` rows are structurally compatible with this — they both have
@@ -380,6 +381,7 @@ builder.mutationType({
           .returning()
           .all()[0]!;
 
+        notifyNewComment(created, target);
         pubsub.publish(
           "newComment",
           commentTopicKey(targetType as CommentTargetType, targetId),

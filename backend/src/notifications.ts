@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { Agent } from "undici";
 import { config } from "./config";
 import { db } from "./db/client";
 import {
@@ -6,12 +7,22 @@ import {
   Comment,
   CommentTarget,
   articles,
-  commentTargets,
   podcasts
 } from "./db/schema";
 
 
-const TELEGRAM_TIMEOUT_MS = 5_000;
+const TELEGRAM_TIMEOUT_MS = 30_000;
+
+// undici has its own connectTimeout (default 10s) that fires *before* our
+// AbortSignal — so on slow/throttled links to api.telegram.org we'd get
+// UND_ERR_CONNECT_TIMEOUT before the AbortSignal ever got a chance. This
+// dispatcher widens the TCP/TLS handshake budget so the overall AbortSignal
+// stays the single source of truth for "give up".
+const telegramDispatcher = new Agent({
+  connectTimeout: TELEGRAM_TIMEOUT_MS,
+  headersTimeout: TELEGRAM_TIMEOUT_MS,
+  bodyTimeout: TELEGRAM_TIMEOUT_MS,
+});
 
 
 async function notify(text: string): Promise<void> {
@@ -26,7 +37,9 @@ async function notify(text: string): Promise<void> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_id: chatId, text }),
         signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
-      },
+        // `dispatcher` is undici-specific; TS lib.dom doesn't know about it.
+        dispatcher: telegramDispatcher,
+      } as RequestInit,
     );
     if (!res.ok) {
       console.error(
@@ -46,8 +59,7 @@ export function notifyBecameHot(article: Article) {
   );
 }
 
-// Human-readable label for a target. Articles and podcasts have a
-// headline; shots don't, so fall back to the numeric id.
+
 function describeCommentTarget(target: CommentTarget): string {
   switch (target.type) {
     case "article": {
@@ -74,20 +86,14 @@ function describeCommentTarget(target: CommentTarget): string {
   }
 }
 
-export function notifyNewComment(comment: Comment) {
-  const commentTarget = db
-    .select()
-    .from(commentTargets)
-    .where(eq(commentTargets.id, comment.target_id))
-    .get()!;
-
+export function notifyNewComment(comment: Comment, target: CommentTarget) {
   const targetLink =
-    `${config.publicUrl}/${commentTarget.type}` +
-    `?id=${commentTarget.entity_id}&msg=${comment.id}`;
+    `${config.publicUrl}/${target.type}` +
+    `?id=${target.entity_id}&msg=${comment.id}`;
 
   notify(
     `💬 A new message has been posted\n\n` +
-    `Target: ${describeCommentTarget(commentTarget)}\n\n` +
+    `Target: ${describeCommentTarget(target)}\n\n` +
     `Text:\n${comment.text}\n\n` +
     `Link: ${targetLink}`,
   );
