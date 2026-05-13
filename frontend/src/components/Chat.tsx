@@ -27,6 +27,16 @@ const chat = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         gap: 6,
+        "::before": {
+            content: '""',
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: "100%",
+            height: 40,
+            background: `linear-gradient(to bottom, rgba(33,33,33,0), ${palette.mainColor})`,
+            pointerEvents: "none",
+        },
     },
     jumpArrow: {
         width: 12,

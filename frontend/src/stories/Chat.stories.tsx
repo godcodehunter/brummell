@@ -54,7 +54,9 @@ const meta: Meta<typeof Chat> = {
                 style={{
                     width: 340,
                     height: '100vh',
-                    padding: constants.gap,
+                    paddingTop: constants.gap,
+                    paddingRight: constants.gap,
+                    paddingBottom: constants.gap, 
                     boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
