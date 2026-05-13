@@ -12,6 +12,8 @@ const badge = StyleSheet.create({
     padding: "10px 30px",
 
     fontWeight: "bold",
+
+    boxShadow: "2px 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -1px 0 rgba(0,0,0,0.25)",
   },
   fold: {
     position: "absolute",
