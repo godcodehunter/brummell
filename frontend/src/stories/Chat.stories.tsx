@@ -1,7 +1,6 @@
-import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { Chat, ChatMessage } from '../components/Chat';
-import { constants, palette } from '../globalStyles';
+import { constants } from '../globalStyles';
 
 const chatStub: ChatMessage[] = [
     {
@@ -34,10 +33,13 @@ const meta: Meta<typeof Chat> = {
             <div
                 style={{
                     width: 340,
+                    height: '100vh',
                     padding: constants.gap,
+                    boxSizing: 'border-box',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 32,
+                    overflow: 'hidden',
                 }}
             >
                 <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet" />

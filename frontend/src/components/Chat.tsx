@@ -27,6 +27,15 @@ const chat = StyleSheet.create({
         color: palette.darkenedUninteractive,
         letterSpacing: 2,
     },
+    scroll: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 32,
+        padding: "0 10px",
+        overflowY: "auto",
+        minHeight: 0,
+        flex: 1,
+    },
     cardWrap: {
         position: "relative",
     },
@@ -282,7 +291,9 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => (
             <span className={css(chat.title)}>CHAT</span>
             <span className={css(chat.count)}>[{messages.length}]</span>
         </div>
-        {messages.map((m, i) => <MessageCard key={i} {...m} />)}
-        <LoginCard />
+        <div className={css(chat.scroll)}>
+            {messages.map((m, i) => <MessageCard key={i} {...m} />)}
+            <LoginCard />
+        </div>
     </>
 );
