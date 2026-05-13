@@ -5,30 +5,30 @@
     "main": "src/server.ts",
     "type": "module",
     "scripts": {
-        "dev": "tsx watch src/server.ts",
-        "start": "tsx src/server.ts",
+        "dev": "tsx --env-file-if-exists=.env watch src/server.ts",
+        "start": "tsx --env-file-if-exists=.env src/server.ts",
         "db:push": "drizzle-kit push",
         "db:studio": "drizzle-kit studio"
     },
-    "license": "UNLICENSED",
+    "license": "MIT",
     "dependencies": {
-        "@pothos/core": "^4.3.0",
-        "better-sqlite3": "^11.5.0",
-        "drizzle-orm": "^0.36.0",
+        "@pothos/core": "^4.12.0",
+        "better-sqlite3": "^12.10.0",
+        "drizzle-orm": "^0.45.2",
         "graphql": "^16.9.0",
-        "graphql-ws": "^5.16.0",
+        "graphql-ws": "^6.0.8",
         "graphql-yoga": "^5.10.0",
         "openai": "^6.37.0",
-        "undici": "^7.25.0",
-        "ws": "^8.18.0",
+        "undici": "^8.2.0",
+        "ws": "^8.20.1",
         "zod": "^4.4.3"
     },
     "devDependencies": {
         "@types/better-sqlite3": "^7.6.11",
-        "@types/node": "^22.9.0",
+        "@types/node": "^25.7.0",
         "@types/ws": "^8.5.13",
-        "drizzle-kit": "^0.28.0",
+        "drizzle-kit": "^0.31.10",
         "tsx": "^4.19.2",
-        "typescript": "^5.6.3"
+        "typescript": "^6.0.3"
     }
 }

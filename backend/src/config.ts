@@ -1,30 +1,17 @@
-// Reads command-line flags and resolves 
-// runtime configuration.
-//
-// Supported flags:
-//   --db-dir <path>      Directory where the SQLite 
-//                        file lives.
-//                        Created automatically if missing.
-//                        Defaults to "./data" (relative to 
-//                        current working dir).
-//
-//  --port <int>          The port the server will use.
-//
-//  --llm-token <string>  DeepSeek API key (https://api.deepseek.com).
-//                        Used by the article review feature in
-//                        `llmIntegration.ts`. The review endpoint is
-//                        disabled when this flag is missing.
-//
-//  --tg <string>         Telegram bot credentials for notifications,
-//                        in the form "<bot-token>:<chat-id>". The
-//                        bot token itself contains a colon, so the
-//                        chat id is parsed off the LAST colon.
-//                        Notifications are disabled when missing.
-//
-//  --public-url <string> Public base URL of the site (no trailing
-//                        slash), used to build links in Telegram
-//                        notifications. Falls back to
-//                        "http://localhost:<port>" when missing.
+// Settings (flag / env / purpose):
+//   --db-dir       DB_DIR        Directory for the SQLite file. Created
+//                                if missing.
+//   --port         PORT          Port the server listens on.
+//   --llm-token    LLM_TOKEN     DeepSeek API key. 
+//   --draw-new     DRAW_NET      Draw net API key.
+//   --tg           TG            Telegram bot credentials in the form
+//                                "<bot-token>:<chat-id>". Disables 
+//                                notifications when missing.
+//   --public-url   PUBLIC_URL    Public base URL.
+
+const DEFAULT_DB_PATH = "./data"
+const DEFAULT_PORT = "4000"
+const DEFAULT_URL = "http://localhost"
 
 import fs from "node:fs";
 import path from "node:path";
@@ -32,8 +19,8 @@ import { parseArgs } from "node:util";
 
 const { values } = parseArgs({
   options: {
-    "db-dir": { type: "string", default: "./data" },
-    "port": { type: "string", default: "4000" },
+    "db-dir": { type: "string" },
+    "port": { type: "string" },
     "llm-token": { type: "string" },
     "tg": { type: "string" },
     "public-url": { type: "string" },
@@ -41,9 +28,14 @@ const { values } = parseArgs({
   allowPositionals: false,
 });
 
-const port = parseInt(values["port"]!, 10);
+function pick(flag: string | undefined, envKey: string): string | undefined {
+  if (flag !== undefined) return flag;
+  const envVal = process.env[envKey];
+  return envVal && envVal.length > 0 ? envVal : undefined;
+}
 
-const dbDir = path.resolve(values["db-dir"]!);
+const dbDir = path.resolve(pick(values["db-dir"], "DB_DIR") ?? DEFAULT_DB_PATH);
+const port = parseInt(pick(values["port"], "PORT") ?? DEFAULT_PORT, 10);
 
 fs.mkdirSync(dbDir, { recursive: true });
 
@@ -51,7 +43,7 @@ function parseTg(raw: string | undefined): { botToken: string; chatId: string } 
   if (!raw) return undefined;
   const lastColon = raw.lastIndexOf(":");
   if (lastColon <= 0 || lastColon === raw.length - 1) {
-    throw new Error(`--tg must be in "<bot-token>:<chat-id>" form`);
+    throw new Error(`tg credentials must be in "<bot-token>:<chat-id>" form`);
   }
   return {
     botToken: raw.slice(0, lastColon),
@@ -63,7 +55,19 @@ export const config = {
   dbDir,
   dbFile: path.join(dbDir, "app.db"),
   port,
-  llmToken: values["llm-token"],
-  tg: parseTg(values["tg"]),
-  publicUrl: values["public-url"] ?? `http://localhost:${port}`,
+  llmToken: pick(values["llm-token"], "LLM_TOKEN"),
+  tg: parseTg(pick(values["tg"], "TG")),
+  publicUrl: pick(values["public-url"], "PUBLIC_URL") ?? `${DEFAULT_URL}:${port}`,
 };
+
+if(config.tg !== undefined) {
+  console.log("📞 Telegram notify is used");
+}
+
+if(config.llmToken !== undefined) {
+  console.log("🧠 LLM integration is used")
+}
+
+if(config.llmToken !== undefined) {
+  console.log("🖌️ Draw net integration is used")
+}

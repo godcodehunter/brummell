@@ -6,3 +6,5 @@ node_modules
 dist
 # Lockfile (project doesn't pin versions)
 package-lock.json
+
+.env
