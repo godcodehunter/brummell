@@ -8,8 +8,19 @@ const chat = StyleSheet.create({
         top: 0,
         zIndex: 10,
         padding: "10px 14px",
+        display: "flex",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
     },
     title: {
+        fontFamily: "Monda",
+        fontSize: 14,
+        fontWeight: "bold",
+        color: palette.darkenedUninteractive,
+        letterSpacing: 2,
+    },
+    count: {
         fontFamily: "Monda",
         fontSize: 14,
         fontWeight: "bold",
@@ -269,6 +280,7 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => (
     <>
         <div className={css(globalStyles.substrate, chat.titleCard)}>
             <span className={css(chat.title)}>CHAT</span>
+            <span className={css(chat.count)}>[{messages.length}]</span>
         </div>
         {messages.map((m, i) => <MessageCard key={i} {...m} />)}
         <LoginCard />
