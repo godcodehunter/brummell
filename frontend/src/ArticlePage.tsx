@@ -61,7 +61,7 @@ const page = StyleSheet.create({
         height: "100vh",
         overflowY: "auto",
         overflowX: "hidden",
-        paddingTop: constants.gap + 18,
+        paddingTop: constants.gap,
         paddingRight: constants.gap,
         paddingBottom: constants.gap,
         boxSizing: "border-box",

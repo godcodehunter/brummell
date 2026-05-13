@@ -365,12 +365,12 @@ const JumpToMessage: React.FC<{ visible: boolean; onClick: () => void }> = ({ vi
 
 export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const bottomSpacerRef = useRef<HTMLDivElement>(null);
+    const bottomTriggerRef = useRef<HTMLDivElement>(null);
     const [scrollStart, setsCrollStart] = useState(true);
 
     useEffect(() => {
         const root = scrollRef.current;
-        const target = bottomSpacerRef.current;
+        const target = bottomTriggerRef.current;
         if (!root || !target) return;
         const observer = new IntersectionObserver(
             ([entry]) => setsCrollStart(entry.isIntersecting),
@@ -393,11 +393,17 @@ export const Chat: React.FC<{ messages: ChatMessage[] }> = ({ messages }) => {
             </div>
             <div className={css(chat.scrollWrap)}>
                 <div ref={scrollRef} className={css(chat.scroll)}>
+                    {/* The element adds gap on top to prevent sticking. */}
+                    <div/>
                     {messages.map((m, i) => <MessageCard key={i} {...m} />)}
                     <div>
                         <LoginCard />
                     </div>
-                    <div ref={bottomSpacerRef} style={{height: 20}}/>
+                    {/* 
+                        The element adds gap on bottom 
+                        to prevent cutting by flex.
+                    */}
+                    <div ref={bottomTriggerRef}/>
                 </div>
                 <JumpToMessage visible={!scrollStart} onClick={scrollToBottom} />
             </div>
