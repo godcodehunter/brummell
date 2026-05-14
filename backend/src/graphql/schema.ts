@@ -14,7 +14,7 @@
 //   4. `builder.toSchema()` — produce the executable schema for Yoga.
 
 import SchemaBuilder from "@pothos/core";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   articles,
@@ -90,15 +90,15 @@ builder.objectType("Article", {
     tags: t.field({
       type: ["Tag"],
       resolve: (article) => {
-        const target = db
+        const tagSet = db
           .select()
           .from(tagSets)
           .where(
             and(eq(tagSets.type, "article"), eq(tagSets.entity_id, article.id)),
           )
           .all()[0];
-        if (!target || target.tag_ids.length === 0) return [];
-        return db.select().from(tags).where(inArray(tags.id, target.tag_ids)).all();
+        if (!tagSet || tagSet.tag_ids.length === 0) return [];
+        return db.select().from(tags).where(inArray(tags.id, tagSet.tag_ids)).all();
       },
     }),
   }),
@@ -111,8 +111,6 @@ builder.objectType("ExternalLink", {
   }),
 });
 
-// Public profile of the blog owner. Note: password_hash/password_salt are
-// columns on the `Owner` row but deliberately not exposed here.
 builder.objectType("Owner", {
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -183,8 +181,6 @@ builder.queryType({
       resolve: (_root, _args, ctx) => ctx.isAuthorized,
     }),
 
-    // All comments for a given target, oldest first. Returns an empty list
-    // if no `comment_targets` row exists yet (i.e. nobody has posted here).
     getComments: t.field({
       type: ["Comment"],
       args: {
@@ -207,6 +203,7 @@ builder.queryType({
           .select()
           .from(comments)
           .where(eq(comments.target_id, target.id))
+          .orderBy(asc(comments.created_at))
           .all();
       },
     }),
