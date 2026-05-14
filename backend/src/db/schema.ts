@@ -134,8 +134,9 @@ export const pageViews = sqliteTable("page_views", {
   uniqueDay: uniqueIndex("page_views_target_day_uq").on(t.target_type, t.target_id, t.day),
 }));
 
-// Inferred TypeScript types for read rows. `$inferSelect` reflects what a
-// SELECT returns; `$inferInsert` would reflect what INSERT accepts.
+// Inferred TypeScript types for read rows. 
+//  - `$inferSelect` reflects what a SELECT returns; 
+//  - `$inferInsert` would reflect what INSERT accepts.
 export type Comment = typeof comments.$inferSelect;
 export type CommentTarget = typeof commentTargets.$inferSelect;
 export type CommentTargetType = CommentTarget["type"];

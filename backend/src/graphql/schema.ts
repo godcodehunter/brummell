@@ -15,7 +15,6 @@
 
 import SchemaBuilder from "@pothos/core";
 import { and, eq, inArray } from "drizzle-orm";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { db } from "../db/client.js";
 import {
   articles,
@@ -26,6 +25,7 @@ import {
   commentTargets,
   posters,
   type Article,
+  type Tag,
   type Owner,
   type ExternalLink,
   type Comment,
@@ -34,60 +34,25 @@ import {
 } from "../db/schema.js";
 import { pubsub, commentTopicKey } from "./pubsub.js";
 import { notifyNewComment } from "../notifications.js"
+import { randomBytes } from "node:crypto";
+import {
+  verifyPassword,
+  issueToken,
+  prepaireForStorage,
+} from "../admin_pass.js"
 
-// The shape of a tag as the GraphQL layer sees it. Both `entityTags` rows
-// and `tags` rows are structurally compatible with this — they both have
-// `label/color/tooltip` — so we use one GraphQL type for both.
-type TagShape = { label: string; color: string; tooltip: string };
-
-type AuthPayloadShape = { token: string };
-
-// Password hashing via Node's built-in scrypt — no extra deps. Salt is per-row
-// (so identical passwords produce different hashes) and stored next to the
-// hash. timingSafeEqual avoids leaking equality info via comparison time.
-const SCRYPT_KEYLEN = 64;
-
-function hashPassword(password: string, salt: string): string {
-  return scryptSync(password, salt, SCRYPT_KEYLEN).toString("hex");
-}
-
-function verifyPassword(password: string, salt: string, expectedHex: string): boolean {
-  const computed = scryptSync(password, salt, SCRYPT_KEYLEN);
-  const expected = Buffer.from(expectedHex, "hex");
-  if (computed.length !== expected.length) return false;
-  return timingSafeEqual(computed, expected);
-}
-
-// In-memory session store. Lost on restart — fine for a single-owner demo.
-// For persistence move to a `sessions` table and check by token on each
-// authenticated mutation.
-const sessions = new Set<string>();
-
-function issueToken(): string {
-  const token = randomBytes(32).toString("hex");
-  sessions.add(token);
-  return token;
-}
-
-// Exported so the Yoga context factory in server.ts can decide whether
-// the incoming Authorization header carries a live session.
-export function isValidToken(token: string): boolean {
-  return sessions.has(token);
-}
-
-// Available in every resolver as the third argument. The context is built
-// per-request by Yoga (see server.ts); resolvers consult `isAuthorized` to
-// gate authenticated operations.
 export interface Context {
   token: string | null;
   isAuthorized: boolean;
 }
 
+type AuthPayloadShape = { token: string };
+
 const builder = new SchemaBuilder<{
   Context: Context;
   Objects: {
     Article: Article;
-    Tag: TagShape;
+    Tag: Tag;
     Owner: Owner;
     ExternalLink: ExternalLink;
     AuthPayload: AuthPayloadShape;
@@ -96,17 +61,17 @@ const builder = new SchemaBuilder<{
   };
 }>({});
 
-// Enum of supported chat targets — kept in sync with the `type` column on
-// `comment_targets`. Pothos will surface this as a GraphQL enum so clients
-// get autocompletion and the server rejects garbage values.
 const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
   values: ["article", "shot", "podcast"] as const,
 });
 
+const DifficultyEnum = builder.enumType("Difficulty", {
+  values: ["easy", "medium", "hard", "extra_hard"] as const,
+});
+
 builder.objectType("Tag", {
-  // `t.exposeString("label")` is shorthand for "this GraphQL field is
-  // a String, and its value is the row's `label` property."
   fields: (t) => ({
+    id: t.exposeID("id"),
     label: t.exposeString("label"),
     color: t.exposeString("color"),
     tooltip: t.exposeString("tooltip"),
@@ -122,9 +87,6 @@ builder.objectType("Article", {
     preview_txt: t.exposeString("preview_txt"),
     reading_time_min: t.exposeInt("reading_time_min"),
     created_at: t.exposeInt("created_at"),
-    // `tags` is computed: for each Article we run a separate query to fetch
-    // its tags. Note: this is the classic "N+1" pattern — fine for a tiny
-    // demo, but a real app would batch with DataLoader.
     tags: t.field({
       type: ["Tag"],
       resolve: (article) => {
@@ -184,8 +146,6 @@ builder.objectType("Comment", {
     id: t.exposeID("id"),
     text: t.exposeString("text"),
     created_at: t.exposeInt("created_at"),
-    // The row stores poster as an integer FK. We load the row lazily here
-    // — fine for chat-sized result sets, would need DataLoader for scale.
     poster: t.field({
       type: "Poster",
       resolve: (comment) => {
@@ -259,25 +219,31 @@ builder.mutationType({
     addNewArticle: t.field({
       type: "Article",
       args: {
-        content: t.arg.string({ required: true }),
-        author: t.arg.string({ required: true }),
+        kicker: t.arg.string({ required: true }),
+        headline: t.arg.string({ required: true }),
+        illustration: t.arg.string({ required: true }),
+        preview_txt: t.arg.string({ required: true }),
+        reading_time_min: t.arg.int({ required: true }),
+        difficulty: t.arg({ type: DifficultyEnum, required: true }),
       },
-      resolve: (_, { content }) => {
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
         // Insert and grab the inserted row (with its auto-incremented id).
         const created = db
           .insert(articles)
           .values({
-            kicker: "",
-            headline: content.slice(0, 80),
-            illustration: "",
-            preview_txt: content,
-            reading_time_min: 1,
-            created_at: Math.floor(Date.now() / 1000),
+            kicker: args.kicker,
+            headline: args.headline,
+            illustration: args.illustration,
+            preview_txt: args.preview_txt,
+            reading_time_min: args.reading_time_min,
+            difficulty: args.difficulty,
+            created_at: Math.floor(Date.now() / 1000) ,
           })
           .returning()
           .all()[0]!;
 
-        // Notify everyone subscribed to `newArticle`.
         pubsub.publish("newArticle", created);
         return created;
       },
@@ -296,8 +262,7 @@ builder.mutationType({
         if (existing.length > 0) {
           throw new Error("OWNER_ALREADY_EXISTS");
         }
-        const salt = randomBytes(16).toString("hex");
-        const password_hash = hashPassword(password, salt);
+        const {password_hash, salt} = prepaireForStorage(password);
         db.insert(owners)
           .values({ password_hash, password_salt: salt })
           .run();
