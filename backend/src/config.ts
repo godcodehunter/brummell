@@ -11,7 +11,8 @@
 
 const DEFAULT_DB_PATH = "./data"
 const DEFAULT_PORT = "4000"
-const DEFAULT_URL = "http://localhost"
+const DEFAULT_URL = "localhost"
+const DEFAULT_FILES_SUBDIR = "files"
 
 import fs from "node:fs";
 import path from "node:path";
@@ -28,16 +29,21 @@ const { values } = parseArgs({
   allowPositionals: false,
 });
 
+const dbDir = path.resolve(pick(values["db-dir"], "DB_DIR") ?? DEFAULT_DB_PATH);
+
+fs.mkdirSync(dbDir, { recursive: true });
+
+const fileDir = path.join(dbDir, DEFAULT_FILES_SUBDIR)
+
+fs.mkdirSync(dbDir, { recursive: true });
+
+const port = parseInt(pick(values["port"], "PORT") ?? DEFAULT_PORT, 10);
+
 function pick(flag: string | undefined, envKey: string): string | undefined {
   if (flag !== undefined) return flag;
   const envVal = process.env[envKey];
   return envVal && envVal.length > 0 ? envVal : undefined;
 }
-
-const dbDir = path.resolve(pick(values["db-dir"], "DB_DIR") ?? DEFAULT_DB_PATH);
-const port = parseInt(pick(values["port"], "PORT") ?? DEFAULT_PORT, 10);
-
-fs.mkdirSync(dbDir, { recursive: true });
 
 function parseTg(raw: string | undefined): { botToken: string; chatId: string } | undefined {
   if (!raw) return undefined;
@@ -54,6 +60,7 @@ function parseTg(raw: string | undefined): { botToken: string; chatId: string } 
 export const config = {
   dbDir,
   dbFile: path.join(dbDir, "app.db"),
+  fileDir,
   port,
   llmToken: pick(values["llm-token"], "LLM_TOKEN"),
   tg: parseTg(pick(values["tg"], "TG")),

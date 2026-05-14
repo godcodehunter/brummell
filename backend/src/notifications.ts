@@ -43,11 +43,11 @@ async function notify(text: string): Promise<void> {
     );
     if (!res.ok) {
       console.error(
-        `Telegram notify failed: ${res.status} ${await res.text()}`,
+        `🚨 Telegram notify failed: ${res.status} ${await res.text()}`,
       );
     }
   } catch (err) {
-    console.error("Telegram notify failed:", err);
+    console.error("🚨 Telegram notify failed:", err);
   }
 }
 

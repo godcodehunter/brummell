@@ -14,7 +14,7 @@ import { schema, isValidToken, type Context } from "./graphql/schema.js";
 import { initDatabase } from "./db/seed.js";
 import { config } from "./config.js";
 
-// Bring up tables and seed demo data (no-op if the DB is already populated).
+
 initDatabase();
 
 // Pull a "Bearer <token>" out of the Authorization header. Lower-cases
@@ -102,6 +102,6 @@ useServer(
 
 httpServer.listen(config.port, () => {
   console.log(`📁 DB directory: ${config.dbDir}`);
-  console.log(`🚀 GraphQL ready at http://localhost:${config.port}/graphql`);
-  console.log(`🚀 Subscriptions at ws://localhost:${config.port}/graphql`);
+  console.log(`🚀 GraphQL ready at http://${config.publicUrl}:${config.port}/graphql`);
+  console.log(`🚀 Subscriptions at ws://${config.publicUrl}:${config.port}/graphql`);
 });
