@@ -15,17 +15,10 @@ import { isValidToken } from "./admin_pass.js"
 
 import { initDatabase } from "./db/seed.js";
 import { config } from "./config.js";
-
+import { handleFileRequest } from "./files.js";
+import { extractBearerToken } from "./utils.js"
 
 initDatabase();
-
-// Pull a "Bearer <token>" out of the Authorization header. Lower-cases
-// the prefix check so clients that send "bearer ..." also work.
-function extractBearerToken(headerValue: string | null): string | null {
-  if (!headerValue) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(headerValue);
-  return m ? m[1]!.trim() : null;
-}
 
 // Yoga is a self-contained GraphQL HTTP handler. It implements the GraphQL
 // over HTTP spec, including CORS handling and the GraphiQL playground UI
@@ -56,8 +49,12 @@ const yoga = createYoga({
   },
 });
 
-// Plain Node HTTP server. Yoga is the request handler.
-const httpServer = createServer(yoga);
+// /files/* is handled in-process; everything 
+// else falls through to Yoga.
+const httpServer = createServer((req, res) => {
+  if (handleFileRequest(req, res)) return;
+  return yoga(req, res);
+});
 
 // WebSocketServer attaches to the same HTTP server and only handles the
 // upgrade requests on the GraphQL path.

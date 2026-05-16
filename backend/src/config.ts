@@ -12,7 +12,6 @@
 const DEFAULT_DB_PATH = "./data"
 const DEFAULT_PORT = "4000"
 const DEFAULT_URL = "localhost"
-const DEFAULT_FILES_SUBDIR = "files"
 
 import fs from "node:fs";
 import path from "node:path";
@@ -23,6 +22,7 @@ const { values } = parseArgs({
     "db-dir": { type: "string" },
     "port": { type: "string" },
     "llm-token": { type: "string" },
+    "draw-new": { type: "string" },
     "tg": { type: "string" },
     "public-url": { type: "string" },
   },
@@ -30,10 +30,6 @@ const { values } = parseArgs({
 });
 
 const dbDir = path.resolve(pick(values["db-dir"], "DB_DIR") ?? DEFAULT_DB_PATH);
-
-fs.mkdirSync(dbDir, { recursive: true });
-
-const fileDir = path.join(dbDir, DEFAULT_FILES_SUBDIR)
 
 fs.mkdirSync(dbDir, { recursive: true });
 
@@ -60,11 +56,11 @@ function parseTg(raw: string | undefined): { botToken: string; chatId: string } 
 export const config = {
   dbDir,
   dbFile: path.join(dbDir, "app.db"),
-  fileDir,
   port,
   llmToken: pick(values["llm-token"], "LLM_TOKEN"),
   tg: parseTg(pick(values["tg"], "TG")),
   publicUrl: pick(values["public-url"], "PUBLIC_URL") ?? `${DEFAULT_URL}:${port}`,
+  drawNet: values["draw-new"],
 };
 
 if(config.tg !== undefined) {
@@ -75,6 +71,6 @@ if(config.llmToken !== undefined) {
   console.log("🧠 LLM integration is used")
 }
 
-if(config.llmToken !== undefined) {
+if(config.drawNet !== undefined) {
   console.log("🖌️ Draw net integration is used")
 }

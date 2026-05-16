@@ -1,6 +1,20 @@
-# What is that?
+<div align="center">
 
-This is a blog I wrote for my own personal use. You can see what it looks like [here](http://godcodehunter.com/).
+# Brummell
+
+*This is a blog I wrote for my own personal use. You can see what it looks like [here](http://godcodehunter.com/).*
+
+</div>
+
+# Key features
+
+| Feature                             | Description                                             | Status    |
+| ----------------------------------- | ------------------------------------------------------- | --------- |
+| **Design**                          | Minimalist functional brutalism                         | ✅         |
+| **Wide range of supported content** | Native support for short, articles and podcasts         | ✅         |
+| **MDX support**                     | Write articles filled with dynamic content              | 🚧 Partial |
+| **TG notifications**                | Receive notifications directly in Telegram              | ✅         |
+| **Open Graph support**              | Share articles on social media with a beautiful preview | ⏳ Planned |
 
 # Why did I do this?
 

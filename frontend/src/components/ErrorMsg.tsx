@@ -4,7 +4,7 @@ import chroma, { Color } from 'chroma-js';
 
 
 export const ErrorMsg = ({ title, text }: { title: string, text: string }) => {
-  const color = "red";
+  const color = "rgba(253, 2, 2, 1)";
 
   return (
     <>

@@ -155,7 +155,6 @@ builder.objectType("Comment", {
   }),
 });
 
-// Read-only entry points.
 builder.queryType({
   fields: (t) => ({
     getArticle: t.field({
@@ -166,21 +165,15 @@ builder.queryType({
       type: ["Tag"],
       resolve: () => db.select().from(tags).all(),
     }),
-    // Returns null when no owner has been set up yet — that's the signal
-    // for the client to switch into "create owner" mode.
     getOwner: t.field({
       type: "Owner",
       nullable: true,
       resolve: () => db.select().from(owners).all()[0] ?? null,
     }),
-    // True iff the request carries a still-live token. Client uses it to
-    // decide whether the cached localStorage token is worth trusting after
-    // a server restart (which wipes the in-memory `sessions` set).
     validateToken: t.field({
       type: "Boolean",
       resolve: (_root, _args, ctx) => ctx.isAuthorized,
     }),
-
     getComments: t.field({
       type: ["Comment"],
       args: {
@@ -210,7 +203,6 @@ builder.queryType({
   }),
 });
 
-// Write entry points.
 builder.mutationType({
   fields: (t) => ({
     addNewArticle: t.field({
@@ -226,7 +218,6 @@ builder.mutationType({
       resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
 
-        // Insert and grab the inserted row (with its auto-incremented id).
         const created = db
           .insert(articles)
           .values({
@@ -245,10 +236,6 @@ builder.mutationType({
         return created;
       },
     }),
-
-    // First-run bootstrap: creates the single Owner row with a freshly
-    // generated salt + hashed password. Errors out if an owner already
-    // exists, so this can't be used to overwrite credentials.
     setupOwner: t.field({
       type: "AuthPayload",
       args: {
@@ -266,10 +253,6 @@ builder.mutationType({
         return { token: issueToken() };
       },
     }),
-
-    // Verifies a password against the stored hash and issues a session
-    // token. Distinguishable error codes let the client tell "no owner
-    // yet" apart from "wrong password".
     signIn: t.field({
       type: "AuthPayload",
       args: {
@@ -355,7 +338,6 @@ builder.mutationType({
   }),
 });
 
-// Live updates pushed to clients over WebSocket.
 builder.subscriptionType({
   fields: (t) => ({
     newArticle: t.field({
