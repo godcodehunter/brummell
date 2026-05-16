@@ -31,6 +31,14 @@ const styles = StyleSheet.create({
     },
     scrollArea: {
         backgroundColor: SCROLL_AREA_BG,
+        flexGrow: 0,
+        flexShrink: 1,
+        flexBasis: "auto",
+        minHeight: 0,
+        overflowY: "auto",
+        overflowX: "hidden",
+        paddingTop: 8,
+        paddingBottom: 8,
     },
     canvas: {
         display: "block",
@@ -222,6 +230,22 @@ const stubSubtitles = [
             { range: { start: 1.9, end: 2.1 }, text: "some4 some5" },
         ],
     },
+    {
+        speakerIdx: 0,
+        words: [
+            { range: { start: 0, end: 0.2 }, text: "some1 some2" },
+            { range: { start: 0.4, end: 0.6 }, text: "some3" },
+            { range: { start: 0.8, end: 1.2 }, text: "some4 some5" },
+        ],
+    },
+    {
+        speakerIdx: 1,
+        words: [
+            { range: { start: 1.3, end: 1.5 }, text: "some1 some2" },
+            { range: { start: 1.6, end: 1.8 }, text: "some3" },
+            { range: { start: 1.9, end: 2.1 }, text: "some4 some5" },
+        ],
+    },
 ];
 
 const GuestInsert = () => {
@@ -336,7 +360,14 @@ export const PodcastCard: React.FC = () => {
     return (
         <div
             className={css(globalStyles.substrate)}
-            style={{ position: "relative", }}
+            style={{
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                flex: "0 1 auto",
+                maxHeight: "100%",
+                minHeight: 0,
+            }}
         >
             {bage && (
                 <Badge
@@ -364,8 +395,8 @@ export const PodcastCard: React.FC = () => {
                     display: "flex",
                     gap: "10px",
                     flexDirection: "column",
-                    paddingLeft: BASE_PADDING_X,
-                    paddingRight: BASE_PADDING_X,
+                    background: SCROLL_AREA_BG,
+                    padding: BASE_PADDING_X,
                 }}>
                     {speakers.map((item) => <GuestInsert />)}
                 </div>
