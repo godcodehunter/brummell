@@ -377,6 +377,7 @@ export const PodcastCard: React.FC = () => {
             )}
             <audio ref={audioRef} src={AUDIO_SRC} />
             <div className={css(styles.title)}>{"Title"}</div>
+            {"A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters."}
             <Canvas
                 draw={draw}
                 onSeek={(fraction) => {
