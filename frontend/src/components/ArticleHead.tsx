@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, css } from "aphrodite";
 import { globalStyles } from "../globalStyles";
 import { ChipHolder, Tag } from "./Chip";
-import Badge from "./Bage";
+import Badge, { BAGE_VARIANTS } from "./Badge";
 
 const HERO_OVERLAY_GRADIENT = [
     "linear-gradient(to top,",
@@ -163,11 +163,6 @@ const ArticleMeta = (
             </div>
         </div>
     );
-};
-
-const BAGE_VARIANTS: Record<NonNullable<Article["bage"]>, { color: string; text: string }> = {
-    hot: { color: "#B33A3A", text: "HOT" },
-    new: { color: "#2D8C5C", text: "NEW" },
 };
 
 export const ArticleHead: React.FC<{ article: Article }> = ({ article }) => (

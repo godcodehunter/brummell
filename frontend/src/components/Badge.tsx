@@ -42,4 +42,9 @@ const Badge = ({ color, text }: { color: string, text: string }) => {
   );
 };
 
+export const BAGE_VARIANTS = {
+    hot: { color: "#B33A3A", text: "HOT" },
+    new: { color: "#2D8C5C", text: "NEW" },
+}; 
+
 export default Badge;

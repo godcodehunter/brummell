@@ -1,3 +1,4 @@
+import '../index.css';
 import { PodcastCard } from '../components/PodcastCard';
 
 export default {

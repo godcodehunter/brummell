@@ -7,13 +7,12 @@ import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
 import { Chat, ChatMessage } from './components/Chat';
 import { useChat, ChatComment } from './chatQueries';
-import { useNavigate } from 'react-router-dom';
-import { ReactComponent as Arrow } from './resource/back.svg';
 import { ReactComponent as Clock } from './resource/clock.svg';
 import { ReactComponent as Calendar } from './resource/calendar.svg';
 import { ReactComponent as Eye } from './resource/eye.svg';
 import { ReactComponent as Lvl } from './resource/lvl.svg';
 import { ArticleHead } from './components/ArticleHead';
+import BackToMain from './components/BackToMain';
 
 const page = StyleSheet.create({
     root: {
@@ -68,22 +67,6 @@ const page = StyleSheet.create({
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-    },
-    backButton: {
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        padding: 12,
-        userSelect: "none",
-        fontFamily: "Roboto",
-        fontSize: 14,
-        color: "#D4D4D4",
-    },
-    backArrow: {
-        width: 12,
-        height: 12,
-        flexShrink: 0,
     },
 });
 
@@ -351,32 +334,6 @@ const SectionTree: React.FC<{ nodes: Node[], depth: number }> = ({ nodes, depth 
 );
 
 const ArticleBody: React.FC = () => <SectionTree nodes={tocStub} depth={0} />;
-
-const styles = StyleSheet.create({
-    headline: {
-        fontFamily: "Roboto",
-        fontStyle: "normal",
-        fontWeight: "bold",
-        fontSize: "12px",
-        lineHeight: 1,
-        color: "#D4D4D4",
-    },
-});
-
-const BackToMain = () => {
-    const navigate = useNavigate();
-    return (
-        <div
-            className={css(globalStyles.substrate, globalStyles.pressable, page.backButton)}
-            onClick={() => navigate("/")}
-        >
-            <Arrow className={css(page.backArrow)} />
-            <span className={css(styles.headline)}>
-                BACK TO MAIN
-            </span>
-        </div>
-    );
-};
 
 // Active = section whose body covers the reading point at ~40% of the
 // viewport height. Picking a point well below the top edge means the

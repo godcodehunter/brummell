@@ -1,25 +1,41 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, css } from "aphrodite";
 import { globalStyles } from "../globalStyles";
+import chroma from 'chroma-js';
+import Badge, { BAGE_VARIANTS } from "./Badge";
+
+const SCROLL_AREA_BG = "#1E1E1F";
+const BASE_PADDING_X = 12;
+const ROW_HEIGHT = 24;
 
 const styles = StyleSheet.create({
-    card: {
-        // display: "flex",
-        // alignItems: "center",
-        // justifyContent: "center",
-        // padding: "60px 24px",
-        // minHeight: 160,
-        // fontFamily: "Monda",
-        // fontSize: 14,
-        // letterSpacing: 4,
-        // textTransform: "uppercase",
-        // color: "#ABABAB",
+    title: {
+        fontFamily: "Monda",
+        fontSize: 48,
+        fontWeight: "bold",
+        lineHeight: 1.05,
+        color: "#FFFFFF",
+        margin: 0,
+        textShadow: "0 2px 12px rgba(0,0,0,0.6)",
+        paddingLeft: "120px",
+        paddingTop: "15px",
+        paddingBottom: "15px",
+    },
+    headline: {
+        marginLeft: 8,
+    },
+    row: {
+        paddingLeft: BASE_PADDING_X,
+        paddingRight: BASE_PADDING_X,
+        lineHeight: `${ROW_HEIGHT}px`,
+    },
+    scrollArea: {
+        backgroundColor: SCROLL_AREA_BG,
     },
     canvas: {
         display: "block",
         width: "100%",
         height: 160,
-        touchAction: "none",
         cursor: "pointer",
     },
 });
@@ -208,7 +224,32 @@ const stubSubtitles = [
     },
 ];
 
+const GuestInsert = () => {
+    const color = "rgba(0, 255, 68, 1)";
+
+    return <div style={{ display: "flex", alignSelf: "flex-start", border: `0.4px solid ${color}`, backgroundColor: String(chroma(color).alpha(0.2)) }}>
+        <img src="./readme_asserts/boris.png" alt="Boris" width={80} height={80} />
+        <div
+            style={{
+                display: "flex",
+                flexDirection: "column",
+                flex: 1,
+                borderLeft: `0.4px solid ${color}`,
+            }}
+        >
+            <h3 style={{ margin: 0, padding: 8, borderBottom: `0.4px solid ${color}`, }}>💬 Boris explains</h3>
+            <p style={{ margin: 0, padding: 8 }}>
+                The name <code>SocRat</code> stands for <code>socket rat</code>,
+                and is also dedicated to the great philosopher{" "}
+                <a href="https://en.wikipedia.org/wiki/Socrates">Socrates</a>.
+            </p>
+        </div>
+    </div>
+};
+
 export const PodcastCard: React.FC = () => {
+    const bage = true;
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const [peaks, setPeaks] = useState<Float32Array | null>(null);
     const [progress, setProgress] = useState(0);
@@ -293,8 +334,18 @@ export const PodcastCard: React.FC = () => {
     };
 
     return (
-        <div className={css(globalStyles.substrate, styles.card)}>
-            <audio ref={audioRef} controls src={AUDIO_SRC} />
+        <div
+            className={css(globalStyles.substrate)}
+            style={{ position: "relative", }}
+        >
+            {bage && (
+                <Badge
+                    color={BAGE_VARIANTS["hot"].color}
+                    text={BAGE_VARIANTS["hot"].text}
+                />
+            )}
+            <audio ref={audioRef} src={AUDIO_SRC} />
+            <div className={css(styles.title)}>{"Title"}</div>
             <Canvas
                 draw={draw}
                 onSeek={(fraction) => {
@@ -305,15 +356,30 @@ export const PodcastCard: React.FC = () => {
                 }}
                 className={css(styles.canvas)}
             />
-            <div style={{ display: "flex", flexDirection: "column" }}>
-                {stubCategory.map((item) => <div>{item.text}</div>)}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <>
+                <span className={css(globalStyles.headline, styles.headline)}>
+                    {"GUESTS"}
+                </span>
+                <div style={{
+                    display: "flex",
+                    gap: "10px",
+                    flexDirection: "column",
+                    paddingLeft: BASE_PADDING_X,
+                    paddingRight: BASE_PADDING_X,
+                }}>
+                    {speakers.map((item) => <GuestInsert />)}
+                </div>
+            </>
+            <span className={css(globalStyles.headline, styles.headline)}>
+                {"SUBTITLES"}
+            </span>
+            <div className={css(styles.scrollArea)}>
                 {stubSubtitles.map((item) => {
                     const speaker = speakers[item.speakerIdx];
 
                     const currentTime = progress * duration;
-                    const Speaker = () => <b>{`${speaker.name}: `}</b>;
+                    const Speaker = () =>
+                        <b style={{ color: speaker.color }}>{`${speaker.name}: `}</b>;
                     const Words = () => (
                         <>
                             {item.words.map((w, idx) => {
@@ -324,7 +390,6 @@ export const PodcastCard: React.FC = () => {
                                     <React.Fragment key={idx}>
                                         <span
                                             style={{
-                                                backgroundColor: "red",
                                                 textTransform: isPlaying
                                                     ? "uppercase"
                                                     : undefined,
@@ -340,7 +405,7 @@ export const PodcastCard: React.FC = () => {
                     );
 
                     return (
-                        <div>
+                        <div className={css(styles.row)}>
                             <Speaker />
                             <Words />
                         </div>
