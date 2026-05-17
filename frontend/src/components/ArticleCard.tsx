@@ -1,8 +1,8 @@
 import React from 'react';
 import { css } from 'aphrodite';
 import { Tag, ChipHolder } from './Chip';
-import { ReactComponent as Clock } from '../resource/clock.svg';
-import { ReactComponent as Calendar } from '../resource/calendar.svg';
+import { ReactComponent as Clock } from '../assets/clock.svg';
+import { ReactComponent as Calendar } from '../assets/calendar.svg';
 import { DateTime, Duration } from 'luxon';
 import { globalStyles } from '../globalStyles';
 

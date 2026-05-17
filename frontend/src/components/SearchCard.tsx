@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ReactComponent as Loupe } from '../resource/loupe.svg';
+import { ReactComponent as Loupe } from '../assets/loupe.svg';
 import { StyleSheet, css } from 'aphrodite';
 import { ChipHolder, Tag } from './Chip';
 import { useHover } from '../hooks';

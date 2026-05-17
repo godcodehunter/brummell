@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { useTransition, animated } from 'react-spring';
 import { globalStyles, palette } from '../globalStyles';
-import { ReactComponent as ArrowDown } from '../resource/back.svg';
+import { ReactComponent as ArrowDown } from '../assets/back.svg';
 
 const chat = StyleSheet.create({
     titleCard: {

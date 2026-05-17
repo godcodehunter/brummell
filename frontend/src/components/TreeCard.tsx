@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
-import { PlusInSquare, MinusInSquare } from '../resource/icons';
+import { PlusInSquare, MinusInSquare } from '../assets/icons';
 import { globalStyles, palette } from '../globalStyles';
 
 const INDENT_STEP = 12;

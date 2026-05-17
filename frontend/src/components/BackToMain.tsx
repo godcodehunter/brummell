@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { globalStyles } from '../globalStyles';
 import { StyleSheet, css } from 'aphrodite';
-import { ReactComponent as Arrow } from '../resource/back.svg';
+import { ReactComponent as Arrow } from '../assets/back.svg';
 
 const styles = StyleSheet.create({
     backButton: {

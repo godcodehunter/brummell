@@ -2,7 +2,7 @@ import React from 'react';
 import { useHover } from '../hooks';
 import { StyleSheet, css } from 'aphrodite';
 import chroma, { Color } from 'chroma-js';
-import { CloseInSquare } from '../resource/icons';
+import { CloseInSquare } from '../assets/icons';
 
 const chip = StyleSheet.create({
   container: {

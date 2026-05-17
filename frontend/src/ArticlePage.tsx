@@ -7,10 +7,10 @@ import { StyleSheet, css } from 'aphrodite';
 import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
 import { Chat, ChatMessage } from './components/Chat';
 import { useChat, ChatComment } from './chatQueries';
-import { ReactComponent as Clock } from './resource/clock.svg';
-import { ReactComponent as Calendar } from './resource/calendar.svg';
-import { ReactComponent as Eye } from './resource/eye.svg';
-import { ReactComponent as Lvl } from './resource/lvl.svg';
+import { ReactComponent as Clock } from './assets/clock.svg';
+import { ReactComponent as Calendar } from './assets/calendar.svg';
+import { ReactComponent as Eye } from './assets/eye.svg';
+import { ReactComponent as Lvl } from './assets/lvl.svg';
 import { ArticleHead } from './components/ArticleHead';
 import BackToMain from './components/BackToMain';
 
