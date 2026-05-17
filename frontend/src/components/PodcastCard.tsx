@@ -449,8 +449,9 @@ export const PodcastCard: React.FC = () => {
                     background: SCROLL_AREA_BG,
                     padding: BASE_PADDING_X,
                 }}>
-                    {speakers.map((item) =>
-                        <GuestInsert 
+                    {speakers.map((item, idx) =>
+                        <GuestInsert
+                            key={idx}
                             avatar={item.avatar}
                             identColor={item.color}
                             nickname={item.nickname} 
@@ -463,7 +464,7 @@ export const PodcastCard: React.FC = () => {
                 {"SUBTITLES"}
             </span>
             <div className={css(styles.scrollArea)}>
-                {stubSubtitles.map((item) => {
+                {stubSubtitles.map((item, itemIdx) => {
                     const speaker = speakers[item.speakerIdx];
 
                     const currentTime = progress * duration;
@@ -494,7 +495,7 @@ export const PodcastCard: React.FC = () => {
                     );
 
                     return (
-                        <div className={css(styles.row)}>
+                        <div key={itemIdx} className={css(styles.row)}>
                             <Speaker />
                             <Words />
                         </div>
