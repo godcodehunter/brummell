@@ -453,7 +453,7 @@ export const PodcastCard: React.FC = () => {
                     text={BAGE_VARIANTS["hot"].text}
                 />
             )}
-            <audio ref={audioRef} controls src={AUDIO_SRC} />
+            <audio ref={audioRef} src={AUDIO_SRC} />
             <div className={css(styles.header)}>
                 <div className={css(styles.title)}>{"Title"}</div>
                 <p className={css(styles.preview)}>
