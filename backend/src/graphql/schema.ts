@@ -39,7 +39,7 @@ import {
   verifyPassword,
   issueToken,
   prepaireForStorage,
-} from "../admin_pass.js"
+} from "../adminPass.js"
 
 export interface Context {
   token: string | null;

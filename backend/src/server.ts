@@ -11,7 +11,7 @@ import { createYoga } from "graphql-yoga";
 import { useServer } from "graphql-ws/lib/use/ws";
 import { WebSocketServer } from "ws";
 import { schema, type Context } from "./graphql/schema.js";
-import { isValidToken } from "./admin_pass.js"
+import { isValidToken } from "./adminPass.js"
 
 import { initDatabase } from "./db/seed.js";
 import { config } from "./config.js";

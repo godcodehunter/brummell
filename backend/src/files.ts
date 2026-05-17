@@ -18,7 +18,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { config } from "./config.js";
-import { isValidToken } from "./admin_pass.js";
+import { isValidToken } from "./adminPass.js";
 import { extractBearerToken } from "./utils.js"
 
 const FILES_DIR = path.join(config.dbDir, "files");
