@@ -3,12 +3,24 @@ import { StyleSheet, css } from "aphrodite";
 import { globalStyles } from "../globalStyles";
 import chroma from 'chroma-js';
 import Badge, { BAGE_VARIANTS } from "./Badge";
+import { ChipHolder, Tag } from "./Chip";
 
 const SCROLL_AREA_BG = "#1E1E1F";
 const BASE_PADDING_X = 12;
 const ROW_HEIGHT = 24;
 
 const styles = StyleSheet.create({
+    header: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        // Left padding clears the absolutely-positioned Badge ribbon so the
+        // whole header (title, intro, tags) shares one consistent edge.
+        paddingLeft: 120,
+        paddingRight: BASE_PADDING_X,
+        paddingTop: 15,
+        paddingBottom: 15,
+    },
     title: {
         fontFamily: "Monda",
         fontSize: 48,
@@ -17,9 +29,16 @@ const styles = StyleSheet.create({
         color: "#FFFFFF",
         margin: 0,
         textShadow: "0 2px 12px rgba(0,0,0,0.6)",
-        paddingLeft: "120px",
-        paddingTop: "15px",
-        paddingBottom: "15px",
+    },
+    preview: {
+        fontFamily: "Roboto",
+        fontStyle: "italic",
+        fontWeight: "normal",
+        fontSize: 16,
+        lineHeight: 1.5,
+        color: "#E6E6E6",
+        margin: 0,
+        maxWidth: "75%",
     },
     headline: {
         marginLeft: 8,
@@ -28,6 +47,17 @@ const styles = StyleSheet.create({
         paddingLeft: BASE_PADDING_X,
         paddingRight: BASE_PADDING_X,
         lineHeight: `${ROW_HEIGHT}px`,
+    },
+    word: {
+        cursor: "pointer",
+        // Same hover/active palette as the TreeCard rows on the article page.
+        transition: "background-color 80ms ease-out",
+        ":hover": {
+            backgroundColor: "#3A3A3A",
+        },
+    },
+    wordPlaying: {
+        textTransform: "uppercase",
     },
     scrollArea: {
         backgroundColor: SCROLL_AREA_BG,
@@ -208,9 +238,17 @@ const stubCategory = [
     { range: { start: 0, end: 2 }, text: "Category3" },
 ];
 
+const TAG_COLORS = ["#7AB8FF", "#FFB87A", "#7AFFB8"];
+
+const podcastTags: Tag[] = stubCategory.map((c, i) => ({
+    label: c.text,
+    color: chroma(TAG_COLORS[i % TAG_COLORS.length]),
+    tooltip: c.text,
+}));
+
 const speakers = [
-    { image: "", name: "jon", who_is: "who", color: "green" },
-    { image: "", name: "carl", who_is: "who", color: "red" }
+    { avatar: "", nickname: "jon", whoIs: "who", color: "green" },
+    { avatar: "", nickname: "carl", whoIs: "who", color: "red" }
 ];
 
 const stubSubtitles = [
@@ -248,24 +286,23 @@ const stubSubtitles = [
     },
 ];
 
-const GuestInsert = () => {
-    const color = "rgba(0, 255, 68, 1)";
+const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, nickname: string, identColor: string, whoIs: string }) => {
+    const base = "#585858";
 
-    return <div style={{ display: "flex", alignSelf: "flex-start", border: `0.4px solid ${color}`, backgroundColor: String(chroma(color).alpha(0.2)) }}>
-        <img src="./readme_asserts/boris.png" alt="Boris" width={80} height={80} />
+    return <div style={{ display: "flex", alignSelf: "flex-start", border: `0.4px solid ${base}`, backgroundColor: String(chroma(base).alpha(0.2)) }}>
+        <img src={avatar} alt="Boris" width={80} height={80} />
         <div
             style={{
                 display: "flex",
                 flexDirection: "column",
                 flex: 1,
-                borderLeft: `0.4px solid ${color}`,
+                borderLeft: `0.4px solid ${base}`,
             }}
         >
-            <h3 style={{ margin: 0, padding: 8, borderBottom: `0.4px solid ${color}`, }}>💬 Boris explains</h3>
+            <h3 style={{ margin: 0, padding: 8, borderBottom: `0.4px solid ${base}`, color: identColor }}>{nickname}
+            </h3>
             <p style={{ margin: 0, padding: 8 }}>
-                The name <code>SocRat</code> stands for <code>socket rat</code>,
-                and is also dedicated to the great philosopher{" "}
-                <a href="https://en.wikipedia.org/wiki/Socrates">Socrates</a>.
+                {whoIs}
             </p>
         </div>
     </div>
@@ -357,6 +394,14 @@ export const PodcastCard: React.FC = () => {
         ctx.fillRect(cursorX, 0, 1, height);
     };
 
+    const movePlayingTo = (start: number) => {
+        const audio = audioRef.current;
+        if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
+        const clamped = Math.max(0, Math.min(start, audio.duration));
+        audio.currentTime = clamped;
+        setProgress(clamped / audio.duration);
+    };
+
     return (
         <div
             className={css(globalStyles.substrate)}
@@ -376,8 +421,13 @@ export const PodcastCard: React.FC = () => {
                 />
             )}
             <audio ref={audioRef} src={AUDIO_SRC} />
-            <div className={css(styles.title)}>{"Title"}</div>
-            {"A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters."}
+            <div className={css(styles.header)}>
+                <div className={css(styles.title)}>{"Title"}</div>
+                <p className={css(styles.preview)}>
+                    {"A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters."}
+                </p>
+                <ChipHolder data={podcastTags} />
+            </div>
             <Canvas
                 draw={draw}
                 onSeek={(fraction) => {
@@ -399,7 +449,14 @@ export const PodcastCard: React.FC = () => {
                     background: SCROLL_AREA_BG,
                     padding: BASE_PADDING_X,
                 }}>
-                    {speakers.map((item) => <GuestInsert />)}
+                    {speakers.map((item) =>
+                        <GuestInsert 
+                            avatar={item.avatar}
+                            identColor={item.color}
+                            nickname={item.nickname} 
+                            whoIs={item.whoIs}
+                        />)
+                    }
                 </div>
             </>
             <span className={css(globalStyles.headline, styles.headline)}>
@@ -411,7 +468,7 @@ export const PodcastCard: React.FC = () => {
 
                     const currentTime = progress * duration;
                     const Speaker = () =>
-                        <b style={{ color: speaker.color }}>{`${speaker.name}: `}</b>;
+                        <b style={{ color: speaker.color }}>{`${speaker.nickname}: `}</b>;
                     const Words = () => (
                         <>
                             {item.words.map((w, idx) => {
@@ -421,11 +478,11 @@ export const PodcastCard: React.FC = () => {
                                 return (
                                     <React.Fragment key={idx}>
                                         <span
-                                            style={{
-                                                textTransform: isPlaying
-                                                    ? "uppercase"
-                                                    : undefined,
-                                            }}
+                                            className={css(
+                                                styles.word,
+                                                isPlaying && styles.wordPlaying,
+                                            )}
+                                            onClick={() => movePlayingTo(w.range.start)}
                                         >
                                             {w.text}
                                         </span>
