@@ -2,6 +2,8 @@
 /node_modules
 # production
 /dist
+# TypeScript incremental build cache
+*.tsbuildinfo
 # Lockfile (project doesn't pin versions)
 package-lock.json
 yarn.lock
