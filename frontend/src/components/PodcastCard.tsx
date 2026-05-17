@@ -478,7 +478,7 @@ export const PodcastCard: React.FC = () => {
                 <div style={{
                     display: "flex",
                     gap: "10px",
-                    flexDirection: "column",
+                    flexDirection: "row",
                     background: SCROLL_AREA_BG,
                     padding: BASE_PADDING_X,
                 }}>
