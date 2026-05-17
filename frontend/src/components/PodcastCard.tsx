@@ -309,9 +309,10 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
 };
 
 export const PodcastCard: React.FC = () => {
-    const bage = true;
+    const bage = false;
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const scrollRef = useRef<HTMLDivElement | null>(null);
     const [peaks, setPeaks] = useState<Float32Array | null>(null);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
@@ -402,6 +403,38 @@ export const PodcastCard: React.FC = () => {
         setProgress(clamped / audio.duration);
     };
 
+    // Index of the subtitle row currently being spoken (any of its words
+    // covers the playhead). -1 when nothing is playing.
+    const activeRowIdx = useMemo(() => {
+        const currentTime = progress * duration;
+        return stubSubtitles.findIndex((item) =>
+            item.words.some(
+                (w) =>
+                    currentTime >= w.range.start &&
+                    currentTime <= w.range.end,
+            ),
+        );
+    }, [progress, duration]);
+
+    // Keep the spoken row visible inside the subtitle scroller (and only
+    // that scroller — same min-nudge approach as the TreeCard active row).
+    useEffect(() => {
+        if (activeRowIdx < 0) return;
+        const container = scrollRef.current;
+        if (!container) return;
+        const row = container.querySelector(
+            `[data-sub-row="${activeRowIdx}"]`,
+        ) as HTMLElement | null;
+        if (!row) return;
+        const rowRect = row.getBoundingClientRect();
+        const contRect = container.getBoundingClientRect();
+        if (rowRect.top < contRect.top) {
+            container.scrollTop += rowRect.top - contRect.top;
+        } else if (rowRect.bottom > contRect.bottom) {
+            container.scrollTop += rowRect.bottom - contRect.bottom;
+        }
+    }, [activeRowIdx]);
+
     return (
         <div
             className={css(globalStyles.substrate)}
@@ -420,7 +453,7 @@ export const PodcastCard: React.FC = () => {
                     text={BAGE_VARIANTS["hot"].text}
                 />
             )}
-            <audio ref={audioRef} src={AUDIO_SRC} />
+            <audio ref={audioRef} controls src={AUDIO_SRC} />
             <div className={css(styles.header)}>
                 <div className={css(styles.title)}>{"Title"}</div>
                 <p className={css(styles.preview)}>
@@ -463,7 +496,7 @@ export const PodcastCard: React.FC = () => {
             <span className={css(globalStyles.headline, styles.headline)}>
                 {"SUBTITLES"}
             </span>
-            <div className={css(styles.scrollArea)}>
+            <div ref={scrollRef} className={css(styles.scrollArea)}>
                 {stubSubtitles.map((item, itemIdx) => {
                     const speaker = speakers[item.speakerIdx];
 
@@ -495,7 +528,11 @@ export const PodcastCard: React.FC = () => {
                     );
 
                     return (
-                        <div key={itemIdx} className={css(styles.row)}>
+                        <div
+                            key={itemIdx}
+                            data-sub-row={itemIdx}
+                            className={css(styles.row)}
+                        >
                             <Speaker />
                             <Words />
                         </div>
