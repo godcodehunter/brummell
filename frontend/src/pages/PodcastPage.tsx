@@ -1,9 +1,9 @@
 import { StyleSheet, css } from 'aphrodite';
-import { palette, constants } from './globalStyles';
-import { Chat } from './components/Chat';
-import { PodcastCard } from './components/PodcastCard';
-import BackToMain from './components/BackToMain';
-import { Category, Item, Node, NodeTag, TreeCard } from './components/TreeCard';
+import { palette, constants } from '../globalStyles';
+import { Chat } from '../components/Chat';
+import { PodcastCard } from '../components/PodcastCard';
+import BackToMain from '../components/BackToMain';
+import { Category, Item, Node, NodeTag, TreeCard } from '../components/TreeCard';
 
 const page = StyleSheet.create({
     root: {
