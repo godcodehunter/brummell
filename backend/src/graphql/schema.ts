@@ -18,6 +18,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   articles,
+  podcasts,
   tagSets,
   tags,
   owners,
@@ -93,7 +94,7 @@ builder.objectType("PodcastGuest", {
     // Stored inline as a base64 data URL.
     image: t.exposeString("image"),
     name: t.exposeString("name"),
-    who_is: t.exposeString("who_is"),
+    whoIs: t.exposeString("who_is"),
   }),
 });
 
@@ -253,6 +254,15 @@ builder.queryType({
     getArticle: t.field({
       type: ["Article"],
       resolve: () => db.select().from(articles).all(),
+    }),
+    getPodcast: t.field({
+      type: "Podcast",
+      nullable: true,
+      args: {
+        id: t.arg.int({ required: true }),
+      },
+      resolve: (_, { id }) =>
+        db.select().from(podcasts).where(eq(podcasts.id, id)).all()[0] ?? null,
     }),
     getTag: t.field({
       type: ["Tag"],
