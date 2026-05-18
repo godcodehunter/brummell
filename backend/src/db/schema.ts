@@ -59,7 +59,11 @@ export const shots = sqliteTable("shots", {
 export type TimeRange = { start: number; end: number };
 // Guest image is stored inline as a base64 data URL
 export type PodcastGuest = { image: string; name: string; who_is: string };
-export type PodcastSegment = { range: TimeRange; text: string };
+export type Topics = { range: TimeRange, title: String };
+export type Subtitles = { 
+  speakerIdx: number,
+  words: {range: TimeRange; text: string}[],
+};
 
 export const podcasts = sqliteTable("podcasts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -71,11 +75,11 @@ export const podcasts = sqliteTable("podcasts", {
     .notNull()
     .default([]),
   topics: text("topics", { mode: "json" })
-    .$type<PodcastSegment[]>()
+    .$type<Topics[]>()
     .notNull()
     .default([]),
   subtitles: text("subtitles", { mode: "json" })
-    .$type<PodcastSegment[]>()
+    .$type<Subtitles[]>()
     .notNull()
     .default([]),
   // Unix timestamp in seconds.

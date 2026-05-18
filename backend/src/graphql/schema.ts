@@ -31,6 +31,11 @@ import {
   type Comment,
   type Poster,
   type CommentTargetType,
+  type Podcast,
+  type PodcastGuest,
+  type Topics,
+  type Subtitles,
+  type TimeRange,
 } from "../db/schema.js";
 import { pubsub, commentTopicKey } from "./pubsub.js";
 import { notifyNewComment } from "../notifications.js"
@@ -58,6 +63,12 @@ const builder = new SchemaBuilder<{
     AuthPayload: AuthPayloadShape;
     Comment: Comment;
     Poster: Poster;
+    Podcast: Podcast,
+    PodcastGuest: PodcastGuest;
+    Topic: Topics;
+    TimeRange: TimeRange;
+    Subtitle: Subtitles;
+    SubtitleWord: { range: TimeRange; text: string };
   };
 }>({});
 
@@ -67,6 +78,88 @@ const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
 
 const DifficultyEnum = builder.enumType("Difficulty", {
   values: ["easy", "medium", "hard", "extra_hard"] as const,
+});
+
+// Half-open interval over the podcast's audio timeline, in seconds.
+builder.objectType("TimeRange", {
+  fields: (t) => ({
+    start: t.exposeInt("start"),
+    end: t.exposeInt("end"),
+  }),
+});
+
+builder.objectType("PodcastGuest", {
+  fields: (t) => ({
+    // Stored inline as a base64 data URL.
+    image: t.exposeString("image"),
+    name: t.exposeString("name"),
+    who_is: t.exposeString("who_is"),
+  }),
+});
+
+builder.objectType("Topic", {
+  fields: (t) => ({
+    range: t.field({
+      type: "TimeRange",
+      resolve: (topic) => topic.range,
+    }),
+    title: t.string({ resolve: (topic) => String(topic.title) }),
+  }),
+});
+
+builder.objectType("SubtitleWord", {
+  fields: (t) => ({
+    range: t.field({
+      type: "TimeRange",
+      resolve: (word) => word.range,
+    }),
+    text: t.exposeString("text"),
+  }),
+});
+
+builder.objectType("Subtitle", {
+  fields: (t) => ({
+    speakerIdx: t.exposeInt("speakerIdx"),
+    words: t.field({
+      type: ["SubtitleWord"],
+      resolve: (subtitle) => subtitle.words,
+    }),
+  }),
+});
+
+builder.objectType("Podcast", {
+  fields: (t) => ({
+    id: t.exposeID("id"),
+    headline: t.exposeString("headline"),
+    sound: t.exposeString("sound"),
+    created_at: t.exposeInt("created_at"),
+    guests: t.field({
+      type: ["PodcastGuest"],
+      resolve: (podcast) => podcast.guests,
+    }),
+    topics: t.field({
+      type: ["Topic"],
+      resolve: (podcast) => podcast.topics,
+    }),
+    subtitles: t.field({
+      type: ["Subtitle"],
+      resolve: (podcast) => podcast.subtitles,
+    }),
+    tags: t.field({
+      type: ["Tag"],
+      resolve: (podcast) => {
+        const tagSet = db
+          .select()
+          .from(tagSets)
+          .where(
+            and(eq(tagSets.type, "podcast"), eq(tagSets.entity_id, podcast.id)),
+          )
+          .all()[0];
+        if (!tagSet || tagSet.tag_ids.length === 0) return [];
+        return db.select().from(tags).where(inArray(tags.id, tagSet.tag_ids)).all();
+      },
+    }),
+  }),
 });
 
 builder.objectType("Tag", {
