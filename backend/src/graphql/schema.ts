@@ -133,7 +133,7 @@ builder.objectType("Podcast", {
     id: t.exposeID("id"),
     headline: t.exposeString("headline"),
     sound: t.exposeString("sound"),
-    created_at: t.exposeInt("created_at"),
+    createdAt: t.exposeInt("created_at"),
     guests: t.field({
       type: ["PodcastGuest"],
       resolve: (podcast) => podcast.guests,
@@ -180,7 +180,7 @@ builder.objectType("Article", {
     illustration: t.exposeString("illustration"),
     preview_txt: t.exposeString("preview_txt"),
     reading_time_min: t.exposeInt("reading_time_min"),
-    created_at: t.exposeInt("created_at"),
+    createdAt: t.exposeInt("created_at"),
     tags: t.field({
       type: ["Tag"],
       resolve: (article) => {
@@ -237,7 +237,7 @@ builder.objectType("Comment", {
   fields: (t) => ({
     id: t.exposeID("id"),
     text: t.exposeString("text"),
-    created_at: t.exposeInt("created_at"),
+    createdAt: t.exposeInt("created_at"),
     poster: t.field({
       type: "Poster",
       resolve: (comment) => {
