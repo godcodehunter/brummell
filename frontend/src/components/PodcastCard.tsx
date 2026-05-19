@@ -191,6 +191,73 @@ const Canvas: React.FC<CanvasProps> = ({ draw, onSeek, className }) => {
     );
 };
 
+interface BarProps {
+    // Current value, 0..1.
+    value: number;
+    onChange: (value: number) => void;
+    // Fixed minimum length of the bar, in px. It never shrinks below this.
+    minWidth?: number;
+}
+
+// Horizontal draggable level bar (used here as the volume control). Same
+// pointer-capture drag model as the waveform Canvas.
+const Bar: React.FC<BarProps> = ({ value, onChange, minWidth = 120 }) => {
+    const draggingRef = useRef(false);
+
+    const fractionFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    };
+
+    const handleDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        draggingRef.current = true;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        onChange(fractionFromEvent(e));
+    };
+    const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!draggingRef.current) return;
+        onChange(fractionFromEvent(e));
+    };
+    const handleUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    const filled = `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
+
+    return (
+        <div
+            onPointerDown={handleDown}
+            onPointerMove={handleMove}
+            onPointerUp={handleUp}
+            onPointerCancel={handleUp}
+            style={{
+                flex: `0 0 ${minWidth}px`,
+                minWidth,
+                height: 6,
+                alignSelf: "center",
+                position: "relative",
+                backgroundColor: SCROLL_AREA_BG,
+                cursor: "pointer",
+                touchAction: "none",
+            }}
+        >
+            <div
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: filled,
+                    backgroundColor: "#D4D4D4",
+                }}
+            />
+        </div>
+    );
+};
 
 const PEAKS_BUCKETS = 2000;
 
@@ -262,10 +329,6 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
     </div>
 };
 
-const Bar = () => {
-    
-}
-
 export interface Range {
     start: number,
     end: number,
@@ -320,7 +383,14 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [volume, setVolume] = useState(1);
     const mergedRanges = useMemo(() => mergeSubtitleRanges(subtitles), []);
+
+    // Keep the <audio> element's volume in sync with the Bar control.
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (audio) audio.volume = volume;
+    }, [volume]);
 
     useEffect(() => {
         let cancelled = false;
@@ -501,7 +571,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             />
             <div
                 className={css(styles.row)}
-                style={{ display: "flex", justifyContent: "flex-start", gap: 10, padding: "10px" }}
+                style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 10, padding: "10px" }}
             >
                 <div
                     className={css(
@@ -529,6 +599,9 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                     onClick={() => seekBy(30)}
                 >
                     <span>{"30s »"}</span>
+                </div>
+                <div style={{ marginLeft: "auto" }}>
+                    <Bar value={volume} onChange={setVolume} minWidth={120} />
                 </div>
             </div>
             <>
