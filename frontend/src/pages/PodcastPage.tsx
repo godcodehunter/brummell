@@ -1,9 +1,11 @@
 import { StyleSheet, css } from 'aphrodite';
 import { palette, constants } from '../globalStyles';
 import { Chat } from '../components/Chat';
-import { PodcastCard } from '../components/PodcastCard';
+import { PodcastCard, Range } from '../components/PodcastCard';
 import BackToMain from '../components/BackToMain';
 import { Category, Item, Node, NodeTag, TreeCard } from '../components/TreeCard';
+import { gql, useMutation, useQuery, useSubscription } from '@apollo/client';
+import { useSearchParams, Navigate } from 'react-router-dom';
 
 const page = StyleSheet.create({
     root: {
@@ -68,7 +70,81 @@ const page = StyleSheet.create({
     },
 });
 
+const GET_PODCAST = gql`
+  query GetPodcast($id: Int!) {
+    getPodcast(id: $id) {
+      headline
+      sound
+      createdAt
+      guests {
+        image
+        name
+        whoIs
+      }
+      topics {
+        range {
+          start
+          end
+        }
+        title
+      }
+      subtitles {
+        speakerIdx
+        words {
+          range {
+            start
+            end
+          }
+          text
+        }
+      }
+      tags {
+        id
+        label
+        color
+        tooltip
+      }
+    }
+  }
+`;
+
+export interface Topic {
+    range: Range,
+    text: string,
+}
+
 export const PodcastPage = () => {
+    const [searchParams] = useSearchParams();
+    const id = Number(searchParams.get("id"));
+
+    const hasValidId = Number.isInteger(id) && id > 0;
+
+    const { data, loading, error } = useQuery(GET_PODCAST, {
+        variables: { id },
+        skip: !hasValidId,
+    });
+
+    // Still fetching — don't redirect prematurely.
+    if (hasValidId && loading) {
+        return null;
+    }
+
+    // Invalid id, request failed, or no podcast with this id.
+    if (!hasValidId || error || !data?.getPodcast) {
+        return <Navigate to="/error" replace />;
+    }
+
+    function topicToTreeData(topics: Topic[]): Category[] {
+        return topics.map((item) => ({
+            tag: NodeTag.Category,
+            id: String(item.range),
+            label: item.text,
+            children: [],
+        }));
+    }
+
+    const podcast = data.getPodcast;
+
     return (
         <div className={css(page.root)}>
             <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
@@ -79,20 +155,27 @@ export const PodcastPage = () => {
                 <div className={css(page.leftContent)}>
                     <TreeCard
                         title={"CONTENTS"}
-                        data={[]}
-                        // activeId={activeId}
-                        // expandIds={visibleIds}
-                        // onNodeClick={(node) => {
-                        //     const scroller = middlePanelRef.current;
-                        //     const target = scroller?.querySelector(`#${CSS.escape(node.id)}`) as HTMLElement | null;
-                        //     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-                        // }}
+                        data={topicToTreeData(podcast.topics)}
+                    // activeId={activeId}
+                    // expandIds={visibleIds}
+                    // onNodeClick={(node) => {
+                    //     const scroller = middlePanelRef.current;
+                    //     const target = scroller?.querySelector(`#${CSS.escape(node.id)}`) as HTMLElement | null;
+                    //     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                    // }}
                     />
                 </div>
             </div>
 
             <div className={css(page.middlePanel)}>
-                <PodcastCard />
+                <PodcastCard
+                    badge={podcast.badge}
+                    title={podcast.headline}
+                    sound={podcast.sound}
+                    description={podcast.description}
+                    guests={podcast.guests}
+                    subtitles={podcast.subtitles}
+                />
             </div>
             <div className={css(page.rightPanel)}>
                 <Chat messages={[]} />

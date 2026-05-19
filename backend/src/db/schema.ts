@@ -102,13 +102,13 @@ export const tagSets = sqliteTable("tag_sets", {
   uniqueEntity: uniqueIndex("tag_sets_type_entity_uq").on(t.type, t.entity_id),
 }));
 
-export const baged = sqliteTable("baged", {
+export const ribbon = sqliteTable("ribbon", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   target_type: text("target_type", { enum: ["article", "shot", "podcast"] }).notNull(),
   target_id: integer("target_id").notNull(),
-  bage: text("bage", { enum: ["hot", "new"] }).notNull(),
+  ribbon: text("ribbon", { enum: ["hot", "new"] }).notNull(),
 }, (t) => ({
-  uniqueTarget: uniqueIndex("baged_target_uq").on(t.target_type, t.target_id),
+  uniqueTarget: uniqueIndex("ribbon_target_uq").on(t.target_type, t.target_id),
 }));
 
 export type ExternalLink = { svg_icon: string; url: string };
@@ -152,6 +152,6 @@ export type Tag = typeof tags.$inferSelect;
 export type TagSet = typeof tagSets.$inferSelect;
 export type TagSetType = TagSet["type"];
 export type Owner = typeof owners.$inferSelect;
-export type Baged = typeof baged.$inferSelect;
-export type BagedTargetType = Baged["target_type"];
-export type BageKind = Baged["bage"];
+export type Ribbon = typeof ribbon.$inferSelect;
+export type RibbonTargetType = Ribbon["target_type"];
+export type RibbonKind = Ribbon["ribbon"];

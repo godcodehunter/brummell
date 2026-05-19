@@ -25,6 +25,7 @@ import {
   comments,
   commentTargets,
   posters,
+  ribbon,
   type Article,
   type Tag,
   type Owner,
@@ -81,6 +82,22 @@ const DifficultyEnum = builder.enumType("Difficulty", {
   values: ["easy", "medium", "hard", "extra_hard"] as const,
 });
 
+const RibbonEnum = builder.enumType("Ribbon", {
+  values: ["hot", "new"] as const,
+});
+
+// Looks up the ribbon ("hot"/"new" banner) attached to a given entity, if any.
+function resolveRibbon(targetType: "article" | "podcast", targetId: number) {
+  const row = db
+    .select()
+    .from(ribbon)
+    .where(
+      and(eq(ribbon.target_type, targetType), eq(ribbon.target_id, targetId)),
+    )
+    .all()[0];
+  return row?.ribbon ?? null;
+}
+
 // Half-open interval over the podcast's audio timeline, in seconds.
 builder.objectType("TimeRange", {
   fields: (t) => ({
@@ -134,6 +151,11 @@ builder.objectType("Podcast", {
     headline: t.exposeString("headline"),
     sound: t.exposeString("sound"),
     createdAt: t.exposeInt("created_at"),
+    ribbon: t.field({
+      type: RibbonEnum,
+      nullable: true,
+      resolve: (podcast) => resolveRibbon("podcast", podcast.id),
+    }),
     guests: t.field({
       type: ["PodcastGuest"],
       resolve: (podcast) => podcast.guests,
@@ -181,6 +203,11 @@ builder.objectType("Article", {
     preview_txt: t.exposeString("preview_txt"),
     reading_time_min: t.exposeInt("reading_time_min"),
     createdAt: t.exposeInt("created_at"),
+    ribbon: t.field({
+      type: RibbonEnum,
+      nullable: true,
+      resolve: (article) => resolveRibbon("article", article.id),
+    }),
     tags: t.field({
       type: ["Tag"],
       resolve: (article) => {

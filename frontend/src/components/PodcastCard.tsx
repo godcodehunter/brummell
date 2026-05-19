@@ -308,9 +308,46 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
     </div>
 };
 
-export const PodcastCard: React.FC = () => {
-    const bage = false;
+interface Range {
+    start: number,
+    end: number,
+}
 
+interface Subtitle {
+    speakerIdx: number,
+    words: { range: Range, text: string }[]
+}
+
+export interface Topic {
+    range: Range,
+    text: string,
+}
+
+interface Guest {
+    image: string,
+    name: string,
+    whoIs: string,
+}
+
+interface PodcastCardProps {
+    badge?: "hot" | "new",
+    title: string,
+    sound: string,
+    description: string,
+    guests: Guest[]
+    topics: Topic[],
+    subtitles: Subtitle[],
+}
+
+export const PodcastCard: React.FC<PodcastCardProps> = ({ 
+    badge,
+    title,
+    sound,
+    description,
+    guests,
+    topics,
+    subtitles,
+}) => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const [peaks, setPeaks] = useState<Float32Array | null>(null);
@@ -325,7 +362,7 @@ export const PodcastCard: React.FC = () => {
             (window as unknown as { webkitAudioContext: typeof AudioContext })
                 .webkitAudioContext;
         const ctx = new AC();
-        fetch(AUDIO_SRC)
+        fetch(sound)
             .then((r) => r.arrayBuffer())
             .then((buf) => ctx.decodeAudioData(buf))
             .then((decoded) => {
@@ -447,17 +484,17 @@ export const PodcastCard: React.FC = () => {
                 minHeight: 0,
             }}
         >
-            {bage && (
+            {badge && (
                 <Badge
-                    color={BAGE_VARIANTS["hot"].color}
-                    text={BAGE_VARIANTS["hot"].text}
+                    color={BAGE_VARIANTS[badge].color}
+                    text={BAGE_VARIANTS[badge].text}
                 />
             )}
-            <audio ref={audioRef} src={AUDIO_SRC} />
+            <audio ref={audioRef} src={sound} />
             <div className={css(styles.header)}>
-                <div className={css(styles.title)}>{"Title"}</div>
+                <div className={css(styles.title)}>{title}</div>
                 <p className={css(styles.preview)}>
-                    {"A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters."}
+                    {description}
                 </p>
                 <ChipHolder data={podcastTags} />
             </div>
