@@ -73,6 +73,7 @@ const page = StyleSheet.create({
 const GET_PODCAST = gql`
   query GetPodcast($id: Int!) {
     getPodcast(id: $id) {
+      ribbon
       headline
       sound
       createdAt
@@ -169,7 +170,8 @@ export const PodcastPage = () => {
 
             <div className={css(page.middlePanel)}>
                 <PodcastCard
-                    badge={podcast.badge}
+                    badge={podcast.ribbon}
+                    tags={podcast.tags}
                     title={podcast.headline}
                     sound={podcast.sound}
                     description={podcast.description}

@@ -206,7 +206,7 @@ const computePeaks = (buffer: AudioBuffer, buckets: number): Float32Array => {
 type SpeakerRange = { start: number; end: number; speakerIdx: number };
 
 const mergeSubtitleRanges = (
-    subs: typeof stubSubtitles,
+    subs: Subtitle[],
 ): SpeakerRange[] => {
     const all: SpeakerRange[] = [];
     for (const sub of subs) {
@@ -232,60 +232,6 @@ const mergeSubtitleRanges = (
     return merged;
 };
 
-const stubCategory = [
-    { range: { start: 0, end: 2 }, text: "Category1" },
-    { range: { start: 0, end: 2 }, text: "Category2" },
-    { range: { start: 0, end: 2 }, text: "Category3" },
-];
-
-const TAG_COLORS = ["#7AB8FF", "#FFB87A", "#7AFFB8"];
-
-const podcastTags: Tag[] = stubCategory.map((c, i) => ({
-    label: c.text,
-    color: chroma(TAG_COLORS[i % TAG_COLORS.length]),
-    tooltip: c.text,
-}));
-
-const speakers = [
-    { avatar: "", nickname: "jon", whoIs: "who", color: "green" },
-    { avatar: "", nickname: "carl", whoIs: "who", color: "red" }
-];
-
-const stubSubtitles = [
-    {
-        speakerIdx: 0,
-        words: [
-            { range: { start: 0, end: 0.2 }, text: "some1 some2" },
-            { range: { start: 0.4, end: 0.6 }, text: "some3" },
-            { range: { start: 0.8, end: 1.2 }, text: "some4 some5" },
-        ],
-    },
-    {
-        speakerIdx: 1,
-        words: [
-            { range: { start: 1.3, end: 1.5 }, text: "some1 some2" },
-            { range: { start: 1.6, end: 1.8 }, text: "some3" },
-            { range: { start: 1.9, end: 2.1 }, text: "some4 some5" },
-        ],
-    },
-    {
-        speakerIdx: 0,
-        words: [
-            { range: { start: 0, end: 0.2 }, text: "some1 some2" },
-            { range: { start: 0.4, end: 0.6 }, text: "some3" },
-            { range: { start: 0.8, end: 1.2 }, text: "some4 some5" },
-        ],
-    },
-    {
-        speakerIdx: 1,
-        words: [
-            { range: { start: 1.3, end: 1.5 }, text: "some1 some2" },
-            { range: { start: 1.6, end: 1.8 }, text: "some3" },
-            { range: { start: 1.9, end: 2.1 }, text: "some4 some5" },
-        ],
-    },
-];
-
 const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, nickname: string, identColor: string, whoIs: string }) => {
     const base = "#585858";
 
@@ -308,7 +254,7 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
     </div>
 };
 
-interface Range {
+export interface Range {
     start: number,
     end: number,
 }
@@ -318,42 +264,50 @@ interface Subtitle {
     words: { range: Range, text: string }[]
 }
 
-export interface Topic {
-    range: Range,
-    text: string,
-}
-
 interface Guest {
     image: string,
     name: string,
     whoIs: string,
+    color: string,
 }
 
 interface PodcastCardProps {
     badge?: "hot" | "new",
+    tags: Tag[],
     title: string,
     sound: string,
     description: string,
     guests: Guest[]
-    topics: Topic[],
     subtitles: Subtitle[],
 }
 
 export const PodcastCard: React.FC<PodcastCardProps> = ({ 
     badge,
+    tags,
     title,
     sound,
     description,
     guests,
-    topics,
     subtitles,
 }) => {
+    // Assigns each guest a random colour, once. Hue is random while
+    // saturation/lightness stay fixed so the colour stays legible as text
+    // (guest name, subtitle speaker) on the dark card.
+    const coloredGuests = useMemo(
+        () =>
+            guests.map((guest) => ({
+                ...guest,
+                color: chroma.hsl(Math.random() * 360, 0.7, 0.65).hex(),
+            })),
+        [guests],
+    );
+
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
     const [peaks, setPeaks] = useState<Float32Array | null>(null);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
-    const mergedRanges = useMemo(() => mergeSubtitleRanges(stubSubtitles), []);
+    const mergedRanges = useMemo(() => mergeSubtitleRanges(subtitles), []);
 
     useEffect(() => {
         let cancelled = false;
@@ -417,7 +371,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             }
             const r = mergedRanges[rIdx];
             const inRange = r && r.start <= t && t <= r.end;
-            const color = inRange ? speakers[r.speakerIdx].color : "#555";
+            const color = inRange ? coloredGuests[r.speakerIdx].color : "#555";
 
             const i = Math.min(
                 peaks.length - 1,
@@ -444,7 +398,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     // covers the playhead). -1 when nothing is playing.
     const activeRowIdx = useMemo(() => {
         const currentTime = progress * duration;
-        return stubSubtitles.findIndex((item) =>
+        return subtitles.findIndex((item) =>
             item.words.some(
                 (w) =>
                     currentTime >= w.range.start &&
@@ -496,7 +450,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                 <p className={css(styles.preview)}>
                     {description}
                 </p>
-                <ChipHolder data={podcastTags} />
+                <ChipHolder data={tags} />
             </div>
             <Canvas
                 draw={draw}
@@ -519,12 +473,12 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                     background: SCROLL_AREA_BG,
                     padding: BASE_PADDING_X,
                 }}>
-                    {speakers.map((item, idx) =>
+                    {coloredGuests.map((item, idx) =>
                         <GuestInsert
                             key={idx}
-                            avatar={item.avatar}
+                            avatar={item.image}
                             identColor={item.color}
-                            nickname={item.nickname} 
+                            nickname={item.name} 
                             whoIs={item.whoIs}
                         />)
                     }
@@ -534,12 +488,12 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                 {"SUBTITLES"}
             </span>
             <div ref={scrollRef} className={css(styles.scrollArea)}>
-                {stubSubtitles.map((item, itemIdx) => {
-                    const speaker = speakers[item.speakerIdx];
+                {subtitles.map((item, itemIdx) => {
+                    const speaker = coloredGuests[item.speakerIdx];
 
                     const currentTime = progress * duration;
                     const Speaker = () =>
-                        <b style={{ color: speaker.color }}>{`${speaker.nickname}: `}</b>;
+                        <b style={{ color: speaker.color }}>{`${speaker.name}: `}</b>;
                     const Words = () => (
                         <>
                             {item.words.map((w, idx) => {
