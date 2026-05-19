@@ -13,6 +13,16 @@ export function initDatabase() {
       difficulty TEXT NOT NULL DEFAULT 'easy'
     );
 
+    CREATE TABLE IF NOT EXISTS podcasts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      headline TEXT NOT NULL,
+      sound TEXT NOT NULL,
+      guests TEXT NOT NULL DEFAULT '[]',
+      topics TEXT NOT NULL DEFAULT '[]',
+      subtitles TEXT NOT NULL DEFAULT '[]',
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       label TEXT NOT NULL,

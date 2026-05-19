@@ -76,6 +76,15 @@ const styles = StyleSheet.create({
         height: 160,
         cursor: "pointer",
     },
+    button: {
+        padding: "8px 14px",
+        backgroundColor: "#1E1E1F",
+        fontFamily: "Monda",
+        fontSize: 13,
+        fontWeight: "bold",
+        color: "#D4D4D4",
+        letterSpacing: 0.5,
+    },
 });
 
 type DrawFn = (
@@ -281,7 +290,7 @@ interface PodcastCardProps {
     subtitles: Subtitle[],
 }
 
-export const PodcastCard: React.FC<PodcastCardProps> = ({ 
+export const PodcastCard: React.FC<PodcastCardProps> = ({
     badge,
     tags,
     title,
@@ -307,6 +316,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     const [peaks, setPeaks] = useState<Float32Array | null>(null);
     const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [isPlaying, setIsPlaying] = useState(false);
     const mergedRanges = useMemo(() => mergeSubtitleRanges(subtitles), []);
 
     useEffect(() => {
@@ -338,18 +348,26 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             if (isFinite(d) && d > 0) setDuration(d);
             setProgress(d > 0 && isFinite(d) ? audio.currentTime / d : 0);
         };
+        const syncPlaying = () => setIsPlaying(!audio.paused);
         update();
+        syncPlaying();
         audio.addEventListener("loadedmetadata", update);
         audio.addEventListener("durationchange", update);
         audio.addEventListener("timeupdate", update);
         audio.addEventListener("seeked", update);
         audio.addEventListener("ended", update);
+        audio.addEventListener("play", syncPlaying);
+        audio.addEventListener("pause", syncPlaying);
+        audio.addEventListener("ended", syncPlaying);
         return () => {
             audio.removeEventListener("loadedmetadata", update);
             audio.removeEventListener("durationchange", update);
             audio.removeEventListener("timeupdate", update);
             audio.removeEventListener("seeked", update);
             audio.removeEventListener("ended", update);
+            audio.removeEventListener("play", syncPlaying);
+            audio.removeEventListener("pause", syncPlaying);
+            audio.removeEventListener("ended", syncPlaying);
         };
     }, []);
 
@@ -384,6 +402,16 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
 
         ctx.fillStyle = "#fff";
         ctx.fillRect(cursorX, 0, 1, height);
+    };
+
+    const togglePlayback = () => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        if (audio.paused) {
+            audio.play().catch(() => { });
+        } else {
+            audio.pause();
+        }
     };
 
     const movePlayingTo = (start: number) => {
@@ -462,6 +490,20 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                 }}
                 className={css(styles.canvas)}
             />
+            <div
+                className={css(styles.row)}
+                style={{ display: "flex", justifyContent: "flex-start", padding: "10px" }}
+            >
+                <div
+                    className={css(
+                        globalStyles.pressable,
+                        styles.button,
+                    )}
+                    onClick={togglePlayback}
+                >
+                    <span>{isPlaying ? "Pause" : "Play"}</span>
+                </div>
+            </div>
             <>
                 <span className={css(globalStyles.headline, styles.headline)}>
                     {"GUESTS"}
@@ -478,7 +520,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                             key={idx}
                             avatar={item.image}
                             identColor={item.color}
-                            nickname={item.name} 
+                            nickname={item.name}
                             whoIs={item.whoIs}
                         />)
                     }
