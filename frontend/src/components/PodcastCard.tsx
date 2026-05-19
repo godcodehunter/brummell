@@ -320,7 +320,7 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
                 borderLeft: `0.4px solid ${base}`,
             }}
         >
-            <h3 style={{ margin: 0, padding: 8, borderBottom: `0.4px solid ${base}`, color: identColor }}>{nickname}
+            <h3 style={{  margin: 0, fontWeight: "bold", padding: 8, borderBottom: `0.4px solid ${base}`, color: identColor }}>{nickname}
             </h3>
             <p style={{ margin: 0, padding: 8 }}>
                 {whoIs}
@@ -600,7 +600,20 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                 >
                     <span>{"30s »"}</span>
                 </div>
-                <div style={{ marginLeft: "auto" }}>
+                <div style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                }}>
+                    <span style={{
+                        fontWeight: "bold",
+                        fontFamily: "Roboto",
+                        fontSize: 12,
+                        color: "#ABABAB",
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                    }}>{"VOLUME"}</span>
                     <Bar value={volume} onChange={setVolume} minWidth={120} />
                 </div>
             </div>
@@ -635,7 +648,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
 
                     const currentTime = progress * duration;
                     const Speaker = () =>
-                        <b style={{ color: speaker.color }}>{`${speaker.name}: `}</b>;
+                        <b style={{ fontWeight: "bold", color: speaker.color }}>{`${speaker.name}: `}</b>;
                     const Words = () => (
                         <>
                             {item.words.map((w, idx) => {
