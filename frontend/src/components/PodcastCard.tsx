@@ -191,8 +191,7 @@ const Canvas: React.FC<CanvasProps> = ({ draw, onSeek, className }) => {
     );
 };
 
-const AUDIO_SRC =
-    "https://2526926d-44a8-4f33-b0fb-96fd1117a13a.mdnplay.dev/shared-assets/audio/t-rex-roar.mp3";
+
 const PEAKS_BUCKETS = 2000;
 
 const computePeaks = (buffer: AudioBuffer, buckets: number): Float32Array => {
@@ -422,6 +421,12 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
         setProgress(clamped / audio.duration);
     };
 
+    const seekBy = (deltaSeconds: number) => {
+        const audio = audioRef.current;
+        if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
+        movePlayingTo(audio.currentTime + deltaSeconds);
+    };
+
     // Index of the subtitle row currently being spoken (any of its words
     // covers the playhead). -1 when nothing is playing.
     const activeRowIdx = useMemo(() => {
@@ -492,8 +497,17 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             />
             <div
                 className={css(styles.row)}
-                style={{ display: "flex", justifyContent: "flex-start", padding: "10px" }}
+                style={{ display: "flex", justifyContent: "flex-start", gap: 10, padding: "10px" }}
             >
+                <div
+                    className={css(
+                        globalStyles.pressable,
+                        styles.button,
+                    )}
+                    onClick={() => seekBy(-30)}
+                >
+                    <span>{"« 30s"}</span>
+                </div>
                 <div
                     className={css(
                         globalStyles.pressable,
@@ -501,7 +515,16 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                     )}
                     onClick={togglePlayback}
                 >
-                    <span>{isPlaying ? "Pause" : "Play"}</span>
+                    <span>{isPlaying ? "PAUSE" : "PLAY"}</span>
+                </div>
+                <div
+                    className={css(
+                        globalStyles.pressable,
+                        styles.button,
+                    )}
+                    onClick={() => seekBy(30)}
+                >
+                    <span>{"30s »"}</span>
                 </div>
             </div>
             <>
