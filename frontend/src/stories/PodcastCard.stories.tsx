@@ -27,8 +27,8 @@ const tags: Tag[] = [
 ]
 
 const guests = [
-    { avatar: "", name: "jon", whoIs: "who", color: "green" },
-    { avatar: "", name: "carl", whoIs: "who", color: "red" }
+    { image: "https://thumbor.evrimagaci.org/7mzcf_bIAsc-LTWaXdLxJR1ENFU=/filters:quality(85)/old/mi_media/afcae823e61eefb077e1f223594b1e7f.jpeg", name: "ZL0_", whoIs: "Expert in distributed systems", color: "green" },
+    { image: "https://upload.wikimedia.org/wikipedia/en/b/b9/Terminator-2-judgement-day.jpg", name: "Alpha17", whoIs: "Debugging expert", color: "red" }
 ];
 
 const subtitles = [

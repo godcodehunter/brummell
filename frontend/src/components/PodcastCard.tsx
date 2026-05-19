@@ -244,7 +244,7 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
     const base = "#585858";
 
     return <div style={{ display: "flex", alignSelf: "flex-start", border: `0.4px solid ${base}`, backgroundColor: String(chroma(base).alpha(0.2)) }}>
-        <img src={avatar} alt="Boris" width={80} height={80} />
+        <img src={avatar} alt={nickname} width={80} height={80} />
         <div
             style={{
                 display: "flex",
@@ -261,6 +261,10 @@ const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, 
         </div>
     </div>
 };
+
+const Bar = () => {
+    
+}
 
 export interface Range {
     start: number,
