@@ -236,9 +236,9 @@ builder.objectType("Owner", {
   fields: (t) => ({
     id: t.exposeID("id"),
     nickname: t.exposeString("nickname"),
-    about_myself: t.exposeString("about_myself"),
+    aboutMyself: t.exposeString("about_myself"),
     avatar: t.exposeString("avatar"),
-    external_links: t.field({
+    externalLinks: t.field({
       type: ["ExternalLink"],
       resolve: (owner) => owner.external_links,
     }),

@@ -1,6 +1,34 @@
 import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
+import { useState } from "react";
+import { gql, useLazyQuery } from "@apollo/client";
+
+interface ExternalLink {
+    svg_icon: string;
+    url: string;
+}
+
+interface Owner {
+    nickname: string;
+    about_myself: string;
+    avatar: string;
+    external_links: ExternalLink[];
+}
+
+const GET_OWNER = gql`
+    query GetOwner {
+        getOwner {
+            nickname
+            aboutMyself
+            avatar
+            externalLinks {
+                svg_icon
+                url
+            }
+        }
+    }
+`;
 
 const styles = StyleSheet.create({
     root: {
@@ -10,6 +38,7 @@ const styles = StyleSheet.create({
     },
 });
 
+
 interface ContentItem {
     path: string;
     contentType?: "shot" | "article" | "podcast" | "library" | "media";
@@ -17,19 +46,31 @@ interface ContentItem {
 }
 
 export const ArticleCreator = () => {
-    let payload: Node[]= [
+    const [editorValue, setEditorValue] = useState("");
+
+    const [fetchOwner] = useLazyQuery<{ getOwner: Owner | null }>(GET_OWNER, {
+        fetchPolicy: "network-only",
+        onCompleted: data => {
+            setEditorValue(JSON.stringify(data?.getOwner ?? null, null, 4));
+        },
+        onError: err => {
+            setEditorValue(`// error: ${err.message}`);
+        },
+    });
+
+    let payload: Node[] = [
         {
-            id: "0",
+            id: "profile",
             tag: NodeTag.Item,
             label: "Profile 🪪",
         },
         {
-            id: "1",
+            id: "tags",
             tag: NodeTag.Item,
             label: "Tags 🏷️",
         },
         {
-            id: "2",
+            id: "content",
             tag: NodeTag.Category,
             label: "Content",
             children: [],
@@ -92,9 +133,17 @@ export const ArticleCreator = () => {
         publishStatus: "draft",
     }]);
 
+    function onTreeItemClick(node: Node) {
+        if (node.id === "profile") {
+            fetchOwner();
+        }
+    }
+
     return <div className={css(styles.root)}>
-        <TreeCard title="Files" data={payload} />
+        <TreeCard title="Files" data={payload} onNodeClick={onTreeItemClick} />
         <Editor
+            value={editorValue}
+            onChange={v => setEditorValue(v ?? "")}
             height="100%"
             defaultLanguage="mdx"
             theme="vs-dark"
