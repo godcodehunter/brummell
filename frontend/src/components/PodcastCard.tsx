@@ -310,22 +310,22 @@ const mergeSubtitleRanges = (
 const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, nickname: string, identColor: string, whoIs: string }) => {
     const base = "#585858";
 
-    return <div style={{ display: "flex", alignSelf: "flex-start", border: `0.4px solid ${base}`, backgroundColor: String(chroma(base).alpha(0.2)) }}>
-        <img src={avatar} alt={nickname} width={80} height={80} />
+    return <div style={{ display: "flex", flexDirection: "column", border: `0.4px solid ${base}`, backgroundColor: String(chroma(base).alpha(0.2)), width: "400px" }}>
         <div
             style={{
                 display: "flex",
-                flexDirection: "column",
-                flex: 1,
-                borderLeft: `0.4px solid ${base}`,
+                flexDirection: "row",
+                alignItems: "center",
+                borderBottom: `0.4px solid ${base}`,
             }}
         >
-            <h3 style={{  margin: 0, fontWeight: "bold", padding: 8, borderBottom: `0.4px solid ${base}`, color: identColor }}>{nickname}
+            <img src={avatar} alt={nickname} style={{ borderRight: `0.4px solid ${base}` }} width={40} height={40} />
+            <h3 style={{ margin: 0, fontWeight: "bold", padding: 8, color: identColor }}>{nickname}
             </h3>
-            <p style={{ margin: 0, padding: 8 }}>
-                {whoIs}
-            </p>
         </div>
+        <p style={{ margin: 0, padding: 8 }}>
+            {whoIs}
+        </p>
     </div>
 };
 
