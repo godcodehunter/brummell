@@ -3,8 +3,8 @@ import { palette, constants } from '../globalStyles';
 import { Chat } from '../components/Chat';
 import { PodcastCard, Range } from '../components/PodcastCard';
 import BackToMain from '../components/BackToMain';
-import { Category, Item, Node, NodeTag, TreeCard } from '../components/TreeCard';
-import { gql, useMutation, useQuery, useSubscription } from '@apollo/client';
+import { Category, NodeTag, TreeCard } from '../components/TreeCard';
+import { gql, useQuery } from '@apollo/client';
 import { useSearchParams, Navigate } from 'react-router-dom';
 
 const page = StyleSheet.create({
