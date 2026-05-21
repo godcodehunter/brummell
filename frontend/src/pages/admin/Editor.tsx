@@ -23,7 +23,7 @@ const GET_OWNER = gql`
             aboutMyself
             avatar
             externalLinks {
-                svg_icon
+                svgIcon
                 url
             }
         }

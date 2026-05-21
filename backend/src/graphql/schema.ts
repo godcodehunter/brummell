@@ -227,7 +227,7 @@ builder.objectType("Article", {
 
 builder.objectType("ExternalLink", {
   fields: (t) => ({
-    svg_icon: t.exposeString("svg_icon"),
+    svgIcon: t.exposeString("svg_icon"),
     url: t.exposeString("url"),
   }),
 });
