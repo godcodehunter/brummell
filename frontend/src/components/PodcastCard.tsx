@@ -578,9 +578,9 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                         globalStyles.pressable,
                         styles.button,
                     )}
-                    onClick={() => seekBy(-30)}
+                    onClick={() => seekBy(-10)}
                 >
-                    <span>{"« 30s"}</span>
+                    <span>{"« 10s"}</span>
                 </div>
                 <div
                     className={css(
@@ -596,9 +596,9 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                         globalStyles.pressable,
                         styles.button,
                     )}
-                    onClick={() => seekBy(30)}
+                    onClick={() => seekBy(10)}
                 >
-                    <span>{"30s »"}</span>
+                    <span>{"10s »"}</span>
                 </div>
                 <div style={{
                     marginLeft: "auto",
