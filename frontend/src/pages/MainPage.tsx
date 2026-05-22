@@ -11,9 +11,9 @@ import { Category, TreeCard, NodeTag } from '../components/TreeCard';
 import { ArticleCard } from '../components/ArticleCard';
 
 import avatar from '../assets/avatar.jpg';
-import { ReactComponent as Github} from '../assets/github.svg';
-import { ReactComponent as Linkedin} from '../assets/linkedin.svg';
-import { ReactComponent as Twitter} from '../assets/twitter.svg';
+import { ReactComponent as Github } from '../assets/github.svg';
+import { ReactComponent as Linkedin } from '../assets/linkedin.svg';
+import { ReactComponent as Twitter } from '../assets/twitter.svg';
 
 import { palette, constants } from '../globalStyles';
 
@@ -59,7 +59,7 @@ interface ArticleCover {
   illustration: any,
   tags: Tag[],
   preview_txt: string,
-  reading_time_min: number, 
+  reading_time_min: number,
   created_at: number,
 }
 
@@ -125,7 +125,23 @@ export const app = StyleSheet.create({
   }
 });
 
+const GET_OWNER = gql`
+    query GetOwner {
+        getOwner {
+            nickname
+            aboutMyself
+            avatar
+            externalLinks {
+                svgIcon
+                url
+            }
+        }
+    }
+`;
+
 const ProfileCardWithContent = () => {
+  const { data, loading, error } = useQuery(GET_OWNER);
+
   const overview =
   <>
     Welcome to my blog. I am a programmer who believes that open source
@@ -136,7 +152,7 @@ const ProfileCardWithContent = () => {
     I respect perseverance, uncompromising hard skills, pedantry and
     commitment to ideals, and with this I move towards a craftsmanship.
   </>
-
+  
   const social = [
     <IconButton
       url={"https://x.com/godcodehunter"}
@@ -153,14 +169,14 @@ const ProfileCardWithContent = () => {
   ];
 
   return <VerticalProfileCard
-    avatar={avatar}
-    nickname={"godcodehunter"}
-    overview={overview}
+    avatar={data?.getOwner?.avatar}
+    nickname={data?.getOwner?.nickname}
+    overview={data?.getOwner?.aboutMyself}
     social={social}
   />;
 };
 
-const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
+const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
   let byMonths = new Map<string, string[]>();
 
   const addIfNotExist = (month: string, headline: string) => {
@@ -170,12 +186,12 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
     // @ts-ignore
     byMonths.get(month).push(headline);
   }
-  
+
   content.map((i) => {
     var date = new Date(i.created_at * 1000);
     let month = date.getMonth()
-    
-    switch(month) {
+
+    switch (month) {
       case 0: {
         addIfNotExist("January", i.headline)
         break;
@@ -225,12 +241,12 @@ const TreeCardWithFill = ({content}: {content: ArticleLine[]}) => {
         break;
       }
     }
-  }) 
+  })
 
-  let data : Category[] = []
-  
+  let data: Category[] = []
+
   byMonths.forEach((v: string[], k: string) => {
-    let root : Category = {
+    let root: Category = {
       tag: NodeTag.Category,
       id: k,
       label: k,
@@ -276,21 +292,21 @@ export const MainPage = () => {
   return (
     <div className={css(app.root)}>
       <div className={css(app.leftPanel)}>
-        <ProfileCardWithContent/>
+        <ProfileCardWithContent />
       </div>
       <div className={css(app.middlePanel)}>
-        <StackGrid 
-          columnWidth={300} 
-          gutterWidth = {constants.gap}
+        <StackGrid
+          columnWidth={300}
+          gutterWidth={constants.gap}
           gutterHeight={constants.gap}
         >
-        {articleCovers.map((item, idx) =><> { /*<ArticleCard />*/}</>
-        )}
+          {articleCovers.map((item, idx) => <> { /*<ArticleCard />*/}</>
+          )}
         </StackGrid>
       </div>
       <div className={css(app.rightPanel)}>
         <SearchCard />
-        <TreeCardWithFill content={articleCovers}/>
+        <TreeCardWithFill content={articleCovers} />
       </div>
     </div>
   );

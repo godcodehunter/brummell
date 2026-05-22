@@ -1,8 +1,8 @@
-import Editor from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
-import { useState } from "react";
-import { gql, useLazyQuery } from "@apollo/client";
+import { useRef, useState } from "react";
+import { gql, useLazyQuery, useMutation } from "@apollo/client";
 
 interface ExternalLink {
     svg_icon: string;
@@ -30,6 +30,30 @@ const GET_OWNER = gql`
     }
 `;
 
+const UPDATE_OWNER = gql`
+    mutation UpdateOwner(
+        $nickname: String!
+        $aboutMyself: String!
+        $avatar: String!
+        $externalLinks: [ExternalLinkInput!]!
+    ) {
+        updateOwner(
+            nickname: $nickname
+            aboutMyself: $aboutMyself
+            avatar: $avatar
+            externalLinks: $externalLinks
+        ) {
+            nickname
+            aboutMyself
+            avatar
+            externalLinks {
+                svgIcon
+                url
+            }
+        }
+    }
+`;
+
 const styles = StyleSheet.create({
     root: {
         display: "flex",
@@ -45,18 +69,79 @@ interface ContentItem {
     publishStatus?: "published" | "draft";
 }
 
+const profileEditTip = `// The profle data have the following structure:
+// {
+//    nickname: string;
+//    aboutMyself: string;
+//    avatar: string;
+//    externalLinks: {
+//         svgIcon: string;
+//         url: string;
+//    }[];
+// }`;
+
+type EditingMode = "profile" | null;
+
 export const ArticleCreator = () => {
     const [editorValue, setEditorValue] = useState("");
+    const editorValueRef = useRef("");
+    const editingModeRef = useRef<EditingMode>(null);
+
+    const updateEditorValue = (next: string) => {
+        editorValueRef.current = next;
+        setEditorValue(next);
+    };
 
     const [fetchOwner] = useLazyQuery<{ getOwner: Owner | null }>(GET_OWNER, {
         fetchPolicy: "network-only",
         onCompleted: data => {
-            setEditorValue(JSON.stringify(data?.getOwner ?? null, null, 4));
+            editingModeRef.current = "profile";
+            updateEditorValue(profileEditTip + "\n\n" + JSON.stringify(data?.getOwner ?? null, (key, value) => key === "__typename" ? undefined : value, 4));
         },
         onError: err => {
-            setEditorValue(`// error: ${err.message}`);
+            editingModeRef.current = null;
+            updateEditorValue(`// error: ${err.message}`);
         },
     });
+
+    const [updateOwner] = useMutation(UPDATE_OWNER);
+
+    const stripComments = (src: string) =>
+        src.split("\n").filter(line => !line.trim().startsWith("//")).join("\n").trim();
+
+    const saveProfile = async () => {
+        const jsonText = stripComments(editorValueRef.current);
+        if (!jsonText) return;
+        let parsed: any;
+        try {
+            parsed = JSON.parse(jsonText);
+        } catch (e) {
+            updateEditorValue(editorValueRef.current + `\n// parse error: ${(e as Error).message}`);
+            return;
+        }
+        try {
+            await updateOwner({
+                variables: {
+                    nickname: parsed.nickname ?? "",
+                    aboutMyself: parsed.aboutMyself ?? "",
+                    avatar: parsed.avatar ?? "",
+                    externalLinks: (parsed.externalLinks ?? []).map(
+                        (l: any) => ({ svgIcon: l.svgIcon ?? "", url: l.url ?? "" }),
+                    ),
+                },
+            });
+        } catch (e) {
+            updateEditorValue(editorValueRef.current + `\n// save error: ${(e as Error).message}`);
+        }
+    };
+
+    const handleEditorMount: OnMount = (editor, monaco) => {
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            if (editingModeRef.current === "profile") {
+                saveProfile();
+            }
+        });
+    };
 
     let payload: Node[] = [
         {

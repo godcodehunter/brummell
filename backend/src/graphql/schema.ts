@@ -86,6 +86,13 @@ const RibbonEnum = builder.enumType("Ribbon", {
   values: ["hot", "new"] as const,
 });
 
+const ExternalLinkInput = builder.inputType("ExternalLinkInput", {
+  fields: (t) => ({
+    svgIcon: t.string({ required: true }),
+    url: t.string({ required: true }),
+  }),
+});
+
 // Looks up the ribbon ("hot"/"new" banner) attached to a given entity, if any.
 function resolveRibbon(targetType: "article" | "podcast", targetId: number) {
   const row = db
@@ -364,6 +371,35 @@ builder.mutationType({
 
         pubsub.publish("newArticle", created);
         return created;
+      },
+    }),
+    updateOwner: t.field({
+      type: "Owner",
+      args: {
+        nickname: t.arg.string({ required: true }),
+        aboutMyself: t.arg.string({ required: true }),
+        avatar: t.arg.string({ required: true }),
+        externalLinks: t.arg({ type: [ExternalLinkInput], required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const owner = db.select().from(owners).all()[0];
+        if (!owner) throw new Error("OWNER_NOT_FOUND");
+        const updated = db
+          .update(owners)
+          .set({
+            nickname: args.nickname,
+            about_myself: args.aboutMyself,
+            avatar: args.avatar,
+            external_links: args.externalLinks.map((l) => ({
+              svg_icon: l.svgIcon,
+              url: l.url,
+            })),
+          })
+          .where(eq(owners.id, owner.id))
+          .returning()
+          .all()[0]!;
+        return updated;
       },
     }),
     setupOwner: t.field({
