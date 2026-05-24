@@ -5,6 +5,7 @@ import { ReactComponent as Clock } from '../assets/clock.svg';
 import { ReactComponent as Calendar } from '../assets/calendar.svg';
 import { DateTime, Duration } from 'luxon';
 import { globalStyles } from '../globalStyles';
+import { stringifyDuration, stringifyTime } from '../utilsTime';
 
 interface ArticleCardProps {
     illustration: string,
@@ -27,45 +28,6 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     onOpen,
     style={}
 }) => {
-    const getCalendarFormat = (myDateTime: DateTime, now: DateTime): string =>{
-        var diff = myDateTime.diff(now.startOf("day"), 'days').as('days');
-        return diff < -6 ? 'sameElse' :
-            diff < -1 ? 'lastWeek' :
-            diff < 0 ? 'lastDay' :
-            diff < 1 ? 'sameDay' :
-            diff < 2 ? 'nextDay' :
-            diff < 7 ? 'nextWeek' : 'sameElse';
-    };
-
-    const stringifyPublicationTime = (timestamp: DateTime) => {
-        const ts = timestamp.toLocal().setLocale("en");
-        const cur = DateTime.local();
-        const human_readable = getCalendarFormat(ts, cur);
-        
-        if(human_readable === "sameDay"){
-            return `today at ${ts.toFormat("T")}`;
-        }
-        if(human_readable === "lastDay"){
-            return `yesterday at ${ts.toFormat("T")}`;
-        }
-        
-        return ts.toFormat("DD T");
-    };
-
-    const stringifyReadingTime = (duration: Duration): string => {
-        const dur = duration.shiftTo('hours', 'minutes');
-        let ret: string = "";
-        [[dur.hours, "h"],[dur.minutes, "min"]].map((i) => {
-            if(i[0] !== 0){
-                if(ret.length > 0) {
-                    ret += " ";
-                }
-                ret += `${i[0]} ${i[1]}`;
-            }
-        });
-        return ret+=" read";
-    };
-    
     return (
         <>
         <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
@@ -112,7 +74,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontSize: "12px",
                                 color: "#D4D4D4",
                             }}>
-                                {stringifyReadingTime(reading_time)}
+                                {stringifyTime(reading_time)}
                             </span>
                         </div>
                         <div style={{display: "flex", flexDirection: "row", gap: 4}}>
@@ -122,9 +84,8 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontStyle: "normal",
                                 fontWeight: "normal",
                                 fontSize: "12px",
-                                // lineHeight: "14px",
                                 color: "#D4D4D4",
-                            }}>{stringifyPublicationTime(created_at)}</span>
+                            }}>{stringifyDuration(created_at)}</span>
                         </div>
                     </div>
                 </div>

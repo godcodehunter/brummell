@@ -286,8 +286,13 @@ builder.objectType("Comment", {
 builder.queryType({
   fields: (t) => ({
     getArticle: t.field({
-      type: ["Article"],
-      resolve: () => db.select().from(articles).all(),
+      type: "Article",
+      nullable: true,
+      args: {
+        id: t.arg.int({ required: true }),
+      },
+      resolve: (_, { id }) =>
+        db.select().from(articles).where(eq(articles.id, id)).all()[0] ?? null,
     }),
     getPodcast: t.field({
       type: "Podcast",
