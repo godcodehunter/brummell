@@ -11,6 +11,7 @@ import BackToMain from '../components/BackToMain';
 import { getMDXComponent } from 'mdx-bundler/client'
 import { gql, useQuery } from "@apollo/client";
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { stringifyDuration, stringifyTime } from '../utilsTime';
 
 const page = StyleSheet.create({
     root: {
@@ -408,6 +409,7 @@ query GetArticle {
         kicker
         headline
         illustration
+        difficulty
         preview_txt
         reading_time_min
         createdAt
@@ -425,9 +427,9 @@ query GetArticle {
 export const ArticlePage = () => {
     const [searchParams] = useSearchParams();
     const id = Number(searchParams.get("id"));
-    
+
     const hasValidId = Number.isInteger(id) && id > 0;
-    
+
     const { data, loading, error } = useQuery(GET_ARTICLE, {
         variables: { id },
         skip: !hasValidId,
@@ -443,6 +445,10 @@ export const ArticlePage = () => {
         return <Navigate to="/error" replace />;
     }
 
+    const { messages, sendMessage } = useChat("article", id);
+
+    const { kicker, views, headline, illustration, difficulty, preview_txt, reading_time_min, createdAt, ribbon, tags } = data.getArticle;
+
     // const ArticleBody = React.useMemo(() => getMDXComponent(code), [code])
     const middlePanelRef = useRef<HTMLDivElement>(null);
     const sectionIds = useMemo(
@@ -450,10 +456,6 @@ export const ArticlePage = () => {
         []
     );
     const { activeId, visibleIds } = useScrollState(middlePanelRef, sectionIds);
-
-    // Hardcoded article id for now — the /article route does not carry one
-    // in the URL yet. Switch to a route param once that's wired up.
-    const { messages, sendMessage } = useChat("article", 1);
 
     return (
         <div className={css(page.root)}>
@@ -476,21 +478,17 @@ export const ArticlePage = () => {
             <div ref={middlePanelRef} className={css(page.middlePanel)}>
                 <ArticleHead
                     article={{
-                        bage: "new",
-                        kicker: "Systems",
-                        title: "Article Title",
-                        preview: "A short overview of the piece — the kind of lead-in you'd see hovering over the card on the main page. Two or three sentences setting up what the article covers and why it matters.",
-                        tags: [
-                            { label: "concurrency", color: chroma("#7AB8FF"), tooltip: "concurrency" },
-                            { label: "memory model", color: chroma("#FFB87A"), tooltip: "memory model" },
-                            { label: "performance", color: chroma("#7AFFB8"), tooltip: "performance" },
-                        ],
-                        imageSrc: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT5R5C_P1X3aQQyuP3jQNu15mW3JqS5kCwL5w&s",
+                        bage: ribbon,
+                        kicker: kicker,
+                        title: headline,
+                        preview: preview_txt,
+                        tags: tags,
+                        imageSrc: illustration,
                         metaItems: {
-                            difficulty: "hard",
-                            readingTime: "8 min read",
-                            views: "42",
-                            publishedAt: "today at 14:32",
+                            difficulty: difficulty,
+                            readingTime: stringifyDuration(reading_time_min),
+                            views: views.toString(),
+                            publishedAt: stringifyTime(createdAt),
                         },
                     }}
                 />

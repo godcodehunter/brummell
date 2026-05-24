@@ -26,6 +26,7 @@ import {
   commentTargets,
   posters,
   ribbon,
+  pageViews,
   type Article,
   type Tag,
   type Owner,
@@ -103,6 +104,21 @@ function resolveRibbon(targetType: "article" | "podcast", targetId: number) {
     )
     .all()[0];
   return row?.ribbon ?? null;
+}
+
+// Total page views for an entity = sum of the per-day counts in page_views.
+function resolveViews(
+  targetType: "article" | "shot" | "podcast",
+  targetId: number,
+): number {
+  const rows = db
+    .select()
+    .from(pageViews)
+    .where(
+      and(eq(pageViews.target_type, targetType), eq(pageViews.target_id, targetId)),
+    )
+    .all();
+  return rows.reduce((total, row) => total + row.count, 0);
 }
 
 // Half-open interval over the podcast's audio timeline, in seconds.
@@ -209,7 +225,12 @@ builder.objectType("Article", {
     illustration: t.exposeString("illustration"),
     preview_txt: t.exposeString("preview_txt"),
     reading_time_min: t.exposeInt("reading_time_min"),
+    difficulty: t.exposeString("difficulty"),
     createdAt: t.exposeInt("created_at"),
+    views: t.field({
+      type: "Int",
+      resolve: (article) => resolveViews("article", article.id),
+    }),
     ribbon: t.field({
       type: RibbonEnum,
       nullable: true,
