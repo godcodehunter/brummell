@@ -79,6 +79,27 @@ export function initDatabase() {
       text TEXT NOT NULL,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS ribbon (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type TEXT NOT NULL,
+      target_id INTEGER NOT NULL,
+      ribbon TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS ribbon_target_uq
+      ON ribbon(target_type, target_id);
+
+    CREATE TABLE IF NOT EXISTS page_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      target_type TEXT NOT NULL,
+      target_id INTEGER NOT NULL,
+      day INTEGER NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS page_views_target_day_uq
+      ON page_views(target_type, target_id, day);
   `);
 
   console.log("✅ Database scheme initialized");
