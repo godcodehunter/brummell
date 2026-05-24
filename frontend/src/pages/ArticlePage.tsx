@@ -11,6 +11,7 @@ import BackToMain from '../components/BackToMain';
 import { getMDXComponent } from 'mdx-bundler/client'
 import { gql, useQuery } from "@apollo/client";
 import { Navigate, useSearchParams } from 'react-router-dom';
+import { DateTime, Duration } from 'luxon';
 import { stringifyDuration, stringifyTime } from '../utilsTime';
 
 const page = StyleSheet.create({
@@ -413,6 +414,7 @@ query GetArticle($id: Int!) {
         preview_txt
         reading_time_min
         createdAt
+        views
         ribbon
         tags {
             id
@@ -435,6 +437,16 @@ export const ArticlePage = () => {
         skip: !hasValidId,
     });
 
+    const { messages, sendMessage } = useChat("article", id);
+
+    // const ArticleBody = React.useMemo(() => getMDXComponent(code), [code])
+    const middlePanelRef = useRef<HTMLDivElement>(null);
+    const sectionIds = useMemo(
+        () => flattenForScroll(tocStub).map(s => s.id),
+        []
+    );
+    const { activeId, visibleIds } = useScrollState(middlePanelRef, sectionIds);
+
     // Still fetching — don't redirect prematurely.
     if (hasValidId && loading) {
         return null;
@@ -445,18 +457,7 @@ export const ArticlePage = () => {
         console.log("Article loading error:", error);
         return <Navigate to="/error" replace />;
     }
-
-    const { messages, sendMessage } = useChat("article", id);
-
-    const { kicker, views, headline, illustration, difficulty, preview_txt, reading_time_min, createdAt, ribbon, tags } = data.getArticle;
-
-    // const ArticleBody = React.useMemo(() => getMDXComponent(code), [code])
-    const middlePanelRef = useRef<HTMLDivElement>(null);
-    const sectionIds = useMemo(
-        () => flattenForScroll(tocStub).map(s => s.id),
-        []
-    );
-    const { activeId, visibleIds } = useScrollState(middlePanelRef, sectionIds);
+    console.log("ARTICLE", data?.getArticle)
 
     return (
         <div className={css(page.root)}>
@@ -479,17 +480,17 @@ export const ArticlePage = () => {
             <div ref={middlePanelRef} className={css(page.middlePanel)}>
                 <ArticleHead
                     article={{
-                        bage: ribbon,
-                        kicker: kicker,
-                        title: headline,
-                        preview: preview_txt,
-                        tags: tags,
-                        imageSrc: illustration,
+                        bage: data.getArticle.ribbon,
+                        kicker: data.getArticle.kicker,
+                        title: data.getArticle.headline,
+                        preview: data.getArticle.preview_txt,
+                        tags: data.getArticle.tags,
+                        imageSrc: data.getArticle.illustration,
                         metaItems: {
-                            difficulty: difficulty,
-                            readingTime: stringifyDuration(reading_time_min),
-                            views: views.toString(),
-                            publishedAt: stringifyTime(createdAt),
+                            difficulty: data.getArticle.difficulty,
+                            readingTime: stringifyDuration(Duration.fromObject({ minutes: data.getArticle.reading_time_min })),
+                            views: data.getArticle.views.toString(),
+                            publishedAt: stringifyTime(DateTime.fromSeconds(data.getArticle.createdAt)),
                         },
                     }}
                 />

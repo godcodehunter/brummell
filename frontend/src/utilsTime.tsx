@@ -11,7 +11,7 @@ function getCalendarFormat(myDateTime: DateTime, now: DateTime): string {
 };
 
 export function stringifyTime(timestamp: DateTime) {
-    const ts = timestamp.toLocal().setLocale("en");
+    const ts = timestamp.toLocal();
     const cur = DateTime.local();
     const human_readable = getCalendarFormat(ts, cur);
 
