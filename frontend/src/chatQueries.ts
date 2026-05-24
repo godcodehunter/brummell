@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { gql, useMutation, useQuery, useSubscription } from '@apollo/client';
+import { ChatMessage } from './components/Chat';
+import chroma from 'chroma-js';
 
 export type ChatTargetType = 'article' | 'shot' | 'podcast';
 
@@ -69,6 +71,33 @@ function mergeDedup(a: ChatComment[], b: ChatComment[]): ChatComment[] {
   return Array.from(byId.values()).sort((x, y) => x.created_at - y.created_at);
 }
 
+// Polynomial rolling hash (base 31, like Java's String.hashCode): each char
+// code is folded in as hash = hash * 31 + code, kept in 32-bit range via `| 0`.
+// The result is mapped onto a 0-359 hue so a given name always yields the same
+// color.
+function hueFromName(name: string): number {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = (hash * 31 + name.charCodeAt(i)) | 0;
+    }
+    return ((hash % 360) + 360) % 360;
+}
+
+function avatarFor(name: string) {
+    return {
+        color: chroma.hsl(hueFromName(name), 0.7, 0.65).hex(),
+        initial: (name[0] ?? "?").toUpperCase(),
+    };
+}
+
+function toChatMessage(c: ChatComment): ChatMessage {
+    return {
+        avatar: avatarFor(c.poster.display_name),
+        name: c.poster.display_name,
+        text: c.text,
+    };
+}
+
 // Hook for the chat. Race-safe load:
 //   1. The subscription opens on mount and starts buffering events.
 //   2. The query fetches historical messages.
@@ -78,8 +107,9 @@ function mergeDedup(a: ChatComment[], b: ChatComment[]): ChatComment[] {
 // that the server sends before our subscription is actually live ends up
 // in the query result. Dedup by id collapses overlap.
 export function useChat(targetType: ChatTargetType, targetId: number) {
-  const [messages, setMessages] = useState<ChatComment[]>([]);
-
+  const [rawMessages, setRawMessages] = useState<ChatComment[]>([]);
+  const messages = useMemo(() => rawMessages.map(toChatMessage), [rawMessages]);
+  
   // Refs because the useSubscription onData closure captures these at the
   // time the callback is registered — without refs we'd read a stale
   // `liveMode` value forever.
@@ -92,7 +122,7 @@ export function useChat(targetType: ChatTargetType, targetId: number) {
       const c = data?.data?.newComment as ChatComment | undefined;
       if (!c) return;
       if (liveModeRef.current) {
-        setMessages((prev) => mergeDedup(prev, [c]));
+        setRawMessages((prev) => mergeDedup(prev, [c]));
       } else {
         bufferRef.current.push(c);
       }
@@ -109,7 +139,7 @@ export function useChat(targetType: ChatTargetType, targetId: number) {
   useEffect(() => {
     if (loading || !data) return;
     const history = (data.getComments ?? []) as ChatComment[];
-    setMessages(mergeDedup(history, bufferRef.current));
+    setRawMessages(mergeDedup(history, bufferRef.current));
     bufferRef.current = [];
     liveModeRef.current = true;
   }, [loading, data]);

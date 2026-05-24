@@ -405,29 +405,7 @@ const useScrollState = (
     return state;
 };
 
-// Pick a stable avatar color for a display name. Sum the char codes mod
-// the palette length — different names get different colors, the same
-// name always gets the same one.
-const AVATAR_PALETTE = ["#7AB8FF", "#FFB87A", "#B87AFF", "#7AFFB8", "#FF7AB8", "#B8FF7A"];
-function avatarFor(name: string) {
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i)) >>> 0;
-    return {
-        color: AVATAR_PALETTE[h % AVATAR_PALETTE.length]!,
-        initial: (name[0] ?? "?").toUpperCase(),
-    };
-}
-
-function toChatMessage(c: ChatComment): ChatMessage {
-    return {
-        avatar: avatarFor(c.poster.display_name),
-        name: c.poster.display_name,
-        text: c.text,
-    };
-}
-
 export const ArticlePage = () => {
-    const markdown = '# Hi, *Pluto*!'
     const middlePanelRef = useRef<HTMLDivElement>(null);
     const sectionIds = useMemo(
         () => flattenForScroll(tocStub).map(s => s.id),
@@ -438,7 +416,6 @@ export const ArticlePage = () => {
     // Hardcoded article id for now — the /article route does not carry one
     // in the URL yet. Switch to a route param once that's wired up.
     const { messages, sendMessage } = useChat("article", 1);
-    const chatMessages = useMemo(() => messages.map(toChatMessage), [messages]);
 
     return (
         <div className={css(page.root)}>
@@ -485,7 +462,6 @@ export const ArticlePage = () => {
                         padding: constants.gap,
                     }}
                 >
-                    <Markdown>{markdown}</Markdown>
                     <ArticleBody />
                 </div>
                 {/* 
@@ -495,7 +471,7 @@ export const ArticlePage = () => {
                 <div style={{ height: "50vh", flexShrink: 0 }} />
             </div>
             <div className={css(page.rightPanel)}>
-                <Chat messages={chatMessages} onSend={sendMessage} />
+                <Chat messages={messages} onSend={sendMessage} />
             </div>
         </div>
     );

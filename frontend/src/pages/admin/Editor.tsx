@@ -1,7 +1,7 @@
-import Editor, { type OnMount } from "@monaco-editor/react";
+import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation } from "@apollo/client";
 
 interface ExternalLink {
@@ -54,6 +54,17 @@ const UPDATE_OWNER = gql`
     }
 `;
 
+const GET_TAGS = gql`
+    query GetTags {
+        getTag {
+            id
+            label
+            color
+            tooltip
+        }
+    }
+`;
+
 const styles = StyleSheet.create({
     root: {
         display: "flex",
@@ -80,27 +91,35 @@ const profileEditTip = `// The profle data have the following structure:
 //    }[];
 // }`;
 
-type EditingMode = "profile" | null;
+type EditingMode = "profile" | "tags" | null;
 
 export const ArticleCreator = () => {
     const [editorValue, setEditorValue] = useState("");
-    const editorValueRef = useRef("");
     const editingModeRef = useRef<EditingMode>(null);
 
-    const updateEditorValue = (next: string) => {
-        editorValueRef.current = next;
-        setEditorValue(next);
-    };
+    const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
     const [fetchOwner] = useLazyQuery<{ getOwner: Owner | null }>(GET_OWNER, {
         fetchPolicy: "network-only",
         onCompleted: data => {
             editingModeRef.current = "profile";
-            updateEditorValue(profileEditTip + "\n\n" + JSON.stringify(data?.getOwner ?? null, (key, value) => key === "__typename" ? undefined : value, 4));
+            setEditorValue(profileEditTip + "\n\n" + JSON.stringify(data?.getOwner ?? null, removeInternal, 4));
         },
         onError: err => {
             editingModeRef.current = null;
-            updateEditorValue(`// error: ${err.message}`);
+            setEditorValue(`// error: ${err.message}`);
+        },
+    });
+
+    const [fetchTags] = useLazyQuery(GET_TAGS, {
+        fetchPolicy: "network-only",
+        onCompleted: data => {
+            editingModeRef.current = "tags";
+            setEditorValue(JSON.stringify(data.getTag, removeInternal, 4));
+        },
+        onError: err => {
+            editingModeRef.current = null;
+            setEditorValue(`// error: ${err.message}`);
         },
     });
 
@@ -110,13 +129,13 @@ export const ArticleCreator = () => {
         src.split("\n").filter(line => !line.trim().startsWith("//")).join("\n").trim();
 
     const saveProfile = async () => {
-        const jsonText = stripComments(editorValueRef.current);
+        const jsonText = stripComments(editorValue);
         if (!jsonText) return;
         let parsed: any;
         try {
             parsed = JSON.parse(jsonText);
         } catch (e) {
-            updateEditorValue(editorValueRef.current + `\n// parse error: ${(e as Error).message}`);
+            setEditorValue(editorValue + `\n// parse error: ${(e as Error).message}`);
             return;
         }
         try {
@@ -131,17 +150,25 @@ export const ArticleCreator = () => {
                 },
             });
         } catch (e) {
-            updateEditorValue(editorValueRef.current + `\n// save error: ${(e as Error).message}`);
+            setEditorValue(editorValue + `\n// save error: ${(e as Error).message}`);
         }
     };
 
-    const handleEditorMount: OnMount = (editor, monaco) => {
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-            if (editingModeRef.current === "profile") {
-                saveProfile();
-            }
-        });
-    };
+    const saveProfileRef = useRef(saveProfile);
+    saveProfileRef.current = saveProfile;
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
+            if (!isSave) return;
+            if (editingModeRef.current !== "profile") return;
+            e.preventDefault();
+            e.stopPropagation();
+            saveProfileRef.current();
+        };
+        window.addEventListener("keydown", onKeyDown, { capture: true });
+        return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+    }, []);
 
     let payload: Node[] = [
         {
@@ -222,6 +249,9 @@ export const ArticleCreator = () => {
         if (node.id === "profile") {
             fetchOwner();
         }
+        if (node.id === "tags") {
+            fetchTags();
+        }
     }
 
     return <div className={css(styles.root)}>
@@ -230,7 +260,7 @@ export const ArticleCreator = () => {
             value={editorValue}
             onChange={v => setEditorValue(v ?? "")}
             height="100%"
-            defaultLanguage="mdx"
+            defaultLanguage="js"
             theme="vs-dark"
             options={{
                 wordWrap: "on",
