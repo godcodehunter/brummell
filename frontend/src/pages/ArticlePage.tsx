@@ -403,8 +403,8 @@ const useScrollState = (
 };
 
 const GET_ARTICLE = gql`
-query GetArticle {
-    getArticle {
+query GetArticle($id: Int!) {
+    getArticle(id: $id) {
         id
         kicker
         headline
@@ -442,6 +442,7 @@ export const ArticlePage = () => {
 
     // Invalid id, request failed, or no podcast with this id.
     if (!hasValidId || error || !data?.getArticle) {
+        console.log("Article loading error:", error);
         return <Navigate to="/error" replace />;
     }
 
