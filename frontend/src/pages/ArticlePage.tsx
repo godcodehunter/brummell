@@ -13,6 +13,7 @@ import { gql, useQuery } from "@apollo/client";
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { DateTime, Duration } from 'luxon';
 import { stringifyDuration, stringifyTime } from '../utilsTime';
+import '../index.css';
 
 const page = StyleSheet.create({
     root: {
@@ -159,179 +160,6 @@ const flattenForScroll = (nodes: Node[]): { id: string, level: number, label: st
     return out;
 };
 
-const itemMarkdown = (label: string) => `
-We turn now to **${label}**, considered from several angles before the synthesis at the end of this section.
-
-Key observations:
-
-- First angle: how *${label}* appears in practice, where the assumptions of the previous chapter no longer hold.
-- Second angle: the trade-offs unique to ${label} — bounded recall vs. unbounded latency, and the cost of refusing either.
-- Third angle: where ${label} interacts with adjacent concerns (caching, retries, idempotency).
-
-A short illustration:
-
-\`\`\`ts
-function evaluate(input: Input): Result {
-    // hot path for ${label}
-    const ctx = prepare(input);
-    return ctx.kind === "fast"
-        ? analyzeFast(ctx)
-        : analyze(ctx);
-}
-\`\`\`
-
-> Authors disagree on the precise framing of **${label}**. The treatment here favours clarity over completeness; readers wanting a more rigorous account should consult the appendix.
-
-Looking ahead, **${label}** sets up the discussion of subsequent sections, where the implications become more concrete. The remaining paragraphs collect supplementary notes that did not fit the main flow.
-
-A second pass over the same material, with more emphasis on edge cases: when ${label} appears alongside concurrent constraints, the picture changes. Most treatments gloss over this — we will not.
-
-The reframing: rather than treating ${label} as a static property, view it as a process. Each invariant we previously described as fixed can instead be examined as a dynamic equilibrium. This perspective dissolves several apparent paradoxes and motivates the construction of the next section.
-
-One last note before moving on. The shorthand \`${label.toLowerCase().replace(/\s+/g, "_")}\` will recur in code samples below; treat it as the canonical identifier.
-`;
-
-const categoryMarkdown = (label: string) => `
-This part covers **${label}**. Each subsection takes one facet and develops it independently; readers comfortable with ${label} may skim the lead-in and jump straight to the topic of interest.
-`;
-
-const markdownBody = StyleSheet.create({
-    p: {
-        fontFamily: "Roboto",
-        fontSize: 14,
-        lineHeight: 1.6,
-        color: "#D4D4D4",
-        marginTop: 0,
-        marginBottom: 12,
-    },
-    ul: {
-        color: "#D4D4D4",
-        fontFamily: "Roboto",
-        fontSize: 14,
-        lineHeight: 1.6,
-        paddingLeft: 24,
-        marginTop: 0,
-        marginBottom: 12,
-    },
-    ol: {
-        color: "#D4D4D4",
-        fontFamily: "Roboto",
-        fontSize: 14,
-        lineHeight: 1.6,
-        paddingLeft: 24,
-        marginTop: 0,
-        marginBottom: 12,
-    },
-    li: {
-        marginBottom: 4,
-    },
-    inlineCode: {
-        fontFamily: "monospace",
-        fontSize: 13,
-        backgroundColor: "#1E1E1F",
-        color: "#FFB87A",
-        padding: "2px 6px",
-        borderRadius: 2,
-    },
-    pre: {
-        backgroundColor: "#1E1E1F",
-        padding: 12,
-        marginTop: 0,
-        marginBottom: 16,
-        overflowX: "auto",
-        fontFamily: "monospace",
-        fontSize: 13,
-        color: "#D4D4D4",
-        borderLeft: "3px solid #4A9EFF",
-    },
-    blockquote: {
-        borderLeft: "3px solid #585858",
-        paddingLeft: 12,
-        margin: "12px 0",
-        color: "#ABABAB",
-        fontStyle: "italic",
-    },
-    strong: {
-        fontWeight: "bold",
-        color: "#FFFFFF",
-    },
-});
-
-const mdComponents = {
-    p: ({ children }: any) => <p className={css(markdownBody.p)}>{children}</p>,
-    ul: ({ children }: any) => <ul className={css(markdownBody.ul)}>{children}</ul>,
-    ol: ({ children }: any) => <ol className={css(markdownBody.ol)}>{children}</ol>,
-    li: ({ children }: any) => <li className={css(markdownBody.li)}>{children}</li>,
-    pre: ({ children }: any) => <pre className={css(markdownBody.pre)}>{children}</pre>,
-    // Inside <pre>, react-markdown gives <code> a `language-*` className; outside it's bare.
-    code: ({ children, className }: any) =>
-        className?.startsWith("language-")
-            ? <code className={className}>{children}</code>
-            : <code className={css(markdownBody.inlineCode)}>{children}</code>,
-    blockquote: ({ children }: any) => <blockquote className={css(markdownBody.blockquote)}>{children}</blockquote>,
-    strong: ({ children }: any) => <strong className={css(markdownBody.strong)}>{children}</strong>,
-};
-
-const sectionStyles = StyleSheet.create({
-    section: {
-        scrollMarginTop: 80,
-        marginBottom: 24,
-    },
-    h2: {
-        fontFamily: "Monda",
-        fontSize: 22,
-        fontWeight: "bold",
-        color: "#D4D4D4",
-        marginTop: 32,
-        marginBottom: 8,
-    },
-    h3: {
-        fontFamily: "Monda",
-        fontSize: 16,
-        fontWeight: "bold",
-        color: "#D4D4D4",
-        marginTop: 20,
-        marginBottom: 6,
-    },
-    p: {
-        fontFamily: "Roboto",
-        fontSize: 14,
-        lineHeight: 1.6,
-        color: "#D4D4D4",
-        marginBottom: 12,
-    },
-});
-
-const headingStyle = (depth: number): React.CSSProperties => ({
-    fontFamily: "Monda",
-    fontSize: Math.max(13, 24 - depth * 2),
-    fontWeight: "bold",
-    color: "#D4D4D4",
-    marginTop: depth === 0 ? 32 : 20,
-    marginBottom: 8,
-});
-
-const SectionTree: React.FC<{ nodes: Node[], depth: number }> = ({ nodes, depth }) => (
-    <>
-        {nodes.map(node => {
-            const HeadingTag = (`h${Math.min(depth + 2, 6)}` as React.ElementType);
-            const md = node.tag === NodeTag.Category ? categoryMarkdown(node.label) : itemMarkdown(node.label);
-            return (
-                <React.Fragment key={node.id}>
-                    <section id={node.id} className={css(sectionStyles.section)}>
-                        <HeadingTag style={headingStyle(depth)}>{node.label}</HeadingTag>
-                        {/* <Markdown components={mdComponents}>{md}</Markdown> */}
-                    </section>
-                    {node.tag === NodeTag.Category && node.children.length > 0 && (
-                        <SectionTree nodes={node.children} depth={depth + 1} />
-                    )}
-                </React.Fragment>
-            );
-        })}
-    </>
-);
-
-const ArticleBodyOld: React.FC = () => <SectionTree nodes={tocStub} depth={0} />;
 
 // Active = section whose body covers the reading point at ~40% of the
 // viewport height. Picking a point well below the top edge means the
@@ -457,7 +285,6 @@ export const ArticlePage = () => {
         console.log("Article loading error:", error);
         return <Navigate to="/error" replace />;
     }
-    console.log("ARTICLE", data?.getArticle)
 
     return (
         <div className={css(page.root)}>
@@ -495,7 +322,7 @@ export const ArticlePage = () => {
                     }}
                 />
                 <div
-                    className={css(globalStyles.substrate)}
+                    className={`${css(globalStyles.substrate)} article-section`}
                     style={{
                         padding: constants.gap,
                     }}

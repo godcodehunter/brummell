@@ -32,3 +32,34 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
 *::-webkit-scrollbar-thumb {
   background-color: #4f4f4f;
 }
+
+.article-section {
+  scroll-margin-top: 80px;
+  margin-bottom: 24px;
+}
+
+.article-section h2 {
+  font-family: "Monda";
+  font-size: 22px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 32px;
+  margin-bottom: 8px;
+}
+
+.article-section h3 {
+  font-family: "Monda";
+  font-size: 16px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.article-section p {
+  font-family: "Roboto";
+  font-size: 14px;
+  line-height: 1.6;
+  color: #D4D4D4;
+  margin-bottom: 12px;
+}
