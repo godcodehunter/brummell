@@ -94,42 +94,43 @@ const profileEditTip = `// The profle data have the following structure:
 //    }[];
 // }`;
 
+
+const menuItems = (node: Node): ContextMenuItem[] => {
+    // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
+    if (node.id === "profile" || node.id === "tags") {
+        return [];
+    }
+
+    let result = node.tag === NodeTag.Category
+        ? [
+            { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
+            { label: "New Article", onClick: () => console.log("New Article in", node.id) },
+            { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
+            { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
+        ]
+        : [
+            { label: "Rename", onClick: () => console.log("Rename", node.id) },
+            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+        ];
+
+    if (node.tag === NodeTag.Category && node.id != "content") {
+        result.push(
+            { label: "Rename", onClick: () => console.log("Rename", node.id) }
+        )
+        result.push(
+            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
+        )
+    }
+
+    return result;
+}
+
 type EditingMode = "profile" | "tags" | null;
 
 export const ArticleCreator = () => {
     const [editorValue, setEditorValue] = useState("");
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
-
-    const menuItems = (node: Node): ContextMenuItem[] => {
-        // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
-        if (node.id === "profile" || node.id === "tags") {
-            return [];
-        }
-
-        let result = node.tag === NodeTag.Category
-            ? [
-                { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
-                { label: "New Article", onClick: () => console.log("New Article in", node.id) },
-                { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
-                { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
-            ]
-            : [
-                { label: "Rename", onClick: () => console.log("Rename", node.id) },
-                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
-            ];
-
-        if (node.tag === NodeTag.Category && node.id != "content") {
-            result.push(
-                { label: "Rename", onClick: () => console.log("Rename", node.id) }
-            )
-            result.push(
-                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
-            )
-        }
-
-        return result;
-    }
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
@@ -286,6 +287,7 @@ export const ArticleCreator = () => {
         if (node.id === "tags") {
             fetchTags();
         }
+        
     }
 
     return <div className={css(styles.root)}>
