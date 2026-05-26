@@ -77,7 +77,7 @@ interface CategoryRowProps {
     itemCount: number,
     onToggle: () => void,
     onClick?: () => void,
-    onRightClick?: () => void,
+    onRightClick?: (e: React.MouseEvent) => void,
     isOpen: boolean,
     active: boolean,
     stuck: boolean,
@@ -108,7 +108,7 @@ const GroupRow: React.FC<CategoryRowProps> = ({
             className={css(categoryRow.row, isSticky && categoryRow.sticky, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
             style={isSticky ? {...rowPadding(depth), top: depth * ROW_HEIGHT, zIndex: 100 - depth} : rowPadding(depth)}
             onClick={onClick}
-            onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(); })}
+            onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
         >
             <Icon
                 className={css(categoryRow.toggleIcon)}
@@ -131,7 +131,7 @@ interface ContentRowProps {
     label: string,
     style?: any,
     onClick?: () => void,
-    onRightClick?: () => void,
+    onRightClick?: (e: React.MouseEvent) => void,
     active?: boolean,
     depth?: number,
 }
@@ -142,7 +142,7 @@ const ContentRow: React.FC<ContentRowProps> = ({nodeId, label, style, onClick, o
         className={css(onClick && baseRow.interactive, active && baseRow.active)}
         style={{...rowPadding(depth), ...style}}
         onClick={onClick}
-        onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(); })}
+        onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
     >
         {label}
     </div>
@@ -255,7 +255,7 @@ interface TreeCardProps {
     title: string,
     style?: any,
     onNodeClick?: (node: Node) => void,
-    onNodeRightClick?: (node: Node) => void,
+    onNodeRightClick?: (node: Node, e: React.MouseEvent) => void,
     activeId?: string,
     // Ids whose ancestor path should be force-expanded. Anything not on the
     // expansion union (∪ of paths to each id, plus activeId's path) is closed.
@@ -402,7 +402,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         isOpen={isOpen}
                         onToggle={onToggle}
                         onClick={onNodeClick ? () => onNodeClick(node) : undefined}
-                        onRightClick={onNodeRightClick ? () => onNodeRightClick(node) : undefined}
+                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node, e) : undefined}
                         depth={depth}
                         active={active}
                         stuck={stuck}
@@ -414,7 +414,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         nodeId={node.id}
                         label={node.label}
                         onClick={onNodeClick ? () => onNodeClick(node) : undefined}
-                        onRightClick={onNodeRightClick ? () => onNodeRightClick(node) : undefined}
+                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node, e) : undefined}
                         depth={depth}
                         active={active}
                     />

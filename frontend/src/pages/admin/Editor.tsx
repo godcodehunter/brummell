@@ -1,6 +1,7 @@
 import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
+import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { useEffect, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation } from "@apollo/client";
 
@@ -76,7 +77,9 @@ const styles = StyleSheet.create({
 
 interface ContentItem {
     path: string;
+    // Item without type is considered a folder.
     contentType?: "shot" | "article" | "podcast" | "library" | "media";
+    // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
 }
 
@@ -95,7 +98,22 @@ type EditingMode = "profile" | "tags" | null;
 
 export const ArticleCreator = () => {
     const [editorValue, setEditorValue] = useState("");
+    const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
+
+    // TODO: wire these up to real actions. Items vary by node type
+    // (category/folder vs item/file).
+    const menuItems = (node: Node): ContextMenuItem[] =>
+        node.tag === NodeTag.Category
+            ? [
+                { label: "New File", onClick: () => console.log("New File in", node.id) },
+                { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
+                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+            ]
+            : [
+                { label: "Rename", onClick: () => console.log("Rename", node.id) },
+                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+            ];
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
@@ -255,7 +273,12 @@ export const ArticleCreator = () => {
     }
 
     return <div className={css(styles.root)}>
-        <TreeCard title="Files" data={payload} onNodeClick={onTreeItemClick} />
+        <TreeCard
+            title="Files"
+            data={payload}
+            onNodeClick={onTreeItemClick}
+            onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
+        />
         <Editor
             value={editorValue}
             onChange={v => setEditorValue(v ?? "")}
@@ -267,5 +290,13 @@ export const ArticleCreator = () => {
                 minimap: { enabled: false },
             }}
         />
+        {menu && (
+            <ContextMenu
+                x={menu.x}
+                y={menu.y}
+                items={menuItems(menu.node)}
+                onClose={() => setMenu(null)}
+            />
+        )}
     </div>
 };
