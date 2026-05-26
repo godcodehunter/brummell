@@ -2,6 +2,7 @@ import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
+import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation } from "@apollo/client";
 
@@ -291,23 +292,30 @@ export const ArticleCreator = () => {
     }
 
     return <div className={css(styles.root)}>
-        <TreeCard
-            title="Files"
-            data={payload}
-            onNodeClick={onTreeItemClick}
-            onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
-        />
-        <Editor
-            value={editorValue}
-            onChange={v => setEditorValue(v ?? "")}
-            height="100%"
-            defaultLanguage="js"
-            theme="vs-dark"
-            options={{
-                wordWrap: "on",
-                minimap: { enabled: false },
-            }}
-        />
+        <SplitPane storageKey="editor-layout">
+            <Panel defaultSize={260} minSize={150} maxSize={600}>
+                <TreeCard
+                    title="Files"
+                    data={payload}
+                    onNodeClick={onTreeItemClick}
+                    onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
+                    style={{ height: "100%" }}
+                />
+            </Panel>
+            <Panel flex>
+                <Editor
+                    value={editorValue}
+                    onChange={v => setEditorValue(v ?? "")}
+                    height="100%"
+                    defaultLanguage="js"
+                    theme="vs-dark"
+                    options={{
+                        wordWrap: "on",
+                        minimap: { enabled: false },
+                    }}
+                />
+            </Panel>
+        </SplitPane>
         {menu && (
             <ContextMenu
                 x={menu.x}
