@@ -101,19 +101,35 @@ export const ArticleCreator = () => {
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
 
-    // TODO: wire these up to real actions. Items vary by node type
-    // (category/folder vs item/file).
-    const menuItems = (node: Node): ContextMenuItem[] =>
-        node.tag === NodeTag.Category
+    const menuItems = (node: Node): ContextMenuItem[] => {
+        // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
+        if (node.id === "profile" || node.id === "tags") {
+            return [];
+        }
+
+        let result = node.tag === NodeTag.Category
             ? [
-                { label: "New File", onClick: () => console.log("New File in", node.id) },
+                { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
+                { label: "New Article", onClick: () => console.log("New Article in", node.id) },
+                { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
                 { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
-                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ]
             : [
                 { label: "Rename", onClick: () => console.log("Rename", node.id) },
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];
+
+        if (node.tag === NodeTag.Category && node.id != "content") {
+            result.push(
+                { label: "Rename", onClick: () => console.log("Rename", node.id) }
+            )
+            result.push(
+                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
+            )
+        }
+
+        return result;
+    }
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
