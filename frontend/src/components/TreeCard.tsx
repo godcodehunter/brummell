@@ -77,6 +77,7 @@ interface CategoryRowProps {
     itemCount: number,
     onToggle: () => void,
     onClick?: () => void,
+    onRightClick?: () => void,
     isOpen: boolean,
     active: boolean,
     stuck: boolean,
@@ -90,6 +91,7 @@ const GroupRow: React.FC<CategoryRowProps> = ({
     isOpen,
     onToggle,
     onClick,
+    onRightClick,
     active,
     stuck,
     depth,
@@ -106,6 +108,7 @@ const GroupRow: React.FC<CategoryRowProps> = ({
             className={css(categoryRow.row, isSticky && categoryRow.sticky, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
             style={isSticky ? {...rowPadding(depth), top: depth * ROW_HEIGHT, zIndex: 100 - depth} : rowPadding(depth)}
             onClick={onClick}
+            onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(); })}
         >
             <Icon
                 className={css(categoryRow.toggleIcon)}
@@ -128,16 +131,18 @@ interface ContentRowProps {
     label: string,
     style?: any,
     onClick?: () => void,
+    onRightClick?: () => void,
     active?: boolean,
     depth?: number,
 }
 
-const ContentRow: React.FC<ContentRowProps> = ({nodeId, label, style, onClick, active, depth = 0}) => (
+const ContentRow: React.FC<ContentRowProps> = ({nodeId, label, style, onClick, onRightClick, active, depth = 0}) => (
     <div
         data-tree-node-id={nodeId}
         className={css(onClick && baseRow.interactive, active && baseRow.active)}
         style={{...rowPadding(depth), ...style}}
         onClick={onClick}
+        onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(); })}
     >
         {label}
     </div>
@@ -250,13 +255,14 @@ interface TreeCardProps {
     title: string,
     style?: any,
     onNodeClick?: (node: Node) => void,
+    onNodeRightClick?: (node: Node) => void,
     activeId?: string,
     // Ids whose ancestor path should be force-expanded. Anything not on the
     // expansion union (∪ of paths to each id, plus activeId's path) is closed.
     expandIds?: string[],
 }
 
-export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNodeClick, activeId, expandIds}) => {
+export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds}) => {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
     const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
@@ -396,6 +402,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         isOpen={isOpen}
                         onToggle={onToggle}
                         onClick={onNodeClick ? () => onNodeClick(node) : undefined}
+                        onRightClick={onNodeRightClick ? () => onNodeRightClick(node) : undefined}
                         depth={depth}
                         active={active}
                         stuck={stuck}
@@ -407,6 +414,7 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         nodeId={node.id}
                         label={node.label}
                         onClick={onNodeClick ? () => onNodeClick(node) : undefined}
+                        onRightClick={onNodeRightClick ? () => onNodeRightClick(node) : undefined}
                         depth={depth}
                         active={active}
                     />
