@@ -334,6 +334,7 @@ builder.queryType({
         let a = db.select().from(articles).all().map((article): EditableItem => ({
           id: article.id,
           path: article.path,
+          // Reference to folder
           contentType: "article",
           publishStatus: article.publish_status,
         }));
@@ -341,12 +342,14 @@ builder.queryType({
         let p = db.select().from(podcasts).all().map((podcast): EditableItem => ({
           id: podcast.id,
           path: podcast.path,
+          // Reference to file in fs
           contentType: "podcast",
           publishStatus: podcast.publish_status,
         }));
 
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
           id: shot.id,
+          // Reference to file in fs
           path: shot.path,
           contentType: "shot",
           publishStatus: shot.publish_status,
@@ -355,9 +358,13 @@ builder.queryType({
         let mirrowedItems = [...a, ...p, ...s];
 
         // Collect other types of items (libraries and media) from the filesystem. 
-        const IsMirrowedItem = (path: string): boolean => {
-          return mirrowedItems.some(item => item.path === path);
+        const IsCantContainSubitem = (path: string): boolean => {
+          return [...p, ...s].some(item => item.path === path);
         };
+
+        const IsArticle = (path: string): boolean => {
+          return a.some(item => item.path === path);
+        }
 
         async function walk(currentDir: string, relativePath = ""): Promise<EditableItem[]> {
           let result: EditableItem[] = [];
@@ -367,12 +374,14 @@ builder.queryType({
           for (const entry of entries) {
             const itemRelativePath = path.join(relativePath, entry.name);
 
-            if (!IsMirrowedItem(itemRelativePath)) {
+            if (!IsCantContainSubitem(itemRelativePath)) {
               if (entry.isDirectory()) {
-                result.push({
-                  path: itemRelativePath,
-                  contentType: "dir",
-                })
+                if (!IsArticle(itemRelativePath)) {
+                  result.push({
+                    path: itemRelativePath,
+                    contentType: "dir",
+                  })
+                }
 
                 const nextDir = path.join(currentDir, entry.name);
                 result.push(...(await walk(nextDir, itemRelativePath)));
