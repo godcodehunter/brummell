@@ -377,10 +377,19 @@ builder.queryType({
                 const nextDir = path.join(currentDir, entry.name);
                 result.push(...(await walk(nextDir, itemRelativePath)));
               } else {
-                result.push({
-                  path: itemRelativePath,
-                  contentType: MIME_BY_EXT[path.extname(entry.name)] ? "media" : undefined,
-                })
+                const regex = /^.+\.lib\.mdx$/;
+
+                if (regex.test(entry.name)) {
+                  result.push({
+                    path: itemRelativePath,
+                    contentType: "library",
+                  })
+                } else {
+                  result.push({
+                    path: itemRelativePath,
+                    contentType: MIME_BY_EXT[path.extname(entry.name)] ? "media" : undefined,
+                  })
+                }
               }
             }
           }
