@@ -21,13 +21,13 @@ import { config } from "./config.js";
 import { isValidToken } from "./adminPass.js";
 import { extractBearerToken } from "./utils.js"
 
-const FILES_DIR = path.join(config.dbDir, "files");
+export const FILES_DIR = path.join(config.dbDir, "files");
 fs.mkdirSync(FILES_DIR, { recursive: true });
 
 // Cap so an authenticated client can't accidentally fill the disk.
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
-const MIME_BY_EXT: Record<string, string> = {
+export const MIME_BY_EXT: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",

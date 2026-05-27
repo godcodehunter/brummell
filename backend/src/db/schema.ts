@@ -46,13 +46,16 @@ export const articles = sqliteTable("articles", {
   reading_time_min: integer("reading_time_min").notNull(),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
+  path: text("path").notNull(),
+  publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 
 export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  text: text("text").notNull(),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
+  path: text("path").notNull(),
+  publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 
 // Half-open interval over the podcast's audio timeline, in seconds.
@@ -84,6 +87,8 @@ export const podcasts = sqliteTable("podcasts", {
     .default([]),
   // Unix timestamp in seconds.
   created_at: integer("created_at").notNull(),
+  path: text("path").notNull(),
+  publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 
 export const tags = sqliteTable("tags", {

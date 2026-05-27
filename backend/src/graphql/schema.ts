@@ -17,6 +17,7 @@ import SchemaBuilder from "@pothos/core";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
+  shots,
   articles,
   podcasts,
   tagSets,
@@ -48,6 +49,9 @@ import {
   issueToken,
   prepaireForStorage,
 } from "../adminPass.js"
+import { FILES_DIR, MIME_BY_EXT } from "../files.js";
+import * as fs from "node:fs/promises";
+import path from "node:path";
 
 export interface Context {
   token: string | null;
@@ -72,8 +76,25 @@ const builder = new SchemaBuilder<{
     TimeRange: TimeRange;
     Subtitle: Subtitles;
     SubtitleWord: { range: TimeRange; text: string };
+    EditableItem: EditableItem,
   };
 }>({});
+
+interface EditableItem {
+  // Id for `shot`, `article` and `podcast`. 
+  // Not needed for `library` and `media`.
+  id?: number,
+  // Path relative to the content root
+  path: string;
+  // Item without type is considered a folder.
+  contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
+  // Only `shot`, `article` and `podcast` can be published or draft.
+  publishStatus?: "published" | "draft";
+}
+
+const PublishStatusEnum = builder.enumType("PublishStatus", {
+  values: ["published", "draft"] as const,
+});
 
 const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
   values: ["article", "shot", "podcast"] as const,
@@ -306,6 +327,72 @@ builder.objectType("Comment", {
 
 builder.queryType({
   fields: (t) => ({
+    getEditableItems: t.field({
+      type: ["EditableItem"],
+      resolve: async () => {
+        // First collect all db items
+        let a = db.select().from(articles).all().map((article): EditableItem => ({
+          id: article.id,
+          path: article.path,
+          contentType: "article",
+          publishStatus: article.publish_status,
+        }));
+
+        let p = db.select().from(podcasts).all().map((podcast): EditableItem => ({
+          id: podcast.id,
+          path: podcast.path,
+          contentType: "podcast",
+          publishStatus: podcast.publish_status,
+        }));
+
+        let s = db.select().from(shots).all().map((shot): EditableItem => ({
+          id: shot.id,
+          path: shot.path,
+          contentType: "shot",
+          publishStatus: shot.publish_status,
+        }));
+
+        let mirrowedItems = [...a, ...p, ...s];
+
+        // Collect other types of items (libraries and media) from the filesystem. 
+        const IsMirrowedItem = (path: string): boolean => {
+          return mirrowedItems.some(item => item.path === path);
+        };
+
+        async function walk(currentDir: string, relativePath = ""): Promise<EditableItem[]> {
+          let result: EditableItem[] = [];
+
+          const entries = await fs.readdir(currentDir, { withFileTypes: true })
+
+          for (const entry of entries) {
+            const itemRelativePath = path.join(relativePath, entry.name);
+
+            if (!IsMirrowedItem(itemRelativePath)) {
+              if (entry.isDirectory()) {
+                result.push({
+                  path: itemRelativePath,
+                  contentType: "dir",
+                })
+
+                const nextDir = path.join(currentDir, entry.name);
+                result.push(...(await walk(nextDir, itemRelativePath)));
+              } else {
+                result.push({
+                  path: itemRelativePath,
+                  contentType: MIME_BY_EXT[path.extname(entry.name)] ? "media" : undefined,
+                })
+              }
+            }
+          }
+
+          return result;
+        }
+
+        let another = await walk(FILES_DIR);
+
+        return [...mirrowedItems, ...another]
+      }
+    }),
     getArticle: t.field({
       type: "Article",
       nullable: true,
@@ -377,6 +464,8 @@ builder.mutationType({
         preview_txt: t.arg.string({ required: true }),
         reading_time_min: t.arg.int({ required: true }),
         difficulty: t.arg({ type: DifficultyEnum, required: true }),
+        path: t.arg.string({ required: true }),
+        publish_status: t.arg({ type: PublishStatusEnum, required: true }),
       },
       resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
@@ -390,7 +479,9 @@ builder.mutationType({
             preview_txt: args.preview_txt,
             reading_time_min: args.reading_time_min,
             difficulty: args.difficulty,
-            created_at: Math.floor(Date.now() / 1000) ,
+            created_at: Math.floor(Date.now() / 1000),
+            path: args.path,
+            publish_status: args.publish_status,
           })
           .returning()
           .all()[0]!;
@@ -438,7 +529,7 @@ builder.mutationType({
         if (existing.length > 0) {
           throw new Error("OWNER_ALREADY_EXISTS");
         }
-        const {password_hash, salt} = prepaireForStorage(password);
+        const { password_hash, salt } = prepaireForStorage(password);
         db.insert(owners)
           .values({ password_hash, password_salt: salt })
           .run();
