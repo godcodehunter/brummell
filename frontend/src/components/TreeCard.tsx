@@ -193,24 +193,25 @@ const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedId
     );
 });
 
-export type Node = Category | Item;
 export enum NodeTag {
     Category,
     Item,
 }
 
-export interface Category {
+export type Category<E = {}> = {
     tag: NodeTag.Category,
     id: string,
     label: string,
-    children: Node[],
-}
+    children: Node<E>[],
+} & E;
 
-export interface Item {
+export type Item<E = {}> = {
     tag: NodeTag.Item,
     id: string,
     label: string,
-}
+} & E;
+
+export type Node<E = {}> = Category<E> | Item<E>;
 
 const timelineCard = StyleSheet.create({
     content: {
@@ -250,19 +251,19 @@ function findPath(nodes: Node[], targetId: string, acc: string[] = []): string[]
     return null;
 }
 
-interface TreeCardProps {
-    data: Node[],
+interface TreeCardProps<E = {}> {
+    data: Node<E>[],
     title: string,
     style?: any,
-    onNodeClick?: (node: Node) => void,
-    onNodeRightClick?: (node: Node, e: React.MouseEvent) => void,
+    onNodeClick?: (node: Node<E>) => void,
+    onNodeRightClick?: (node: Node<E>, e: React.MouseEvent) => void,
     activeId?: string,
     // Ids whose ancestor path should be force-expanded. Anything not on the
     // expansion union (∪ of paths to each id, plus activeId's path) is closed.
     expandIds?: string[],
 }
 
-export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds}) => {
+export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
     const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
@@ -401,8 +402,8 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                         itemCount={node.children.length}
                         isOpen={isOpen}
                         onToggle={onToggle}
-                        onClick={onNodeClick ? () => onNodeClick(node) : undefined}
-                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node, e) : undefined}
+                        onClick={onNodeClick ? () => onNodeClick(node as Node<E>) : undefined}
+                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node as Node<E>, e) : undefined}
                         depth={depth}
                         active={active}
                         stuck={stuck}
@@ -413,8 +414,8 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
                     <ContentRow
                         nodeId={node.id}
                         label={node.label}
-                        onClick={onNodeClick ? () => onNodeClick(node) : undefined}
-                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node, e) : undefined}
+                        onClick={onNodeClick ? () => onNodeClick(node as Node<E>) : undefined}
+                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node as Node<E>, e) : undefined}
                         depth={depth}
                         active={active}
                     />
@@ -455,4 +456,4 @@ export const TreeCard: React.FC<TreeCardProps> = ({data, title, style = {}, onNo
             </div>
         </div>
     );
-};
+}
