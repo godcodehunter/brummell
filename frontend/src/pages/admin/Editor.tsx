@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import queryTreeItem from "./queryTreeItem";
+import { queryTreeItem } from "./queryTreeItem";
 
 interface ExternalLink {
     svg_icon: string;

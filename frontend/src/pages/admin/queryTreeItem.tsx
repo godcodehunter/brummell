@@ -148,8 +148,8 @@ const SIDEBAR_ITEMS: Node[] = [
     { id: "tags",    tag: NodeTag.Item, label: "Tags 🏷️"   },
 ];
 
-function queryTreeItem() {
-    const { data, loading, error } = useQuery(GET_EDITABLE_ITEMS, {
+export function queryTreeItem() {
+    const { data, loading, error } = useQuery<{getEditableItems: ContentItem[]}>(GET_EDITABLE_ITEMS, {
         fetchPolicy: "network-only",
     });
 
@@ -166,4 +166,30 @@ function queryTreeItem() {
     return {data: treeData, loading, error};
 }
 
-export default queryTreeItem;
+export function publishUnpublishItem(id: string, publishStatus: "published" | "draft") {
+    /* TODO */
+}
+
+export function createFolder(path: string, name: string) {
+    /* TODO */
+}
+
+export function moveObject(newPath: string, oldPath: string) {
+    /* TODO */
+}
+
+export function createArticle(path: string, name: string) {
+    /* TODO */
+}
+
+export function createPodcast(path: string, name: string) {
+    /* TODO */
+}
+
+export function createShot(path: string, name: string) {
+    /* TODO */
+}
+
+export function createMedia(path: string, name: string) {
+    /* TODO */
+}
