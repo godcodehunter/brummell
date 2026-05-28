@@ -5,6 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
+import queryTreeItem from "./queryTreeItem";
 
 interface ExternalLink {
     svg_icon: string;
@@ -67,17 +68,6 @@ const GET_TAGS = gql`
     }
 `;
 
-const GET_EDITABLE_ITEMS = gql`
-    query GetEditableItems {
-        getEditableItems {
-            id
-            path
-            contentType
-            publishStatus
-        }
-    }
-`;
-
 const styles = StyleSheet.create({
     root: {
         display: "flex",
@@ -87,7 +77,7 @@ const styles = StyleSheet.create({
 });
 
 
-interface ContentItem {
+export interface ContentItem {
     id: string,
     // Path relative to the content root
     path: string;
@@ -95,135 +85,6 @@ interface ContentItem {
     contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
-}
-
-function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
-    const root: Category<ContentItem>[] = [];
-
-    const findCategoryAt = (
-        siblings: Node<ContentItem>[],
-        path: string,
-    ): Category<ContentItem> | undefined =>
-        siblings.find(
-            (n): n is Category<ContentItem> =>
-                n.tag === NodeTag.Category && (n as Category<ContentItem>).path === path,
-        );
-
-    const ensureCategoryAt = (
-        siblings: Node<ContentItem>[],
-        path: string,
-        name: string,
-        id: string,
-    ): Category<ContentItem> => {
-        const existing = findCategoryAt(siblings, path);
-        if (existing) return existing;
-        const created = {
-            tag: NodeTag.Category,
-            id,
-            label: `📁 ${name}`,
-            children: [],
-            path,
-            contentType: "dir",
-        } as Category<ContentItem>;
-        siblings.push(created);
-        return created;
-    };
-
-    for (const item of items) {
-        const parts = item.path.split("/");
-        let siblings = root as Node<ContentItem>[];
-
-        let currentPath = "";
-        for (let i = 0; i < parts.length - 1; i++) {
-            currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
-            const cat = ensureCategoryAt(siblings, currentPath, parts[i], currentPath);
-            siblings = cat.children;
-        }
-
-        const name = parts[parts.length - 1];
-
-        if (item.contentType === "dir") {
-            // A dir whose path was already auto-materialized while restoring a
-            // descendant — nothing to add, just move on.
-            if (findCategoryAt(siblings, item.path)) continue;
-            ensureCategoryAt(siblings, item.path, name, item.id);
-        } else {
-            siblings.push(constructNodeFromItem(item));
-        }
-    }
-
-    return root;
-}
-
-/// Some node such as article and podcast have pseudo files under them (e.g. `def.json` for article). We want to show them in the tree, but they don't exist in the database. This function adds those pseudo nodes to the tree.
-function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
-    let icon;
-    switch (item.contentType) {
-        case "shot": icon = "🎬"; break;
-        case "article": icon = "📄"; break;
-        case "podcast": icon = "🎙️"; break;
-        case "library": icon = "⚙️"; break;
-        case "media": icon = "🖼️"; break;
-        default: icon = "❓"; break;
-    }
-
-    let status = item.publishStatus === "published" ? "✅" : "🔨";
-
-    const parts = item.path.split("/");
-    const name = parts[parts.length - 1];
-
-    if (item.contentType === "article") {
-        return {
-            ...item,
-            tag: NodeTag.Category,
-            id: item.id.toString(),
-            label: `${icon} ${name} ${status}`,
-            children: [
-                {
-                    id: `${item.id}/def`,
-                    tag: NodeTag.Item,
-                    label: "def.json",
-                    path: `${item.path}/def.json`,
-                },
-                {
-                    id: `${item.id}/main`,
-                    tag: NodeTag.Item,
-                    label: "main.mdx",
-                    path: `${item.path}/main.mdx`,
-                }
-            ],
-        };
-    }
-
-    if (item.contentType === "podcast") {
-        return {
-            ...item,
-            tag: NodeTag.Category,
-            id: item.id.toString(),
-            label: `${icon} ${name} ${status}`,
-            children: [
-                {
-                    id: `${item.id}/def`,
-                    tag: NodeTag.Item,
-                    label: "def.json",
-                    path: `${item.path}/def.json`,
-                },
-                {
-                    id: `${item.id}/main`,
-                    tag: NodeTag.Item,
-                    label: "main.sound",
-                    path: `${item.path}/main.sound`,
-                }
-            ],
-        };
-    }
-
-    return {
-        ...item,
-        tag: NodeTag.Item,
-        id: item.id.toString(),
-        label: `${icon} ${name} ${status}`,
-    };
 }
 
 const profileEditTip = `// The profle data have the following structure:
@@ -239,26 +100,8 @@ const profileEditTip = `// The profle data have the following structure:
 
 type EditingMode = "profile" | "tags" | null;
 
-const SIDEBAR_ITEMS: Node[] = [
-    { id: "profile", tag: NodeTag.Item, label: "Profile 🪪" },
-    { id: "tags",    tag: NodeTag.Item, label: "Tags 🏷️"   },
-];
-
 export const ArticleCreator = () => {
-    const { data, loading, error } = useQuery(GET_EDITABLE_ITEMS, {
-        fetchPolicy: "network-only",
-    });
-
-    const treeData = useMemo<Node[]>(() => [
-        ...SIDEBAR_ITEMS,
-        {
-            id: "content",
-            tag: NodeTag.Category,
-            label: "Content",
-            children: reconstructTree(data?.getEditableItems ?? []),
-        } as Node,
-    ], [data]);
-
+    let { data, loading, error } = queryTreeItem()
     const [editorValue, setEditorValue] = useState("");
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
@@ -381,7 +224,7 @@ export const ArticleCreator = () => {
             <Panel defaultSize={260} minSize={150} maxSize={600}>
                 <TreeCard
                     title="Files"
-                    data={treeData}
+                    data={data}
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
                     style={{ height: "100%" }}
