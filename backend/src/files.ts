@@ -47,7 +47,7 @@ export const MIME_BY_EXT: Record<string, string> = {
 // Map a URL path to an absolute filesystem path inside FILES_DIR.
 // Returns null for anything that looks unsafe so we don't have to
 // chase weird traversal cases inside handlers.
-function resolveFilePath(urlPath: string): string | null {
+export function resolveFilePath(urlPath: string): string | null {
   if (!urlPath.startsWith("/files/")) return null;
   const rel = urlPath.slice("/files/".length);
   if (rel.length === 0) return null;

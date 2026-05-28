@@ -49,7 +49,7 @@ import {
   issueToken,
   prepaireForStorage,
 } from "../adminPass.js"
-import { FILES_DIR, MIME_BY_EXT } from "../files.js";
+import { FILES_DIR, MIME_BY_EXT, resolveFilePath } from "../files.js";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 
@@ -559,6 +559,31 @@ builder.mutationType({
           .returning()
           .all()[0]!;
         return updated;
+      },
+    }),
+    createFolder: t.field({
+      type: "Boolean",
+      args: {
+        path: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { path: relPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+
+        // Non-recursive mkdir: fails with ENOENT if the parent is missing
+        // and EEXIST if the target already exists — both surfaced as the
+        // GraphQL error.
+        try {
+          await fs.mkdir(abs);
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === "ENOENT") throw new Error("PARENT_NOT_FOUND");
+          if (code === "EEXIST") throw new Error("ALREADY_EXISTS");
+          throw err;
+        }
+        return true;
       },
     }),
     setupOwner: t.field({
