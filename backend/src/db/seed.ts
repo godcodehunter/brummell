@@ -10,7 +10,16 @@ export function initDatabase() {
       preview_txt TEXT NOT NULL,
       reading_time_min INTEGER NOT NULL,
       created_at INTEGER NOT NULL,
-      difficulty TEXT NOT NULL DEFAULT 'easy'
+      difficulty TEXT NOT NULL DEFAULT 'easy',
+      path TEXT NOT NULL DEFAULT '',
+      publish_status TEXT NOT NULL DEFAULT 'draft'
+    );
+
+    CREATE TABLE IF NOT EXISTS shots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at INTEGER NOT NULL,
+      path TEXT NOT NULL DEFAULT '',
+      publish_status TEXT NOT NULL DEFAULT 'draft'
     );
 
     CREATE TABLE IF NOT EXISTS podcasts (
@@ -20,7 +29,9 @@ export function initDatabase() {
       guests TEXT NOT NULL DEFAULT '[]',
       topics TEXT NOT NULL DEFAULT '[]',
       subtitles TEXT NOT NULL DEFAULT '[]',
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      path TEXT NOT NULL DEFAULT '',
+      publish_status TEXT NOT NULL DEFAULT 'draft'
     );
 
     CREATE TABLE IF NOT EXISTS tags (

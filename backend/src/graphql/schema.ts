@@ -92,6 +92,10 @@ interface EditableItem {
   publishStatus?: "published" | "draft";
 }
 
+const ContentTypeEnum = builder.enumType("ContentType", {
+  values: ["shot", "article", "podcast", "library", "media", "dir"] as const,
+});
+
 const PublishStatusEnum = builder.enumType("PublishStatus", {
   values: ["published", "draft"] as const,
 });
@@ -141,6 +145,26 @@ function resolveViews(
     .all();
   return rows.reduce((total, row) => total + row.count, 0);
 }
+
+builder.objectType("EditableItem", {
+  fields: (t) => ({
+    id: t.id({
+      nullable: true,
+      resolve: (item) => item.id ?? null,
+    }),
+    path: t.exposeString("path"),
+    contentType: t.field({
+      type: ContentTypeEnum,
+      nullable: true,
+      resolve: (item) => item.contentType ?? null,
+    }),
+    publishStatus: t.field({
+      type: PublishStatusEnum,
+      nullable: true,
+      resolve: (item) => item.publishStatus ?? null,
+    }),
+  }),
+});
 
 // Half-open interval over the podcast's audio timeline, in seconds.
 builder.objectType("TimeRange", {

@@ -3,8 +3,8 @@ import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
-import { useEffect, useRef, useState } from "react";
-import { gql, useLazyQuery, useMutation } from "@apollo/client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
 
 interface ExternalLink {
     svg_icon: string;
@@ -67,6 +67,17 @@ const GET_TAGS = gql`
     }
 `;
 
+const GET_EDITABLE_ITEMS = gql`
+    query GetEditableItems {
+        getEditableItems {
+            id
+            path
+            contentType
+            publishStatus
+        }
+    }
+`;
+
 const styles = StyleSheet.create({
     root: {
         display: "flex",
@@ -77,11 +88,142 @@ const styles = StyleSheet.create({
 
 
 interface ContentItem {
+    id: string,
+    // Path relative to the content root
     path: string;
     // Item without type is considered a folder.
-    contentType?: "shot" | "article" | "podcast" | "library" | "media";
+    contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
+}
+
+function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
+    const root: Category<ContentItem>[] = [];
+
+    const findCategoryAt = (
+        siblings: Node<ContentItem>[],
+        path: string,
+    ): Category<ContentItem> | undefined =>
+        siblings.find(
+            (n): n is Category<ContentItem> =>
+                n.tag === NodeTag.Category && (n as Category<ContentItem>).path === path,
+        );
+
+    const ensureCategoryAt = (
+        siblings: Node<ContentItem>[],
+        path: string,
+        name: string,
+        id: string,
+    ): Category<ContentItem> => {
+        const existing = findCategoryAt(siblings, path);
+        if (existing) return existing;
+        const created = {
+            tag: NodeTag.Category,
+            id,
+            label: `📁 ${name}`,
+            children: [],
+            path,
+            contentType: "dir",
+        } as Category<ContentItem>;
+        siblings.push(created);
+        return created;
+    };
+
+    for (const item of items) {
+        const parts = item.path.split("/");
+        let siblings = root as Node<ContentItem>[];
+
+        let currentPath = "";
+        for (let i = 0; i < parts.length - 1; i++) {
+            currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+            const cat = ensureCategoryAt(siblings, currentPath, parts[i], currentPath);
+            siblings = cat.children;
+        }
+
+        const name = parts[parts.length - 1];
+
+        if (item.contentType === "dir") {
+            // A dir whose path was already auto-materialized while restoring a
+            // descendant — nothing to add, just move on.
+            if (findCategoryAt(siblings, item.path)) continue;
+            ensureCategoryAt(siblings, item.path, name, item.id);
+        } else {
+            siblings.push(constructNodeFromItem(item));
+        }
+    }
+
+    return root;
+}
+
+/// Some node such as article and podcast have pseudo files under them (e.g. `def.json` for article). We want to show them in the tree, but they don't exist in the database. This function adds those pseudo nodes to the tree.
+function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
+    let icon;
+    switch (item.contentType) {
+        case "shot": icon = "🎬"; break;
+        case "article": icon = "📄"; break;
+        case "podcast": icon = "🎙️"; break;
+        case "library": icon = "⚙️"; break;
+        case "media": icon = "🖼️"; break;
+        default: icon = "❓"; break;
+    }
+
+    let status = item.publishStatus === "published" ? "✅" : "🔨";
+
+    const parts = item.path.split("/");
+    const name = parts[parts.length - 1];
+
+    if (item.contentType === "article") {
+        return {
+            ...item,
+            tag: NodeTag.Category,
+            id: item.id.toString(),
+            label: `${icon} ${name} ${status}`,
+            children: [
+                {
+                    id: `${item.id}/def`,
+                    tag: NodeTag.Item,
+                    label: "def.json",
+                    path: `${item.path}/def.json`,
+                },
+                {
+                    id: `${item.id}/main`,
+                    tag: NodeTag.Item,
+                    label: "main.mdx",
+                    path: `${item.path}/main.mdx`,
+                }
+            ],
+        };
+    }
+
+    if (item.contentType === "podcast") {
+        return {
+            ...item,
+            tag: NodeTag.Category,
+            id: item.id.toString(),
+            label: `${icon} ${name} ${status}`,
+            children: [
+                {
+                    id: `${item.id}/def`,
+                    tag: NodeTag.Item,
+                    label: "def.json",
+                    path: `${item.path}/def.json`,
+                },
+                {
+                    id: `${item.id}/main`,
+                    tag: NodeTag.Item,
+                    label: "main.sound",
+                    path: `${item.path}/main.sound`,
+                }
+            ],
+        };
+    }
+
+    return {
+        ...item,
+        tag: NodeTag.Item,
+        id: item.id.toString(),
+        label: `${icon} ${name} ${status}`,
+    };
 }
 
 const profileEditTip = `// The profle data have the following structure:
@@ -95,40 +237,28 @@ const profileEditTip = `// The profle data have the following structure:
 //    }[];
 // }`;
 
-
-const menuItems = (node: Node): ContextMenuItem[] => {
-    // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
-    if (node.id === "profile" || node.id === "tags") {
-        return [];
-    }
-
-    let result = node.tag === NodeTag.Category
-        ? [
-            { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
-            { label: "New Article", onClick: () => console.log("New Article in", node.id) },
-            { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
-            { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
-        ]
-        : [
-            { label: "Rename", onClick: () => console.log("Rename", node.id) },
-            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
-        ];
-
-    if (node.tag === NodeTag.Category && node.id != "content") {
-        result.push(
-            { label: "Rename", onClick: () => console.log("Rename", node.id) }
-        )
-        result.push(
-            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
-        )
-    }
-
-    return result;
-}
-
 type EditingMode = "profile" | "tags" | null;
 
+const SIDEBAR_ITEMS: Node[] = [
+    { id: "profile", tag: NodeTag.Item, label: "Profile 🪪" },
+    { id: "tags",    tag: NodeTag.Item, label: "Tags 🏷️"   },
+];
+
 export const ArticleCreator = () => {
+    const { data, loading, error } = useQuery(GET_EDITABLE_ITEMS, {
+        fetchPolicy: "network-only",
+    });
+
+    const treeData = useMemo<Node[]>(() => [
+        ...SIDEBAR_ITEMS,
+        {
+            id: "content",
+            tag: NodeTag.Category,
+            label: "Content",
+            children: reconstructTree(data?.getEditableItems ?? []),
+        } as Node,
+    ], [data]);
+
     const [editorValue, setEditorValue] = useState("");
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
@@ -206,80 +336,6 @@ export const ArticleCreator = () => {
         return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
     }, []);
 
-    let payload: Node[] = [
-        {
-            id: "profile",
-            tag: NodeTag.Item,
-            label: "Profile 🪪",
-        },
-        {
-            id: "tags",
-            tag: NodeTag.Item,
-            label: "Tags 🏷️",
-        },
-        {
-            id: "content",
-            tag: NodeTag.Category,
-            label: "Content",
-            children: [],
-        },
-    ];
-
-    function buildPath(path: string): Category {
-        const parts = path.split("/");
-        let current = payload.find(item => item.label === "Content")! as Category;
-        for (const part of parts) {
-            let tmp = current.children.find(
-                (item): item is Category => item.tag === NodeTag.Category && item.label === part,
-            );
-            if (!tmp) {
-                tmp = {
-                    tag: NodeTag.Category,
-                    id: `${current.id}/${part}`,
-                    label: part,
-                    children: [],
-                };
-                current.children.push(tmp);
-            }
-            current = tmp;
-        }
-
-        return current;
-    }
-
-    function fillPayload(items: ContentItem[]) {
-        for (const item of items) {
-            let icon;
-            switch (item.contentType) {
-                case "shot": icon = "🎬"; break;
-                case "article": icon = "📄"; break;
-                case "podcast": icon = "🎙️"; break;
-                case "library": icon = "⚙️"; break;
-                case "media": icon = "🖼️"; break;
-                default: icon = "";
-            }
-
-            let status = item.publishStatus === "published" ? "✅" : "🔨";
-
-            const parts = item.path.split("/");
-            const name = parts[parts.length - 1];
-            const dirs = parts.slice(0, -1).join("/");
-            const parent = dirs
-                ? buildPath(dirs)
-                : (payload.find(n => n.label === "Content")! as Category);
-
-            parent.children.push({
-                tag: NodeTag.Item,
-                id: item.path,
-                label: `${icon} ${name} ${status}`,
-            });
-        }
-    }
-    fillPayload([{
-        path: "articles/2024-06-01-new-article.mdx",
-        contentType: "article",
-        publishStatus: "draft",
-    }]);
 
     function onTreeItemClick(node: Node) {
         if (node.id === "profile") {
@@ -288,7 +344,36 @@ export const ArticleCreator = () => {
         if (node.id === "tags") {
             fetchTags();
         }
-        
+    }
+
+    const menuItems = (node: Node): ContextMenuItem[] => {
+        // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
+        if (node.id === "profile" || node.id === "tags") {
+            return [];
+        }
+
+        let result = node.tag === NodeTag.Category
+            ? [
+                { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
+                { label: "New Article", onClick: () => console.log("New Article in", node.id) },
+                { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
+                { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
+            ]
+            : [
+                { label: "Rename", onClick: () => console.log("Rename", node.id) },
+                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+            ];
+
+        if (node.tag === NodeTag.Category && node.id != "content") {
+            result.push(
+                { label: "Rename", onClick: () => console.log("Rename", node.id) }
+            )
+            result.push(
+                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
+            )
+        }
+
+        return result;
     }
 
     return <div className={css(styles.root)}>
@@ -296,7 +381,7 @@ export const ArticleCreator = () => {
             <Panel defaultSize={260} minSize={150} maxSize={600}>
                 <TreeCard
                     title="Files"
-                    data={payload}
+                    data={treeData}
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
                     style={{ height: "100%" }}
