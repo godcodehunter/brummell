@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, css } from 'aphrodite';
 
 // VSCode's sash hover/active color.
@@ -135,56 +135,53 @@ export const SplitPane: React.FC<SplitPaneProps> & { Panel: typeof Panel } = ({
         return null;
     };
 
-    const onResizerDown = useCallback(
-        (boundary: number, target: { idx: number; sign: 1 | -1 }) => (e: React.PointerEvent) => {
-            e.preventDefault();
-            const startPos = horizontal ? e.clientX : e.clientY;
-            const startSize = sizeOf(target.idx);
-            const { minSize = 0, maxSize = Infinity } = panels[target.idx].props;
+    // Not memoised on purpose: useCallback would freeze the closure on the
+    // first render and `startSize` would always read the initial size, so the
+    // second drag would snap back to the default.
+    const onResizerDown = (boundary: number, target: { idx: number; sign: 1 | -1 }) => (e: React.PointerEvent) => {
+        e.preventDefault();
+        const startPos = horizontal ? e.clientX : e.clientY;
+        const startSize = sizeOf(target.idx);
+        const { minSize = 0, maxSize = Infinity } = panels[target.idx].props;
 
-            setActiveResizer(boundary);
-            // Keep the resize cursor and kill text selection for the whole drag,
-            // even as the pointer races outside the thin sash.
-            const prevCursor = document.body.style.cursor;
-            const prevSelect = document.body.style.userSelect;
-            document.body.style.cursor = horizontal ? "col-resize" : "row-resize";
-            document.body.style.userSelect = "none";
+        setActiveResizer(boundary);
+        // Keep the resize cursor and kill text selection for the whole drag,
+        // even as the pointer races outside the thin sash.
+        const prevCursor = document.body.style.cursor;
+        const prevSelect = document.body.style.userSelect;
+        document.body.style.cursor = horizontal ? "col-resize" : "row-resize";
+        document.body.style.userSelect = "none";
 
-            let latest = startSize;
-            const onMove = (ev: PointerEvent) => {
-                const pos = horizontal ? ev.clientX : ev.clientY;
-                latest = clamp(startSize + target.sign * (pos - startPos), minSize, maxSize);
+        let latest = startSize;
+        const onMove = (ev: PointerEvent) => {
+            const pos = horizontal ? ev.clientX : ev.clientY;
+            latest = clamp(startSize + target.sign * (pos - startPos), minSize, maxSize);
+            setSizes(prev => {
+                const next = [...prev];
+                next[target.idx] = latest;
+                return next;
+            });
+        };
+        const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            document.body.style.cursor = prevCursor;
+            document.body.style.userSelect = prevSelect;
+            setActiveResizer(null);
+            if (storageKey) {
                 setSizes(prev => {
-                    const next = [...prev];
-                    next[target.idx] = latest;
-                    return next;
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(prev));
+                    } catch {
+                        // Ignore storage write failures.
+                    }
+                    return prev;
                 });
-            };
-            const onUp = () => {
-                window.removeEventListener("pointermove", onMove);
-                window.removeEventListener("pointerup", onUp);
-                document.body.style.cursor = prevCursor;
-                document.body.style.userSelect = prevSelect;
-                setActiveResizer(null);
-                if (storageKey) {
-                    setSizes(prev => {
-                        try {
-                            localStorage.setItem(storageKey, JSON.stringify(prev));
-                        } catch {
-                            // Ignore storage write failures.
-                        }
-                        return prev;
-                    });
-                }
-            };
-            window.addEventListener("pointermove", onMove);
-            window.addEventListener("pointerup", onUp);
-        },
-        // sizeOf/panels are derived from props each render; the handler reads them
-        // at call time via closure, so we only depend on the stable axis/key.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [horizontal, storageKey],
-    );
+            }
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+    };
 
     return (
         <div className={css(styles.container)} style={{ flexDirection: horizontal ? "row" : "column", ...style }}>
