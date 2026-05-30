@@ -254,7 +254,7 @@ export const ArticlePage = () => {
                     }}
                 />
                 <div
-                    className={css(globalStyles.substrate)}
+                    className={`${css(globalStyles.substrate)} article-section`}
                     style={{
                         padding: constants.gap,
                     }}

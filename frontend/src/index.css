@@ -38,9 +38,18 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
   margin-bottom: 24px;
 }
 
+.article-section h1 {
+  font-family: "Roboto";
+  font-size: 28px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+
 .article-section h2 {
-  font-family: "Monda";
-  font-size: 22px;
+  font-family: "Roboto";
+  font-size: 24px;
   font-weight: bold;
   color: #D4D4D4;
   margin-top: 32px;
@@ -48,8 +57,35 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
 }
 
 .article-section h3 {
-  font-family: "Monda";
+  font-family: "Roboto";
+  font-size: 20px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.article-section h4 {
+  font-family: "Roboto";
+  font-size: 18px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.article-section h5 {
+  font-family: "Roboto";
   font-size: 16px;
+  font-weight: bold;
+  color: #D4D4D4;
+  margin-top: 20px;
+  margin-bottom: 6px;
+}
+
+.article-section h6 {
+  font-family: "Roboto";
+  font-size: 14px;
   font-weight: bold;
   color: #D4D4D4;
   margin-top: 20px;
@@ -62,4 +98,60 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
   line-height: 1.6;
   color: #D4D4D4;
   margin-bottom: 12px;
+}
+
+.article-section strong {
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.article-section ul,
+.article-section ol {
+  font-family: "Roboto";
+  font-size: 14px;
+  line-height: 1.6;
+  color: #D4D4D4;
+  padding-left: 24px;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.article-section li {
+  margin-bottom: 4px;
+}
+
+.article-section code {
+  font-family: monospace;
+  font-size: 13px;
+  background-color: #1E1E1F;
+  color: #FFB87A;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.article-section pre {
+  background-color: #1E1E1F;
+  padding: 12px;
+  margin-top: 0;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 13px;
+  color: #D4D4D4;
+  border-left: 3px solid #4A9EFF;
+}
+
+.article-section pre code {
+  background-color: transparent;
+  color: #D4D4D4;
+  padding: 0;
+  border-radius: 0;
+}
+
+.article-section blockquote {
+  border-left: 3px solid #585858;
+  padding-left: 12px;
+  margin: 12px 0;
+  color: #ABABAB;
+  font-style: italic;
 }
