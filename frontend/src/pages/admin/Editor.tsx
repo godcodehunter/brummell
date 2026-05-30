@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { queryTreeItem } from "./queryTreeItem";
+import { queryTreeItem } from "./queryEditor";
 
 interface ExternalLink {
     svg_icon: string;
@@ -81,7 +81,6 @@ export interface ContentItem {
     id: string,
     // Path relative to the content root
     path: string;
-    // Item without type is considered a folder.
     contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
@@ -103,7 +102,7 @@ type EditingMode = "profile" | "tags" | null;
 export const ArticleCreator = () => {
     let { data, loading, error } = queryTreeItem()
     const [editorValue, setEditorValue] = useState("");
-    const [menu, setMenu] = useState<{ x: number; y: number; node: Node } | null>(null);
+    const [menu, setMenu] = useState<{ x: number; y: number; node: Node<ContentItem> } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
@@ -189,34 +188,65 @@ export const ArticleCreator = () => {
         }
     }
 
-    const menuItems = (node: Node): ContextMenuItem[] => {
+    const menuItems = (node: Node<ContentItem>): ContextMenuItem[] => {
+        function getParentNode(target: Node<ContentItem>): Category<ContentItem> | null {
+            const walk = (nodes: Node<ContentItem>[], parent: Category<ContentItem> | null): Category<ContentItem> | null => {
+                for (const n of nodes) {
+                    if (n.id === target.id) return parent;
+                    if (n.tag === NodeTag.Category) {
+                        const found = walk(n.children, n);
+                        if (found !== null) return found;
+                    }
+                }
+                return null;
+            };
+            return walk(data ?? [], null);
+        }
+
         // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
         if (node.id === "profile" || node.id === "tags") {
             return [];
         }
 
-        let result = node.tag === NodeTag.Category
-            ? [
+        if (node.contentType === "dir") {
+            let result: ContextMenuItem[] = [
                 { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
                 { label: "New Article", onClick: () => console.log("New Article in", node.id) },
                 { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
                 { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
-            ]
-            : [
+            ];
+
+            if (node.id !== "content") {
+                result.unshift(
+                    { label: "Rename", onClick: () => console.log("Rename", node.id) }
+                )
+                result.push(
+                    { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
+                )
+            }
+
+            return result;
+        }
+
+        if (node.contentType === "shot" || node.contentType === "article" || node.contentType === "podcast") {
+            return [
+                { label: "Toggle Publish Status", onClick: () => console.log("Toggle Publish Status", node.id) },
                 { label: "Rename", onClick: () => console.log("Rename", node.id) },
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];
-
-        if (node.tag === NodeTag.Category && node.id != "content") {
-            result.push(
-                { label: "Rename", onClick: () => console.log("Rename", node.id) }
-            )
-            result.push(
-                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
-            )
         }
 
-        return result;
+        // Mirror files ignore
+        if (node.id.endsWith("/def") || node.id.endsWith("/main")) {
+            return [];
+        }
+
+
+        // Common files
+        return [
+            { label: "Rename", onClick: () => console.log("Rename", node.id) },
+            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+        ];
     }
 
     return <div className={css(styles.root)}>

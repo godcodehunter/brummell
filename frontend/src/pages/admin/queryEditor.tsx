@@ -2,6 +2,7 @@ import { NodeTag, Category, Node } from '../../components/TreeCard'
 import { useMemo } from "react";
 import { gql, useQuery } from "@apollo/client";
 import { ContentItem } from './Editor';
+import { client } from '../../main';
 
 function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
     const root: Category<ContentItem>[] = [];
@@ -143,9 +144,9 @@ const GET_EDITABLE_ITEMS = gql`
     }
 `;
 
-const SIDEBAR_ITEMS: Node[] = [
-    { id: "profile", tag: NodeTag.Item, label: "Profile 🪪" },
-    { id: "tags",    tag: NodeTag.Item, label: "Tags 🏷️"   },
+const SIDEBAR_ITEMS: Node<ContentItem>[] = [
+    { id: "profile", path: "/profile", tag: NodeTag.Item, label: "Profile 🪪" },
+    { id: "tags",    path: "/tags", tag: NodeTag.Item, label: "Tags 🏷️"   },
 ];
 
 export function queryTreeItem() {
@@ -153,14 +154,16 @@ export function queryTreeItem() {
         fetchPolicy: "network-only",
     });
 
-    const treeData = useMemo<Node[]>(() => [
+    const treeData = useMemo<Node<ContentItem>[]>(() => [
         ...SIDEBAR_ITEMS,
         {
             id: "content",
+            path: "/",
             tag: NodeTag.Category,
             label: "Content",
+            contentType: "dir",
             children: reconstructTree(data?.getEditableItems ?? []),
-        } as Node,
+        } as Node<ContentItem>,
     ], [data]);
 
     return {data: treeData, loading, error};
@@ -170,8 +173,17 @@ export function publishUnpublishItem(id: string, publishStatus: "published" | "d
     /* TODO */
 }
 
+const CREATE_FOLDER = gql`
+    mutation CreateFolder($path: String!) {
+        createFolder(path: $path)
+    }
+`;
+
 export function createFolder(path: string, name: string) {
-    /* TODO */
+    return client.mutate<{ createFolder: boolean }, { path: string }>({
+        mutation: CREATE_FOLDER,
+        variables: { path: path ? `${path}/${name}` : name },
+    });
 }
 
 export function moveObject(newPath: string, oldPath: string) {

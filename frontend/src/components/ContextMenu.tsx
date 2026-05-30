@@ -88,6 +88,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
         };
     }, [onClose]);
 
+    if (items.length === 0) return null;
+
     return (
         <div ref={ref} className={css(styles.menu)} style={{ left: pos.left, top: pos.top }}>
             {items.map((item, i) => (
