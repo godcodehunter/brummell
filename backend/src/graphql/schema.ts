@@ -432,6 +432,26 @@ builder.queryType({
       resolve: (_, { id }) =>
         db.select().from(articles).where(eq(articles.id, id)).all()[0] ?? null,
     }),
+    getArticlePayload: t.field({
+      type: "String",
+      args: {
+        path: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { path: relPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+        try {
+          return await fs.readFile(path.join(abs, "main.mdx"), "utf8");
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+            throw new Error("NOT_FOUND");
+          }
+          throw err;
+        }
+      },
+    }),
     getPodcast: t.field({
       type: "Podcast",
       nullable: true,

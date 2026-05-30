@@ -1,6 +1,6 @@
 import { NodeTag, Category, Node } from '../../components/TreeCard'
 import { useEffect, useMemo } from "react";
-import { gql, useQuery } from "@apollo/client";
+import { gql, useLazyQuery, useQuery, type LazyQueryHookOptions } from "@apollo/client";
 import { ContentItem } from './Editor';
 import { client } from '../../main';
 
@@ -192,6 +192,21 @@ export function createFolder(path: string, name: string) {
 
 export function moveObject(newPath: string, oldPath: string) {
     /* TODO */
+}
+
+const GET_ARTICLE_PAYLOAD = gql`
+    query GetArticlePayload($path: String!) {
+        getArticlePayload(path: $path)
+    }
+`;
+
+export function fetchArticleQuery(
+    options?: LazyQueryHookOptions<{ getArticlePayload: string }, { path: string }>,
+) {
+    return useLazyQuery<{ getArticlePayload: string }, { path: string }>(GET_ARTICLE_PAYLOAD, {
+        fetchPolicy: "network-only",
+        ...options,
+    });
 }
 
 const ADD_NEW_ARTICLE = gql`

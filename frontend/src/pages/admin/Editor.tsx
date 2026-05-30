@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { createArticle, createFolder, queryTreeItem } from "./queryEditor";
+import { createArticle, createFolder, fetchArticleQuery, queryTreeItem } from "./queryEditor";
 
 interface ExternalLink {
     svg_icon: string;
@@ -95,6 +95,20 @@ const profileEditTip = `// The profle data have the following structure:
 //    }[];
 // }`;
 
+function getParentNode(data: Node<ContentItem>[] | null, target: Node<ContentItem>): Category<ContentItem> | null {
+    const walk = (nodes: Node<ContentItem>[], parent: Category<ContentItem> | null): Category<ContentItem> | null => {
+        for (const n of nodes) {
+            if (n.id === target.id) return parent;
+            if (n.tag === NodeTag.Category) {
+                const found = walk(n.children, n);
+                if (found !== null) return found;
+            }
+        }
+        return null;
+    };
+    return walk(data ?? [], null);
+}
+
 type EditingMode = "profile" | "tags" | null;
 
 export const ArticleCreator = () => {
@@ -122,6 +136,17 @@ export const ArticleCreator = () => {
         onCompleted: data => {
             editingModeRef.current = "tags";
             setEditorValue(JSON.stringify(data.getTag, removeInternal, 4));
+        },
+        onError: err => {
+            editingModeRef.current = null;
+            setEditorValue(`// error: ${err.message}`);
+        },
+    });
+
+    const [fetchArticle] = fetchArticleQuery({
+        onCompleted: data => {
+            editingModeRef.current = null;
+            setEditorValue(data.getArticlePayload);
         },
         onError: err => {
             editingModeRef.current = null;
@@ -178,35 +203,24 @@ export const ArticleCreator = () => {
 
 
     function onTreeItemClick(node: Node) {
-        if (node.id === "profile") {
+        if (node.id === "/profile") {
             fetchOwner();
         }
-        if (node.id === "tags") {
+        if (node.id === "/tags") {
             fetchTags();
+        }
+        if (node.id.endsWith("/main.mdx") && getParentNode(data, node)?.contentType === "article") {
+            fetchArticle({ variables: { path: node.id.slice(0, -"/main.mdx".length) } });
         }
     }
 
     const menuItems = (node: Node<ContentItem>): ContextMenuItem[] => {
-        function getParentNode(target: Node<ContentItem>): Category<ContentItem> | null {
-            const walk = (nodes: Node<ContentItem>[], parent: Category<ContentItem> | null): Category<ContentItem> | null => {
-                for (const n of nodes) {
-                    if (n.id === target.id) return parent;
-                    if (n.tag === NodeTag.Category) {
-                        const found = walk(n.children, n);
-                        if (found !== null) return found;
-                    }
-                }
-                return null;
-            };
-            return walk(data ?? [], null);
-        }
-
         const newFolder = {
             label: "New Folder",
             onClick: () => createFolder(node.id, "new_folder"),
         }
-        const newArticle = { 
-            label: "New Article", 
+        const newArticle = {
+            label: "New Article",
             onClick: () => createArticle(node.id, "new_article")
         }
 
@@ -251,7 +265,7 @@ export const ArticleCreator = () => {
 
         // Mirror files ignore
         if (node.id.endsWith("/def") || node.id.endsWith("/main.mdx")) {
-            switch (getParentNode(node)?.contentType) {
+            switch (getParentNode(data, node)?.contentType) {
                 case "article":
                 case "podcast":
                     return [];
