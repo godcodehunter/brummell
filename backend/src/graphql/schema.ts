@@ -497,8 +497,21 @@ builder.mutationType({
         path: t.arg.string({ required: true }),
         publish_status: t.arg({ type: PublishStatusEnum, required: true }),
       },
-      resolve: (_, args, ctx) => {
+      resolve: async (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${args.path.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+
+        try {
+          await fs.mkdir(abs);
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === "ENOENT") throw new Error("PARENT_NOT_FOUND");
+          if (code === "EEXIST") throw new Error("ALREADY_EXISTS");
+          throw err;
+        }
+        await fs.writeFile(path.join(abs, "main.mdx"), "");
 
         const created = db
           .insert(articles)

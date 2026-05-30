@@ -74,8 +74,15 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
         case "media": icon = "🖼️"; break;
         default: icon = "❓"; break;
     }
-
-    let status = item.publishStatus === "published" ? "✅" : "🔨";
+    
+    let status;
+    switch (item.contentType) {
+        case "shot":
+        case "article": 
+        case "podcast":  
+            status = item.publishStatus === "published" ? "✅" : "🔨"
+        break;
+    }
 
     const parts = item.id.split("/");
     const name = parts[parts.length - 1];
@@ -92,11 +99,6 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
                     tag: NodeTag.Item,
                     label: "def.json",
                 },
-                {
-                    id: `${item.id}/main`,
-                    tag: NodeTag.Item,
-                    label: "main.mdx",
-                }
             ],
         };
     }
@@ -192,8 +194,46 @@ export function moveObject(newPath: string, oldPath: string) {
     /* TODO */
 }
 
+const ADD_NEW_ARTICLE = gql`
+    mutation AddNewArticle(
+        $kicker: String!
+        $headline: String!
+        $illustration: String!
+        $preview_txt: String!
+        $reading_time_min: Int!
+        $difficulty: Difficulty!
+        $path: String!
+        $publish_status: PublishStatus!
+    ) {
+        addNewArticle(
+            kicker: $kicker
+            headline: $headline
+            illustration: $illustration
+            preview_txt: $preview_txt
+            reading_time_min: $reading_time_min
+            difficulty: $difficulty
+            path: $path
+            publish_status: $publish_status
+        ) {
+            id
+        }
+    }
+`;
+
 export function createArticle(path: string, name: string) {
-    
+    return client.mutate({
+        mutation: ADD_NEW_ARTICLE,
+        variables: {
+            kicker: "",
+            headline: name,
+            illustration: "",
+            preview_txt: "",
+            reading_time_min: 0,
+            difficulty: "easy",
+            path: path ? `${path}/${name}` : name,
+            publish_status: "draft",
+        },
+    });
 }
 
 export function createPodcast(path: string, name: string) {

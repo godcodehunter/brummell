@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { createFolder, queryTreeItem } from "./queryEditor";
+import { createArticle, createFolder, queryTreeItem } from "./queryEditor";
 
 interface ExternalLink {
     svg_icon: string;
@@ -201,9 +201,13 @@ export const ArticleCreator = () => {
             return walk(data ?? [], null);
         }
 
-        const NewFolder = {
+        const newFolder = {
             label: "New Folder",
             onClick: () => createFolder(node.id, "new_folder"),
+        }
+        const newArticle = { 
+            label: "New Article", 
+            onClick: () => createArticle(node.id, "new_article")
         }
 
         // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
@@ -214,9 +218,9 @@ export const ArticleCreator = () => {
         if (node.contentType === "dir") {
             let result: ContextMenuItem[] = [
                 { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
-                { label: "New Article", onClick: () => console.log("New Article in", node.id) },
+                newArticle,
                 { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
-                NewFolder,
+                newFolder,
             ];
 
             if (node.id !== "/") {
@@ -239,7 +243,7 @@ export const ArticleCreator = () => {
             ];
 
             if (node.contentType === "article") {
-                result.unshift(NewFolder);
+                result.unshift(newFolder);
             }
 
             return result;
