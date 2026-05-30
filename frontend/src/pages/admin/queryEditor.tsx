@@ -75,7 +75,7 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
         default: icon = "❓"; break;
     }
     
-    let status;
+    let status = "";
     switch (item.contentType) {
         case "shot":
         case "article": 
