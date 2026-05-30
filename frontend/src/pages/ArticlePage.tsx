@@ -3,7 +3,7 @@ import chroma from 'chroma-js';
 import { palette } from '../globalStyles';
 import { globalStyles, constants } from '../globalStyles';
 import { StyleSheet, css } from 'aphrodite';
-import { Category, Item, Node, NodeTag, TreeCard } from '../components/TreeCard';
+import { Node, NodeTag, TreeCard } from '../components/TreeCard';
 import { Chat } from '../components/Chat';
 import { useChat } from '../chatQueries';
 import { ArticleHead } from '../components/ArticleHead';
@@ -71,8 +71,6 @@ const page = StyleSheet.create({
     },
 });
 
-const tocStub: Category[] = []
-
 // Walk the TOC in document order. Categories and items both produce sections
 // (a Category section is the heading + lead-in, then its child items follow).
 const flattenForScroll = (nodes: Node[]): { id: string, level: number, label: string }[] => {
@@ -85,6 +83,42 @@ const flattenForScroll = (nodes: Node[]): { id: string, level: number, label: st
     };
     walk(nodes, 0);
     return out;
+};
+
+const slugify = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// Reads the rendered article DOM, finds every h1..h6, makes sure each one
+// has an `id` (so the TOC click can scroll to it), and folds the flat list
+// into a nested Node tree by heading level. A heading with deeper headings
+// after it becomes a Category; a heading with none becomes an Item.
+const buildTocFromDOM = (root: HTMLElement): Node[] => {
+    const headings = Array.from(
+        root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'),
+    );
+    if (headings.length === 0) return [];
+
+    type Frame = { id: string, label: string, level: number, children: Frame[] };
+    const flat: Frame[] = headings.map((el, i) => {
+        const level = Number(el.tagName[1]);
+        const label = (el.textContent ?? '').trim() || `Section ${i + 1}`;
+        if (!el.id) el.id = `h-${slugify(label) || 'section'}-${i}`;
+        return { id: el.id, label, level, children: [] };
+    });
+
+    const sentinel: Frame = { id: '', label: '', level: 0, children: [] };
+    const stack: Frame[] = [sentinel];
+    for (const node of flat) {
+        while (stack[stack.length - 1].level >= node.level) stack.pop();
+        stack[stack.length - 1].children.push(node);
+        stack.push(node);
+    }
+
+    const toNodes = (frames: Frame[]): Node[] =>
+        frames.map(f => f.children.length > 0
+            ? { tag: NodeTag.Category, id: f.id, label: f.label, children: toNodes(f.children) }
+            : { tag: NodeTag.Item, id: f.id, label: f.label });
+    return toNodes(sentinel.children);
 };
 
 
@@ -201,9 +235,24 @@ export const ArticlePage = () => {
         [code],
     );
     const middlePanelRef = useRef<HTMLDivElement>(null);
+    const articleBodyRef = useRef<HTMLDivElement>(null);
+    const [toc, setToc] = useState<Node[]>([]);
+
+    // Build the TOC by reflecting over the rendered article DOM: every time
+    // ArticleBody changes we re-scan the body for h1..h6, give them ids, and
+    // fold the flat list into a nested tree by heading level.
+    useEffect(() => {
+        const root = articleBodyRef.current;
+        if (!root || !ArticleBody) {
+            setToc([]);
+            return;
+        }
+        setToc(buildTocFromDOM(root));
+    }, [ArticleBody]);
+
     const sectionIds = useMemo(
-        () => flattenForScroll(tocStub).map(s => s.id),
-        []
+        () => flattenForScroll(toc).map(s => s.id),
+        [toc],
     );
     const { activeId, visibleIds } = useScrollState(middlePanelRef, sectionIds);
 
@@ -226,7 +275,7 @@ export const ArticlePage = () => {
                 <BackToMain />
                 <TreeCard
                     title={"CONTENTS"}
-                    data={tocStub}
+                    data={toc}
                     activeId={activeId}
                     expandIds={visibleIds}
                     onNodeClick={(node) => {
@@ -254,6 +303,7 @@ export const ArticlePage = () => {
                     }}
                 />
                 <div
+                    ref={articleBodyRef}
                     className={`${css(globalStyles.substrate)} article-section`}
                     style={{
                         padding: constants.gap,
