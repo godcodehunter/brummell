@@ -81,11 +81,7 @@ const builder = new SchemaBuilder<{
 }>({});
 
 interface EditableItem {
-  // Id for `shot`, `article` and `podcast`. 
-  // Not needed for `library` and `media`.
-  id?: number,
-  // Path relative to the content root
-  path: string;
+  id: string,
   // Item without type is considered a folder.
   contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
   // Only `shot`, `article` and `podcast` can be published or draft.
@@ -148,11 +144,7 @@ function resolveViews(
 
 builder.objectType("EditableItem", {
   fields: (t) => ({
-    id: t.id({
-      nullable: true,
-      resolve: (item) => item.id ?? null,
-    }),
-    path: t.exposeString("path"),
+    id: t.exposeString("id"),
     contentType: t.field({
       type: ContentTypeEnum,
       nullable: true,
@@ -356,25 +348,21 @@ builder.queryType({
       resolve: async () => {
         // First collect all db items
         let a = db.select().from(articles).all().map((article): EditableItem => ({
-          id: article.id,
-          path: article.path,
+          id: article.path,
           // Reference to folder
           contentType: "article",
           publishStatus: article.publish_status,
         }));
 
         let p = db.select().from(podcasts).all().map((podcast): EditableItem => ({
-          id: podcast.id,
-          path: podcast.path,
+          id: podcast.path,
           // Reference to file in fs
           contentType: "podcast",
           publishStatus: podcast.publish_status,
         }));
 
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
-          id: shot.id,
-          // Reference to file in fs
-          path: shot.path,
+          id: shot.path,
           contentType: "shot",
           publishStatus: shot.publish_status,
         }));
@@ -383,11 +371,11 @@ builder.queryType({
 
         // Collect other types of items (libraries and media) from the filesystem. 
         const IsCantContainSubitem = (path: string): boolean => {
-          return [...p, ...s].some(item => item.path === path);
+          return [...p, ...s].some(item => item.id === path);
         };
 
         const IsArticle = (path: string): boolean => {
-          return a.some(item => item.path === path);
+          return a.some(item => item.id === path);
         }
 
         async function walk(currentDir: string, relativePath = ""): Promise<EditableItem[]> {
@@ -402,7 +390,7 @@ builder.queryType({
               if (entry.isDirectory()) {
                 if (!IsArticle(itemRelativePath)) {
                   result.push({
-                    path: itemRelativePath,
+                    id: itemRelativePath,
                     contentType: "dir",
                   })
                 }
@@ -414,12 +402,12 @@ builder.queryType({
 
                 if (regex.test(entry.name)) {
                   result.push({
-                    path: itemRelativePath,
+                    id: itemRelativePath,
                     contentType: "library",
                   })
                 } else {
                   result.push({
-                    path: itemRelativePath,
+                    id: itemRelativePath,
                     contentType: MIME_BY_EXT[path.extname(entry.name)] ? "media" : undefined,
                   })
                 }

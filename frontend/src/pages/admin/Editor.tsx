@@ -79,8 +79,6 @@ const styles = StyleSheet.create({
 
 export interface ContentItem {
     id: string,
-    // Path relative to the content root
-    path: string;
     contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
@@ -204,7 +202,7 @@ export const ArticleCreator = () => {
         }
 
         // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
-        if (node.id === "profile" || node.id === "tags") {
+        if (node.id === "/profile" || node.id === "/tags") {
             return [];
         }
 
@@ -216,7 +214,7 @@ export const ArticleCreator = () => {
                 { label: "New Folder", onClick: () => console.log("New Folder in", node.id) },
             ];
 
-            if (node.id !== "content") {
+            if (node.id !== "/") {
                 result.unshift(
                     { label: "Rename", onClick: () => console.log("Rename", node.id) }
                 )
@@ -229,16 +227,26 @@ export const ArticleCreator = () => {
         }
 
         if (node.contentType === "shot" || node.contentType === "article" || node.contentType === "podcast") {
-            return [
+            let result: ContextMenuItem[] = [
                 { label: "Toggle Publish Status", onClick: () => console.log("Toggle Publish Status", node.id) },
                 { label: "Rename", onClick: () => console.log("Rename", node.id) },
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];
+
+            if (node.contentType === "article") {
+                result.unshift({ label: "New Folder", onClick: () => console.log("New Folder in", node.id) });
+            }
+
+            return result;
         }
 
         // Mirror files ignore
         if (node.id.endsWith("/def") || node.id.endsWith("/main")) {
-            return [];
+            switch (getParentNode(node)?.contentType) {
+                case "article":
+                case "podcast":
+                    return [];
+            }
         }
 
 

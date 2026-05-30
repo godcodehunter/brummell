@@ -1,9 +1,10 @@
 import { NodeTag, Category, Node } from '../../components/TreeCard'
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { gql, useQuery } from "@apollo/client";
 import { ContentItem } from './Editor';
 import { client } from '../../main';
 
+/// Here `item.id`can be understood in other words as `item.path`
 function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
     const root: Category<ContentItem>[] = [];
 
@@ -13,7 +14,7 @@ function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
     ): Category<ContentItem> | undefined =>
         siblings.find(
             (n): n is Category<ContentItem> =>
-                n.tag === NodeTag.Category && (n as Category<ContentItem>).path === path,
+                n.tag === NodeTag.Category && (n as Category<ContentItem>).id === path,
         );
 
     const ensureCategoryAt = (
@@ -37,7 +38,7 @@ function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
     };
 
     for (const item of items) {
-        const parts = item.path.split("/");
+        const parts = item.id.split("/");
         let siblings = root as Node<ContentItem>[];
 
         let currentPath = "";
@@ -52,8 +53,8 @@ function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
         if (item.contentType === "dir") {
             // A dir whose path was already auto-materialized while restoring a
             // descendant — nothing to add, just move on.
-            if (findCategoryAt(siblings, item.path)) continue;
-            ensureCategoryAt(siblings, item.path, name, item.id);
+            if (findCategoryAt(siblings, item.id)) continue;
+            ensureCategoryAt(siblings, item.id, name, item.id);
         } else {
             siblings.push(constructNodeFromItem(item));
         }
@@ -76,27 +77,25 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
 
     let status = item.publishStatus === "published" ? "✅" : "🔨";
 
-    const parts = item.path.split("/");
+    const parts = item.id.split("/");
     const name = parts[parts.length - 1];
 
     if (item.contentType === "article") {
         return {
             ...item,
             tag: NodeTag.Category,
-            id: item.id.toString(),
+            id: item.id,
             label: `${icon} ${name} ${status}`,
             children: [
                 {
                     id: `${item.id}/def`,
                     tag: NodeTag.Item,
                     label: "def.json",
-                    path: `${item.path}/def.json`,
                 },
                 {
                     id: `${item.id}/main`,
                     tag: NodeTag.Item,
                     label: "main.mdx",
-                    path: `${item.path}/main.mdx`,
                 }
             ],
         };
@@ -106,20 +105,18 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
         return {
             ...item,
             tag: NodeTag.Category,
-            id: item.id.toString(),
+            id: item.id,
             label: `${icon} ${name} ${status}`,
             children: [
                 {
                     id: `${item.id}/def`,
                     tag: NodeTag.Item,
                     label: "def.json",
-                    path: `${item.path}/def.json`,
                 },
                 {
                     id: `${item.id}/main`,
                     tag: NodeTag.Item,
                     label: "main.sound",
-                    path: `${item.path}/main.sound`,
                 }
             ],
         };
@@ -137,7 +134,6 @@ const GET_EDITABLE_ITEMS = gql`
     query GetEditableItems {
         getEditableItems {
             id
-            path
             contentType
             publishStatus
         }
@@ -145,8 +141,8 @@ const GET_EDITABLE_ITEMS = gql`
 `;
 
 const SIDEBAR_ITEMS: Node<ContentItem>[] = [
-    { id: "profile", path: "/profile", tag: NodeTag.Item, label: "Profile 🪪" },
-    { id: "tags",    path: "/tags", tag: NodeTag.Item, label: "Tags 🏷️"   },
+    { id: "/profile", tag: NodeTag.Item, label: "Profile 🪪" },
+    { id: "/tags", tag: NodeTag.Item, label: "Tags 🏷️"   },
 ];
 
 export function queryTreeItem() {
@@ -154,11 +150,17 @@ export function queryTreeItem() {
         fetchPolicy: "network-only",
     });
 
+    useEffect(() => {
+        console.log("Fetched editable items:", data?.getEditableItems);
+        if (error) {
+            console.error("Error fetching editable items:", error);
+        }
+    })
+
     const treeData = useMemo<Node<ContentItem>[]>(() => [
         ...SIDEBAR_ITEMS,
         {
-            id: "content",
-            path: "/",
+            id: "/",
             tag: NodeTag.Category,
             label: "Content",
             contentType: "dir",
