@@ -250,7 +250,7 @@ export const ArticleCreator = () => {
         }
 
         // Mirror files ignore
-        if (node.id.endsWith("/def") || node.id.endsWith("/main")) {
+        if (node.id.endsWith("/def") || node.id.endsWith("/main.mdx")) {
             switch (getParentNode(node)?.contentType) {
                 case "article":
                 case "podcast":
