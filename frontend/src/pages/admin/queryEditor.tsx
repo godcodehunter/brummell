@@ -193,7 +193,7 @@ export function moveObject(newPath: string, oldPath: string) {
 }
 
 export function createArticle(path: string, name: string) {
-    /* TODO */
+    
 }
 
 export function createPodcast(path: string, name: string) {
@@ -201,9 +201,5 @@ export function createPodcast(path: string, name: string) {
 }
 
 export function createShot(path: string, name: string) {
-    /* TODO */
-}
-
-export function createMedia(path: string, name: string) {
     /* TODO */
 }
