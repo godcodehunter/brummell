@@ -50,6 +50,7 @@ import {
   prepaireForStorage,
 } from "../adminPass.js"
 import { FILES_DIR, MIME_BY_EXT, resolveFilePath } from "../files.js";
+import { compileArticleMDX } from "../mdxBuild.js";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 
@@ -264,6 +265,11 @@ builder.objectType("Article", {
     reading_time_min: t.exposeInt("reading_time_min"),
     difficulty: t.exposeString("difficulty"),
     createdAt: t.exposeInt("created_at"),
+    code: t.field({
+      type: "String",
+      nullable: true,
+      resolve: (article) => compileArticleMDX(article.path),
+    }),
     views: t.field({
       type: "Int",
       resolve: (article) => resolveViews("article", article.id),

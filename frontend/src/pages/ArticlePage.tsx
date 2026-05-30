@@ -71,80 +71,7 @@ const page = StyleSheet.create({
     },
 });
 
-const cat = (id: string, label: string, children: Node[]): Category => ({
-    tag: NodeTag.Category,
-    id,
-    label,
-    children,
-});
-
-const item = (id: string, label: string): Item => ({
-    tag: NodeTag.Item,
-    id,
-    label,
-});
-
-const tocStub: Category[] = [
-    cat("part-1", "Part 1: Survey", [
-        cat("p1-c1", "Chapter 1: Foundations", [
-            cat("p1-c1-s1", "1.1 Definitions", [
-                cat("p1-c1-s1-ss1", "1.1.1 Core terms", [
-                    cat("p1-c1-s1-ss1-sss1", "1.1.1.1 Primitives", [
-                        cat("p1-c1-s1-ss1-sss1-ssss1", "1.1.1.1.1 Atoms", [
-                            item("p1-c1-s1-ss1-sss1-ssss1-i1", "Quark"),
-                            item("p1-c1-s1-ss1-sss1-ssss1-i2", "Lepton"),
-                            item("p1-c1-s1-ss1-sss1-ssss1-i3", "Boson"),
-                        ]),
-                        cat("p1-c1-s1-ss1-sss1-ssss2", "1.1.1.1.2 Forces", [
-                            item("p1-c1-s1-ss1-sss1-ssss2-i1", "Strong"),
-                            item("p1-c1-s1-ss1-sss1-ssss2-i2", "Weak"),
-                            item("p1-c1-s1-ss1-sss1-ssss2-i3", "Electromagnetic"),
-                            item("p1-c1-s1-ss1-sss1-ssss2-i4", "Gravity"),
-                        ]),
-                        cat("p1-c1-s1-ss1-sss1-ssss3", "1.1.1.1.3 Fields", [
-                            item("p1-c1-s1-ss1-sss1-ssss3-i1", "Higgs"),
-                            item("p1-c1-s1-ss1-sss1-ssss3-i2", "Gauge"),
-                        ]),
-                        item("p1-c1-s1-ss1-sss1-i1", "Composition"),
-                        item("p1-c1-s1-ss1-sss1-i2", "Decomposition"),
-                    ]),
-                    item("p1-c1-s1-ss1-i1", "Operators"),
-                    item("p1-c1-s1-ss1-i2", "Relations"),
-                ]),
-                item("p1-c1-s1-i1", "Notation"),
-                item("p1-c1-s1-i2", "Glossary"),
-            ]),
-            cat("p1-c1-s2", "1.2 Axioms", [
-                item("p1-c1-s2-i1", "Reflexivity"),
-                item("p1-c1-s2-i2", "Transitivity"),
-            ]),
-            item("p1-c1-i1", "Conventions"),
-        ]),
-        cat("p1-c2", "Chapter 2: Notation", [
-            item("p1-c2-i1", "Symbols"),
-            item("p1-c2-i2", "Indices"),
-        ]),
-        item("p1-i1", "Roadmap"),
-    ]),
-    cat("part-2", "Part 2: Method", [
-        cat("p2-c1", "Chapter 1: Setup", [
-            item("p2-c1-i1", "Environment"),
-            item("p2-c1-i2", "Tooling"),
-        ]),
-        cat("p2-c2", "Chapter 2: Procedure", [
-            cat("p2-c2-s1", "2.1 Pipeline", [
-                item("p2-c2-s1-i1", "Inputs"),
-                item("p2-c2-s1-i2", "Outputs"),
-            ]),
-            item("p2-c2-i1", "Validation"),
-        ]),
-    ]),
-    cat("part-3", "Part 3: Discussion", [
-        item("p3-i1", "Findings"),
-        item("p3-i2", "Limitations"),
-        item("p3-i3", "Open questions"),
-    ]),
-];
+const tocStub: Category[] = []
 
 // Walk the TOC in document order. Categories and items both produce sections
 // (a Category section is the heading + lead-in, then its child items follow).
@@ -244,6 +171,7 @@ query GetArticle($id: Int!) {
         createdAt
         views
         ribbon
+        code
         tags {
             id
             label
@@ -267,7 +195,11 @@ export const ArticlePage = () => {
 
     const { messages, sendMessage } = useChat("article", id);
 
-    // const ArticleBody = React.useMemo(() => getMDXComponent(code), [code])
+    const code: string | null = data?.getArticle?.code ?? null;
+    const ArticleBody = React.useMemo(
+        () => (code ? getMDXComponent(code) : null),
+        [code],
+    );
     const middlePanelRef = useRef<HTMLDivElement>(null);
     const sectionIds = useMemo(
         () => flattenForScroll(tocStub).map(s => s.id),
@@ -322,12 +254,12 @@ export const ArticlePage = () => {
                     }}
                 />
                 <div
-                    className={`${css(globalStyles.substrate)} article-section`}
+                    className={css(globalStyles.substrate)}
                     style={{
                         padding: constants.gap,
                     }}
                 >
-                    {/* <ArticleBody /> */}
+                    {ArticleBody && <ArticleBody />}
                 </div>
                 {/* 
                     A placeholder that allows you to raise the article 
