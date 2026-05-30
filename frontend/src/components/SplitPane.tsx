@@ -3,6 +3,8 @@ import { StyleSheet, css } from 'aphrodite';
 
 // VSCode's sash hover/active color.
 const ACCENT = "#007ACC";
+// Matches the scrollbar-thumb gray (index.css). Visible but unobtrusive at rest.
+const IDLE = "#4f4f4f";
 // Hit area around the 1px line — wide enough to grab without pixel-hunting.
 const RESIZER_SIZE = 6;
 const DEFAULT_PANEL_SIZE = 240;
@@ -56,6 +58,10 @@ const styles = StyleSheet.create({
         flexGrow: 0,
         flexShrink: 0,
         zIndex: 5,
+        // Match the app's dark base — without it, the body default (white)
+        // shows through the gap between panels and the divider reads as a
+        // wide white bar.
+        backgroundColor: "#212121",
         // Disable native touch scrolling/gestures so a touch drag resizes.
         touchAction: "none",
     },
@@ -204,7 +210,7 @@ export const SplitPane: React.FC<SplitPaneProps> & { Panel: typeof Panel } = ({
                             >
                                 <div
                                     className={css(styles.line, horizontal ? styles.lineH : styles.lineV)}
-                                    style={{ backgroundColor: lit ? ACCENT : "transparent" }}
+                                    style={{ backgroundColor: lit ? ACCENT : IDLE }}
                                 />
                             </div>
                         )}
