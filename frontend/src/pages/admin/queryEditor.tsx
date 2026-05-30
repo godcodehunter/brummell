@@ -218,6 +218,28 @@ export function savePayload(path: string, content: string) {
     });
 }
 
+const COMPILE_MDX = gql`
+    query CompileMDX($source: String!) {
+        compileMDX(source: $source) {
+            code
+            error
+        }
+    }
+`;
+
+export interface MDXBuild {
+    code: string | null;
+    error: string | null;
+}
+
+export function compileMDX(source: string) {
+    return client.query<{ compileMDX: MDXBuild }, { source: string }>({
+        query: COMPILE_MDX,
+        variables: { source },
+        fetchPolicy: "no-cache",
+    });
+}
+
 const ADD_NEW_ARTICLE = gql`
     mutation AddNewArticle(
         $kicker: String!

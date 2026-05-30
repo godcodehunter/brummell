@@ -51,6 +51,7 @@ import {
 } from "../adminPass.js"
 import { FILES_DIR, MIME_BY_EXT, resolveFilePath } from "../files.js";
 import { compileArticleMDX } from "../mdxBuild.js";
+import { bundleMDX } from "mdx-bundler";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 
@@ -78,6 +79,7 @@ const builder = new SchemaBuilder<{
     Subtitle: Subtitles;
     SubtitleWord: { range: TimeRange; text: string };
     EditableItem: EditableItem,
+    MDXBuild: { code: string | null; error: string | null };
   };
 }>({});
 
@@ -142,6 +144,13 @@ function resolveViews(
     .all();
   return rows.reduce((total, row) => total + row.count, 0);
 }
+
+builder.objectType("MDXBuild", {
+  fields: (t) => ({
+    code: t.exposeString("code", { nullable: true }),
+    error: t.exposeString("error", { nullable: true }),
+  }),
+});
 
 builder.objectType("EditableItem", {
   fields: (t) => ({
@@ -455,6 +464,21 @@ builder.queryType({
             throw new Error("NOT_FOUND");
           }
           throw err;
+        }
+      },
+    }),
+    compileMDX: t.field({
+      type: "MDXBuild",
+      args: {
+        source: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { source }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        try {
+          const { code } = await bundleMDX({ source });
+          return { code, error: null };
+        } catch (err) {
+          return { code: null, error: (err as Error).message };
         }
       },
     }),

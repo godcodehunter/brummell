@@ -3,9 +3,11 @@ import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { createArticle, createFolder, fetchPayload, queryTreeItem, savePayload } from "./queryEditor";
+import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, savePayload, type MDXBuild } from "./queryEditor";
+import { getMDXComponent } from "mdx-bundler/client";
+import { globalStyles, constants, palette } from "../../globalStyles";
 
 interface ExternalLink {
     svg_icon: string;
@@ -74,7 +76,68 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         height: "100vh",
     },
+    previewWrap: {
+        flex: "1 1 0",
+        minHeight: 0,
+        overflowY: "auto",
+        overflowX: "hidden",
+        backgroundColor: palette.mainColor,
+        padding: constants.gap,
+        boxSizing: "border-box",
+    },
+    previewSubstrate: {
+        padding: constants.gap,
+    },
+    previewPlaceholder: {
+        color: "#888",
+        fontFamily: "Roboto",
+        fontSize: 13,
+    },
+    errorsPane: {
+        flex: "1 1 0",
+        minHeight: 0,
+        overflow: "auto",
+        backgroundColor: "#1E1E1F",
+        borderTop: "1px solid #2E2E2E",
+        padding: 12,
+        fontFamily: "monospace",
+        fontSize: 12,
+        whiteSpace: "pre-wrap",
+        color: "#D4D4D4",
+    },
+    errorsOk: {
+        color: "#7FCB7F",
+    },
+    errorsBad: {
+        color: "#FF8A80",
+    },
 });
+
+// Resets its captured render error whenever `resetKey` changes — so when the
+// user edits the MDX and a new compiled `code` arrives, we re-attempt to
+// render instead of being stuck on the previous failure.
+class PreviewBoundary extends React.Component<
+    { resetKey: unknown; children: React.ReactNode },
+    { error: Error | null }
+> {
+    state = { error: null as Error | null };
+    static getDerivedStateFromError(error: Error) { return { error }; }
+    componentDidUpdate(prev: { resetKey: unknown }) {
+        if (prev.resetKey !== this.props.resetKey && this.state.error) {
+            this.setState({ error: null });
+        }
+    }
+    render() {
+        if (this.state.error) {
+            return (
+                <div className={css(styles.previewPlaceholder)}>
+                    Render error: {this.state.error.message}
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 
 export interface ContentItem {
@@ -116,6 +179,8 @@ export const ArticleCreator = () => {
     const [editorValue, setEditorValue] = useState("");
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node<ContentItem> } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
+    const [mdxMode, setMdxMode] = useState(false);
+    const [mdxBuild, setMdxBuild] = useState<MDXBuild>({ code: null, error: null });
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
@@ -123,10 +188,12 @@ export const ArticleCreator = () => {
         fetchPolicy: "network-only",
         onCompleted: data => {
             editingModeRef.current = "profile";
+            setMdxMode(false);
             setEditorValue(profileEditTip + "\n\n" + JSON.stringify(data?.getOwner ?? null, removeInternal, 4));
         },
         onError: err => {
             editingModeRef.current = null;
+            setMdxMode(false);
             setEditorValue(`// error: ${err.message}`);
         },
     });
@@ -135,10 +202,12 @@ export const ArticleCreator = () => {
         fetchPolicy: "network-only",
         onCompleted: data => {
             editingModeRef.current = "tags";
+            setMdxMode(false);
             setEditorValue(JSON.stringify(data.getTag, removeInternal, 4));
         },
         onError: err => {
             editingModeRef.current = null;
+            setMdxMode(false);
             setEditorValue(`// error: ${err.message}`);
         },
     });
@@ -149,9 +218,34 @@ export const ArticleCreator = () => {
         },
         onError: err => {
             editingModeRef.current = null;
+            setMdxMode(false);
             setEditorValue(`// error: ${err.message}`);
         },
     });
+
+    // Live MDX preview: when editing main.mdx, debounce-compile the current
+    // buffer on the backend and keep `mdxBuild` in sync.
+    useEffect(() => {
+        if (!mdxMode) {
+            setMdxBuild({ code: null, error: null });
+            return;
+        }
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            try {
+                const { data } = await compileMDX(editorValue);
+                if (!cancelled) setMdxBuild(data.compileMDX);
+            } catch (e) {
+                if (!cancelled) setMdxBuild({ code: null, error: (e as Error).message });
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [editorValue, mdxMode]);
+
+    const PreviewBody = useMemo(
+        () => (mdxBuild.code ? getMDXComponent(mdxBuild.code) : null),
+        [mdxBuild.code],
+    );
 
     const savePayloadHandler = async (filePath: string) => {
         try {
@@ -226,6 +320,7 @@ export const ArticleCreator = () => {
         }
         if (node.id.endsWith("/main.mdx") && getParentNode(data, node)?.contentType === "article") {
             editingModeRef.current = { path: node.id };
+            setMdxMode(true);
             fetchArticle({ variables: { path: node.id } });
         }
     }
@@ -308,17 +403,57 @@ export const ArticleCreator = () => {
                 />
             </Panel>
             <Panel flex>
-                <Editor
-                    value={editorValue}
-                    onChange={v => setEditorValue(v ?? "")}
-                    height="100%"
-                    defaultLanguage="js"
-                    theme="vs-dark"
-                    options={{
-                        wordWrap: "on",
-                        minimap: { enabled: false },
-                    }}
-                />
+                {mdxMode ? (
+                    <SplitPane storageKey="editor-mdx-layout">
+                        <Panel flex>
+                            <Editor
+                                value={editorValue}
+                                onChange={v => setEditorValue(v ?? "")}
+                                height="100%"
+                                defaultLanguage="markdown"
+                                theme="vs-dark"
+                                options={{
+                                    wordWrap: "on",
+                                    minimap: { enabled: false },
+                                }}
+                            />
+                        </Panel>
+                        <Panel defaultSize={500} minSize={240}>
+                            <SplitPane direction="vertical" storageKey="editor-mdx-preview-layout">
+                                <Panel flex>
+                                    <div className={css(styles.previewWrap)}>
+                                        <div className={`${css(globalStyles.substrate, styles.previewSubstrate)} article-section`}>
+                                            <PreviewBoundary resetKey={mdxBuild.code}>
+                                                {PreviewBody
+                                                    ? <PreviewBody />
+                                                    : <div className={css(styles.previewPlaceholder)}>
+                                                        {mdxBuild.error ? "Compile error — see panel below." : "Compiling preview…"}
+                                                    </div>}
+                                            </PreviewBoundary>
+                                        </div>
+                                    </div>
+                                </Panel>
+                                <Panel defaultSize={160} minSize={40}>
+                                    <div className={css(styles.errorsPane, mdxBuild.error ? styles.errorsBad : styles.errorsOk)}>
+                                        {mdxBuild.error ?? "No MDX errors."}
+                                    </div>
+                                </Panel>
+                            </SplitPane>
+                        </Panel>
+                    </SplitPane>
+                ) : (
+                    <Editor
+                        value={editorValue}
+                        onChange={v => setEditorValue(v ?? "")}
+                        height="100%"
+                        defaultLanguage="js"
+                        theme="vs-dark"
+                        options={{
+                            wordWrap: "on",
+                            minimap: { enabled: false },
+                        }}
+                    />
+                )}
             </Panel>
         </SplitPane>
         {menu && (
