@@ -190,22 +190,31 @@ export function createFolder(path: string, name: string) {
     });
 }
 
-export function moveObject(newPath: string, oldPath: string) {
-    /* TODO */
-}
-
-const GET_ARTICLE_PAYLOAD = gql`
-    query GetArticlePayload($path: String!) {
-        getArticlePayload(path: $path)
+const GET_PAYLOAD = gql`
+    query GetPayload($path: String!) {
+        getPayload(path: $path)
     }
 `;
 
-export function fetchArticleQuery(
-    options?: LazyQueryHookOptions<{ getArticlePayload: string }, { path: string }>,
+export function fetchPayload(
+    options?: LazyQueryHookOptions<{ getPayload: string }, { path: string }>,
 ) {
-    return useLazyQuery<{ getArticlePayload: string }, { path: string }>(GET_ARTICLE_PAYLOAD, {
+    return useLazyQuery<{ getPayload: string }, { path: string }>(GET_PAYLOAD, {
         fetchPolicy: "network-only",
         ...options,
+    });
+}
+
+const SET_PAYLOAD = gql`
+    mutation SetPayload($path: String!, $content: String!) {
+        setPayload(path: $path, content: $content)
+    }
+`;
+
+export function savePayload(path: string, content: string) {
+    return client.mutate<{ setPayload: boolean }, { path: string; content: string }>({
+        mutation: SET_PAYLOAD,
+        variables: { path, content },
     });
 }
 
@@ -256,5 +265,9 @@ export function createPodcast(path: string, name: string) {
 }
 
 export function createShot(path: string, name: string) {
+    /* TODO */
+}
+
+export function moveObject(newPath: string, oldPath: string) {
     /* TODO */
 }

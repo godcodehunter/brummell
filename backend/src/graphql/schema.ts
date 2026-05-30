@@ -432,7 +432,7 @@ builder.queryType({
       resolve: (_, { id }) =>
         db.select().from(articles).where(eq(articles.id, id)).all()[0] ?? null,
     }),
-    getArticlePayload: t.field({
+    getPayload: t.field({
       type: "String",
       args: {
         path: t.arg.string({ required: true }),
@@ -443,7 +443,7 @@ builder.queryType({
         const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
         if (!abs) throw new Error("INVALID_PATH");
         try {
-          return await fs.readFile(path.join(abs, "main.mdx"), "utf8");
+          return await fs.readFile(abs, "utf8");
         } catch (err) {
           if ((err as NodeJS.ErrnoException).code === "ENOENT") {
             throw new Error("NOT_FOUND");
@@ -580,6 +580,28 @@ builder.mutationType({
           .returning()
           .all()[0]!;
         return updated;
+      },
+    }),
+    setPayload: t.field({
+      type: "Boolean",
+      args: {
+        path: t.arg.string({ required: true }),
+        content: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { path: relPath, content }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+        try {
+          await fs.writeFile(abs, content);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+            throw new Error("NOT_FOUND");
+          }
+          throw err;
+        }
+        return true;
       },
     }),
     createFolder: t.field({

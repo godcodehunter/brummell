@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { createArticle, createFolder, fetchArticleQuery, queryTreeItem } from "./queryEditor";
+import { createArticle, createFolder, fetchPayload, queryTreeItem, savePayload } from "./queryEditor";
 
 interface ExternalLink {
     svg_icon: string;
@@ -109,7 +109,7 @@ function getParentNode(data: Node<ContentItem>[] | null, target: Node<ContentIte
     return walk(data ?? [], null);
 }
 
-type EditingMode = "profile" | "tags" | null;
+type EditingMode = "profile" | "tags" | { path: string } | null;
 
 export const ArticleCreator = () => {
     let { data, loading, error } = queryTreeItem()
@@ -143,16 +143,25 @@ export const ArticleCreator = () => {
         },
     });
 
-    const [fetchArticle] = fetchArticleQuery({
+    const [fetchArticle] = fetchPayload({
         onCompleted: data => {
-            editingModeRef.current = null;
-            setEditorValue(data.getArticlePayload);
+            setEditorValue(data.getPayload);
         },
         onError: err => {
             editingModeRef.current = null;
             setEditorValue(`// error: ${err.message}`);
         },
     });
+
+    const savePayloadHandler = async (filePath: string) => {
+        try {
+            await savePayload(filePath, editorValue);
+        } catch (e) {
+            setEditorValue(editorValue + `\n// save error: ${(e as Error).message}`);
+        }
+    };
+    const savePayloadRef = useRef(savePayloadHandler);
+    savePayloadRef.current = savePayloadHandler;
 
     const [updateOwner] = useMutation(UPDATE_OWNER);
 
@@ -192,10 +201,16 @@ export const ArticleCreator = () => {
         const onKeyDown = (e: KeyboardEvent) => {
             const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
             if (!isSave) return;
-            if (editingModeRef.current !== "profile") return;
-            e.preventDefault();
-            e.stopPropagation();
-            saveProfileRef.current();
+            const mode = editingModeRef.current;
+            if (mode === "profile") {
+                e.preventDefault();
+                e.stopPropagation();
+                saveProfileRef.current();
+            } else if (mode && typeof mode === "object" && "path" in mode) {
+                e.preventDefault();
+                e.stopPropagation();
+                savePayloadRef.current(mode.path);
+            }
         };
         window.addEventListener("keydown", onKeyDown, { capture: true });
         return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
@@ -210,7 +225,8 @@ export const ArticleCreator = () => {
             fetchTags();
         }
         if (node.id.endsWith("/main.mdx") && getParentNode(data, node)?.contentType === "article") {
-            fetchArticle({ variables: { path: node.id.slice(0, -"/main.mdx".length) } });
+            editingModeRef.current = { path: node.id };
+            fetchArticle({ variables: { path: node.id } });
         }
     }
 
