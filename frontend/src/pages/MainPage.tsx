@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { IconButton } from '../components/InconButton';
-import { gql, useQuery, useSubscription } from "@apollo/client";
+import { gql, useQuery } from "@apollo/client";
 import { useNavigate } from 'react-router-dom';
 
 import { DateTime, Duration } from 'luxon';
@@ -13,24 +13,12 @@ import { VerticalProfileCard } from '../components/ProfileCard';
 import { Category, TreeCard, NodeTag } from '../components/TreeCard';
 import { ArticleCard } from '../components/ArticleCard';
 
-import avatar from '../assets/avatar.jpg';
+
 import { ReactComponent as Github } from '../assets/github.svg';
 import { ReactComponent as Linkedin } from '../assets/linkedin.svg';
 import { ReactComponent as Twitter } from '../assets/twitter.svg';
 
 import { palette, constants } from '../globalStyles';
-
-
-
-const GET_LATEST_ARTICLE_COVER = gql`
-  subscription GetNewArticle {
-    newArticle {
-      id
-      author
-      content
-    }
-  }
-`;
 
 const GET_BLOG_CONTENT = gql`
   query GetBlogContent {
@@ -217,8 +205,8 @@ const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
     if (!byMonths.has(month)) {
       byMonths.set(month, [])
     }
-    // @ts-ignore
-    byMonths.get(month).push(headline);
+    
+    byMonths.get(month)!.push(headline);
   }
 
   content.map((i) => {
@@ -311,15 +299,6 @@ export const MainPage = () => {
       setItems(data.getBlogContent);
     }
   }, [data, loading, error]);
-
-  useSubscription(GET_LATEST_ARTICLE_COVER, {
-    onData: (onData) => {
-      if (onData?.data) {
-        // @ts-ignore
-        setItems([...items, onData?.data]);
-      }
-    }
-  });
 
   const navigate = useNavigate();
 
