@@ -74,7 +74,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontSize: "12px",
                                 color: "#D4D4D4",
                             }}>
-                                {stringifyTime(reading_time)}
+                                {stringifyDuration(reading_time)}
                             </span>
                         </div>
                         <div style={{display: "flex", flexDirection: "row", gap: 4}}>
@@ -85,7 +85,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
                                 fontWeight: "normal",
                                 fontSize: "12px",
                                 color: "#D4D4D4",
-                            }}>{stringifyDuration(created_at)}</span>
+                            }}>{stringifyTime(created_at)}</span>
                         </div>
                     </div>
                 </div>

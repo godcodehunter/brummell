@@ -29,6 +29,7 @@ import {
   ribbon,
   pageViews,
   type Article,
+  type Shot,
   type Tag,
   type Owner,
   type ExternalLink,
@@ -66,6 +67,7 @@ const builder = new SchemaBuilder<{
   Context: Context;
   Objects: {
     Article: Article;
+    Shot: Shot;
     Tag: Tag;
     Owner: Owner;
     ExternalLink: ExternalLink;
@@ -101,6 +103,15 @@ const PublishStatusEnum = builder.enumType("PublishStatus", {
 
 const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
   values: ["article", "shot", "podcast"] as const,
+});
+
+const BlogContentPayload = builder.unionType("BlogContentPayload", {
+  types: ["Article", "Shot", "Podcast"],
+  resolveType: (payload) => {
+    if ("sound" in payload) return "Podcast";
+    if ("illustration" in payload) return "Article";
+    return "Shot";
+  },
 });
 
 const DifficultyEnum = builder.enumType("Difficulty", {
@@ -217,6 +228,7 @@ builder.objectType("Subtitle", {
 
 builder.objectType("Podcast", {
   fields: (t) => ({
+    tag: t.string({ resolve: () => "podcast" }),
     id: t.exposeID("id"),
     headline: t.exposeString("headline"),
     sound: t.exposeString("sound"),
@@ -255,6 +267,33 @@ builder.objectType("Podcast", {
   }),
 });
 
+builder.objectType("Shot", {
+  fields: (t) => ({
+    tag: t.string({ resolve: () => "shot" }),
+    id: t.exposeID("id"),
+    createdAt: t.exposeInt("created_at"),
+    path: t.exposeString("path"),
+    views: t.field({
+      type: "Int",
+      resolve: (shot) => resolveViews("shot", shot.id),
+    }),
+    tags: t.field({
+      type: ["Tag"],
+      resolve: (shot) => {
+        const tagSet = db
+          .select()
+          .from(tagSets)
+          .where(
+            and(eq(tagSets.type, "shot"), eq(tagSets.entity_id, shot.id)),
+          )
+          .all()[0];
+        if (!tagSet || tagSet.tag_ids.length === 0) return [];
+        return db.select().from(tags).where(inArray(tags.id, tagSet.tag_ids)).all();
+      },
+    }),
+  }),
+});
+
 builder.objectType("Tag", {
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -266,6 +305,7 @@ builder.objectType("Tag", {
 
 builder.objectType("Article", {
   fields: (t) => ({
+    tag: t.string({ resolve: () => "article" }),
     id: t.exposeID("id"),
     kicker: t.exposeString("kicker"),
     headline: t.exposeString("headline"),
@@ -437,6 +477,16 @@ builder.queryType({
 
         return [...mirrowedItems, ...another]
       }
+    }),
+    getBlogContent: t.field({
+      type: [BlogContentPayload],
+      resolve: () => {
+        const articleRows = db.select().from(articles).all();
+        const podcastRows = db.select().from(podcasts).all();
+        const shotRows = db.select().from(shots).all();
+        return [...articleRows, ...podcastRows, ...shotRows]
+          .sort((a, b) => b.created_at - a.created_at);
+      },
     }),
     getArticle: t.field({
       type: "Article",

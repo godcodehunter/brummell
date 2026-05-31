@@ -5,6 +5,9 @@ import { IconButton } from '../components/InconButton';
 import { gql, useQuery, useSubscription } from "@apollo/client";
 import { useNavigate } from 'react-router-dom';
 
+import { DateTime, Duration } from 'luxon';
+import chroma from 'chroma-js';
+
 import { SearchCard } from '../components/SearchCard';
 import { VerticalProfileCard } from '../components/ProfileCard';
 import { Category, TreeCard, NodeTag } from '../components/TreeCard';
@@ -29,20 +32,33 @@ const GET_LATEST_ARTICLE_COVER = gql`
   }
 `;
 
-const GET_ARTICLE_COVER = gql`
-  query GetArticle {
-    getArticle {
-      id,
-      headline,
-      illustration,
-      tags {
-        tooltip
-        label
-        color
-      },
-      preview_txt,
-      reading_time_min,
-      created_at,
+const GET_BLOG_CONTENT = gql`
+  query GetBlogContent {
+    getBlogContent {
+      __typename
+      ... on Article {
+        tag
+        id
+        headline
+        illustration
+        preview_txt
+        reading_time_min
+        createdAt
+        tags { tooltip label color }
+      }
+      ... on Shot {
+        tag
+        id
+        path
+        createdAt
+      }
+      ... on Podcast {
+        tag
+        id
+        headline
+        sound
+        createdAt
+      }
     }
   }
 `;
@@ -53,19 +69,37 @@ interface Tag {
   tooltip: string,
 }
 
-interface ArticleCover {
+interface ArticleItem {
+  tag: "article",
   id: number,
   headline: string,
   illustration: any,
   tags: Tag[],
   preview_txt: string,
   reading_time_min: number,
-  created_at: number,
+  createdAt: number,
 }
+
+interface ShotItem {
+  tag: "shot",
+  id: number,
+  path: string,
+  createdAt: number,
+}
+
+interface PodcastItem {
+  tag: "podcast",
+  id: number,
+  headline: string,
+  sound: string,
+  createdAt: number,
+}
+
+type BlogContentItem = ArticleItem | ShotItem | PodcastItem;
 
 interface ArticleLine {
   headline: string,
-  created_at: number,
+  createdAt: number,
 }
 
 export const app = StyleSheet.create({
@@ -188,7 +222,7 @@ const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
   }
 
   content.map((i) => {
-    var date = new Date(i.created_at * 1000);
+    var date = new Date(i.createdAt * 1000);
     let month = date.getMonth()
 
     switch (month) {
@@ -269,25 +303,29 @@ const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
 };
 
 export const MainPage = () => {
-  const [articleCovers, setArticleCovers] = React.useState<ArticleCover[]>([]);
-  const { data, loading, error } = useQuery(GET_ARTICLE_COVER);
+  const [items, setItems] = React.useState<BlogContentItem[]>([]);
+  const { data, loading, error } = useQuery(GET_BLOG_CONTENT);
 
   React.useEffect(() => {
-    if (data?.getArticle?.length > 0) {
-      setArticleCovers(data.getArticle);
+    if (data?.getBlogContent?.length > 0) {
+      setItems(data.getBlogContent);
     }
   }, [data, loading, error]);
 
   useSubscription(GET_LATEST_ARTICLE_COVER, {
     onData: (onData) => {
       if (onData?.data) {
-        // @ts-ignore 
-        setArticleCovers([...articleCovers, onData?.data]);
+        // @ts-ignore
+        setItems([...items, onData?.data]);
       }
     }
   });
 
   const navigate = useNavigate();
+
+  const timeline: ArticleLine[] = items
+    .filter((i): i is ArticleItem => i.tag === "article")
+    .map(i => ({ headline: i.headline, createdAt: i.createdAt }));
 
   return (
     <div className={css(app.root)}>
@@ -300,13 +338,31 @@ export const MainPage = () => {
           gutterWidth={constants.gap}
           gutterHeight={constants.gap}
         >
-          {articleCovers.map((item, idx) => <> { /*<ArticleCard />*/}</>
-          )}
+          {items.map((item, idx) => {
+            switch (item.tag) {
+              case "article":
+                return (
+                  <ArticleCard
+                    key={idx}
+                    headline={item.headline}
+                    illustration={item.illustration}
+                    tags={item.tags.map(t => ({ ...t, color: chroma(t.color) }))}
+                    preview_txt={item.preview_txt}
+                    reading_time={Duration.fromObject({ minutes: item.reading_time_min })}
+                    created_at={DateTime.fromSeconds(item.createdAt)}
+                    onOpen={() => navigate(`/article?id=${item.id}`)}
+                  />
+                );
+              case "shot":
+              case "podcast":
+                return null;
+            }
+          })}
         </StackGrid>
       </div>
       <div className={css(app.rightPanel)}>
         <SearchCard />
-        <TreeCardWithFill content={articleCovers} />
+        <TreeCardWithFill content={timeline} />
       </div>
     </div>
   );
