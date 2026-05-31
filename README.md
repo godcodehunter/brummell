@@ -307,6 +307,47 @@ cd backend && npm install   # only if package.json changed
 systemctl restart brummell-backend
 ```
 
+# Enable search engine
+
+The blog search hits a self-hosted [SearXNG](https://docs.searxng.org/) instance, which aggregates 70+ upstream engines (DuckDuckGo, Brave, Mojeek, Qwant, …) into one JSON API. Backend uses Google's `site:` operator through SearXNG to restrict matches to your own domain, then parses entity id/type out of the returned URLs and filters by tags / content type in the DB.
+
+If `SEARXNG_URL` is unset, the backend transparently falls back to a local `LIKE %query%` search over the SQLite — handy for development.
+
+## 1. Run SearXNG
+
+```
+docker run -d --name searxng -p 8080:8080 \
+  -v $PWD/searxng:/etc/searxng \
+  searxng/searxng
+```
+
+## 2. Enable the JSON format
+
+In `searxng/settings.yml` make sure `search.formats` includes `json` (it ships with `html` only by default):
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+Restart the container after editing: `docker restart searxng`.
+
+## 3. Point the backend at it
+
+Add to the backend's `.env`:
+
+```
+SEARXNG_URL=http://localhost:8080
+SITE_URL=mysiteaddress.com
+```
+
+- `SEARXNG_URL` — base URL of the SearXNG instance (no trailing slash needed).
+- `SITE_URL` — bare domain, no protocol. Becomes `site:<SITE_URL>` in the upstream query. Omit it (or leave it unset) to search the whole web — useful while testing.
+
+Restart the backend (`systemctl restart brummell-backend` in prod) — `searchBlogContent` will now route through SearXNG.
+
 # How integrate tg bot for notifies?
 
 1. Create new bot and copy token.
