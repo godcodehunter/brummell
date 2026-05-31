@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ReactComponent as Loupe } from '../assets/loupe.svg';
+import { CloseInSquare } from '../assets/icons';
 import { StyleSheet, css } from 'aphrodite';
 import { gql, useQuery } from "@apollo/client";
 import { ChipHolder, Tag } from './Chip';
@@ -51,27 +52,29 @@ const styles = StyleSheet.create({
 });
 
 interface SearchProps {
-    // Fires on every keystroke so the parent can react live (e.g. drive
-    // a debounced query off the current query string).
-    onChange?: (text: string) => void,
+    // Fully controlled input value — owner state lives in the parent.
+    value: string,
+    onChange: (text: string) => void,
 
-    // Fires when the query is "committed" — Enter or the loupe icon.
-    onSearch: (data: string) => void,
+    // Fires when the query is "committed" — Enter key or loupe icon click.
+    onSubmit: () => void,
+
+    // When true the trailing icon flips to a cross and clicking it calls
+    // onReset. Reflects whether the parent is showing search results.
+    isActive?: boolean,
+    onReset?: () => void,
 }
 
-const Search = ({ onChange, onSearch }: SearchProps) => {
+const Search = ({ value, onChange, onSubmit, isActive, onReset }: SearchProps) => {
     const [hovered, eventHandlers] = useHover();
     const [focused, setFocused] = useState<boolean>(false);
-    const [text, setText] = useState("");
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const v = e.target.value;
-        setText(v);
-        onChange?.(v);
-    };
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") onSearch(text);
+        if (e.key === "Enter") onSubmit();
     };
+
+    const iconColor = hovered ? "#FAFAFA" : "#ABABAB";
+    const onIconClick = isActive ? onReset : onSubmit;
 
     return (
         <div className={css(styles.field)}
@@ -84,41 +87,65 @@ const Search = ({ onChange, onSearch }: SearchProps) => {
         >
             <input
                 className={css(styles.input)}
-                value={text}
-                onChange={handleChange}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
             />
-            <Loupe
-                fill={hovered ? "#FAFAFA" : "#ABABAB"}
-                style={{ width: 20, padding: 4, cursor: "pointer", }}
-                {...eventHandlers}
-                onClick={() => onSearch(text)}
-            />
+            {isActive ? (
+                <CloseInSquare
+                    style={{ width: 20, height: 20, padding: 4, cursor: "pointer", boxSizing: "border-box" }}
+                    fill={iconColor}
+                    {...eventHandlers}
+                    onClick={onIconClick}
+                />
+            ) : (
+                <Loupe
+                    fill={iconColor}
+                    style={{ width: 20, padding: 4, cursor: "pointer" }}
+                    {...eventHandlers}
+                    onClick={onIconClick}
+                />
+            )}
         </div>
     );
 }
 
 enum ContentType {
-    posts = "posts",
-    shots = "shots",
-    podcasts = "podcasts",
+    article = "article",
+    shot = "shot",
+    podcast = "podcast",
 }
 
 interface SearchCardProps {
     onSearch?: (
-        data: String,
-        tags: String[],
-        content_type: ContentType[],
+        query: string,
+        tagLabels: string[],
+        contentTypes: ContentType[],
     ) => void,
+    onReset?: () => void,
+    isSearchActive?: boolean,
     style?: React.CSSProperties,
 }
 
-export const SearchCard = ({ onSearch = undefined, style }: SearchCardProps) => {
+export const SearchCard = ({
+    onSearch,
+    onReset,
+    isSearchActive = false,
+    style,
+}: SearchCardProps) => {
     const [topics, setTopics] = useState<Tag[]>([]);
     const [contentType, setContentType] = useState<ContentType[]>([]);
     const [query, setQuery] = useState("");
+
+    const handleSubmit = () => {
+        onSearch?.(query, topics.map(t => t.label), contentType);
+    };
+    const handleReset = () => {
+        setQuery("");
+        onReset?.();
+    };
 
     const { data: tagData } = useQuery(GET_TAGS);
     const allTags: Tag[] = useMemo(() => {
@@ -145,8 +172,11 @@ export const SearchCard = ({ onSearch = undefined, style }: SearchCardProps) => 
                     SEARCH
                 </span>
                 <Search
+                    value={query}
                     onChange={setQuery}
-                    onSearch={(e) => console.log("submit:", e, "live:", query)}
+                    onSubmit={handleSubmit}
+                    isActive={isSearchActive}
+                    onReset={handleReset}
                 />
                 <span className={css(styles.headline)}>
                     TOPICS
@@ -167,9 +197,9 @@ export const SearchCard = ({ onSearch = undefined, style }: SearchCardProps) => 
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                    { label: "POSTS", isActive: true, value: "posts" },
-                    { label: "SHOTS", isActive: true, value: "shots" },
-                    { label: "PODCAST", isActive: true, value: "podcasts" },
+                    { label: "POSTS", isActive: true, value: "article" },
+                    { label: "SHOTS", isActive: true, value: "shot" },
+                    { label: "PODCAST", isActive: true, value: "podcast" },
                 ]}
                     onUpdate={setContentType}
                 />

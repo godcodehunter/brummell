@@ -14,7 +14,7 @@
 //   4. `builder.toSchema()` — produce the executable schema for Yoga.
 
 import SchemaBuilder from "@pothos/core";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   shots,
@@ -43,6 +43,7 @@ import {
   type TimeRange,
 } from "../db/schema.js";
 import { pubsub, commentTopicKey } from "./pubsub.js";
+import { runSearch } from "./querySearch.js";
 import { notifyNewComment } from "../notifications.js"
 import { randomBytes } from "node:crypto";
 import {
@@ -489,6 +490,20 @@ builder.queryType({
         return [...articleRows, ...podcastRows, ...shotRows]
           .sort((a, b) => b.created_at - a.created_at);
       },
+    }),
+    searchBlogContent: t.field({
+      type: [BlogContentPayload],
+      args: {
+        query: t.arg.string({ required: true }),
+        // Tag *labels* (not IDs). An entity must carry every listed label.
+        // Empty list = no tag filter.
+        tagLabels: t.arg.stringList({ required: true }),
+        // Entity discriminator: "article" | "shot" | "podcast". Empty list =
+        // no type filter.
+        contentTypes: t.arg.stringList({ required: true }),
+      },
+      resolve: (_, { query, tagLabels, contentTypes }) =>
+        runSearch(query, tagLabels, contentTypes),
     }),
     getArticle: t.field({
       type: "Article",

@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { MasonryGrid } from '../components/MasonryGrid';
 import { IconButton } from '../components/InconButton';
-import { gql, useQuery } from "@apollo/client";
+import { gql, useLazyQuery, useQuery } from "@apollo/client";
 import { useNavigate } from 'react-router-dom';
 
 import { DateTime, Duration } from 'luxon';
@@ -23,6 +23,39 @@ import { palette, constants } from '../globalStyles';
 const GET_BLOG_CONTENT = gql`
   query GetBlogContent {
     getBlogContent {
+      __typename
+      ... on Article {
+        tag
+        id
+        path
+        headline
+        illustration
+        preview_txt
+        reading_time_min
+        createdAt
+        tags { tooltip label color }
+      }
+      ... on Shot {
+        tag
+        id
+        path
+        createdAt
+      }
+      ... on Podcast {
+        tag
+        id
+        path
+        headline
+        sound
+        createdAt
+      }
+    }
+  }
+`;
+
+const SEARCH_BLOG_CONTENT = gql`
+  query SearchBlogContent($query: String!, $tagLabels: [String!]!, $contentTypes: [String!]!) {
+    searchBlogContent(query: $query, tagLabels: $tagLabels, contentTypes: $contentTypes) {
       __typename
       ... on Article {
         tag
@@ -278,7 +311,32 @@ export const MainPage = () => {
 
   const navigate = useNavigate();
 
-  const timeline: ArticleLine[] = items
+  // Search mode — when active, the grid shows results from searchBlogContent
+  // instead of the full feed. Reset returns the user to the feed.
+  const [searchActive, setSearchActive] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<BlogContentItem[]>([]);
+  const [runSearch] = useLazyQuery(SEARCH_BLOG_CONTENT, { fetchPolicy: "network-only" });
+
+  const onSearch = async (
+    query: string,
+    tagLabels: string[],
+    contentTypes: string[],
+  ) => {
+    const { data } = await runSearch({
+      variables: { query, tagLabels, contentTypes },
+    });
+    setSearchResults(data?.searchBlogContent ?? []);
+    setSearchActive(true);
+  };
+
+  const onResetSearch = () => {
+    setSearchActive(false);
+    setSearchResults([]);
+  };
+
+  const displayItems = searchActive ? searchResults : items;
+
+  const timeline: ArticleLine[] = displayItems
     .map(i => ({
       tag: i.tag,
       id: i.id,
@@ -298,7 +356,7 @@ export const MainPage = () => {
           gutterX={constants.gap}
           gutterY={constants.gap}
         >
-          {items.map((item, idx) => {
+          {displayItems.map((item, idx) => {
             switch (item.tag) {
               case "article":
                 return (
@@ -321,7 +379,11 @@ export const MainPage = () => {
         </MasonryGrid>
       </div>
       <div className={css(app.rightPanel)}>
-        <SearchCard />
+        <SearchCard
+          onSearch={onSearch}
+          onReset={onResetSearch}
+          isSearchActive={searchActive}
+        />
         <TreeCardWithFill content={timeline} />
       </div>
     </div>
