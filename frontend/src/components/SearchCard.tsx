@@ -107,9 +107,9 @@ const Search = ({onSearch, isSearchInProgress}: SearchProps) => {
 }
 
 enum ContentType {
-    Posts = "Posts",
-    Tweets = "Tweets",
-    Talks = "Talks",
+    posts = "posts",
+    shots = "shots",
+    podcasts = "podcasts",
 }
 
 interface SearchCardProps {
@@ -169,9 +169,9 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                        {label: "POSTS", isActive: true, value: "Posts"},
-                        {label: "SHOTS", isActive: true, value: "Tweets"},
-                        {label: "PODCAST", isActive: true, value: "Talks"},
+                        {label: "POSTS", isActive: true, value: "posts"},
+                        {label: "SHOTS", isActive: true, value: "shots"},
+                        {label: "PODCAST", isActive: true, value: "podcasts"},
                     ]}
                     onUpdate={setContentType}
                 />
