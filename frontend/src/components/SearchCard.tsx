@@ -1,13 +1,19 @@
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ReactComponent as Loupe } from '../assets/loupe.svg';
 import { StyleSheet, css } from 'aphrodite';
+import { gql, useQuery } from "@apollo/client";
 import { ChipHolder, Tag } from './Chip';
 import { useHover } from '../hooks';
 import * as R from 'ramda';
 import chroma from 'chroma-js';
 import { Autocomplete } from './Autocomplete';
 import { SegmentedControls } from './SegmentedControls';
-import { LoadingIndicator } from './LoadingIndicator';
+
+const GET_TAGS = gql`
+  query GetTags {
+    getTag { label color tooltip }
+  }
+`;
 
 const styles = StyleSheet.create({
     substrate: {
@@ -116,22 +122,29 @@ interface SearchCardProps {
 }
 
 export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
-    const [topics, setTopics] = useState<Tag[]>([
-        {label: "Electronic", color: chroma.random(), tooltip: "test1"}, 
-        {label: "Soldering", color: chroma.random(), tooltip: "test2"}, 
-        {label: "Fun", color: chroma.random(), tooltip: "test3"}
-    ]);
+    const [topics, setTopics] = useState<Tag[]>([]);
     const [contentType, setContentType] = useState<ContentType[]>([]);
 
-    const callSearch = () => {
-        // onSearch("test", topics.map((i) => i.label), contentType)
-    }
+    const { data: tagData } = useQuery(GET_TAGS);
+    const allTags: Tag[] = useMemo(() => {
+        const raw = tagData?.getTag ?? [];
+        return raw.map((t: { label: string, color: string, tooltip: string }) => ({
+            label: t.label,
+            color: chroma(t.color),
+            tooltip: t.tooltip,
+        }));
+    }, [tagData]);
+
+    // Don't suggest topics that are already picked.
+    const available = useMemo(
+        () => allTags.filter(t => !topics.some(tp => tp.label === t.label)),
+        [allTags, topics],
+    );
 
     return (
         <div className={css(styles.substrate)} style={{...style}}>
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
             <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-            {/* <LoadingIndicator color={"#ABABAB"}/> */}
             <div className={css(styles.content)}>
                 <span className={css(styles.headline)}>
                     SEARCH
@@ -140,22 +153,24 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>
-                <ChipHolder 
+                <ChipHolder
                     removable
-                    data={topics} 
-                    style={{marginBottom: topics.length !== 0 ? 6 : 0}} 
+                    data={topics}
+                    style={{marginBottom: topics.length !== 0 ? 6 : 0}}
                     onRemove={(i)=>{setTopics(R.remove(i, 1, topics));}}
                 />
-                <Autocomplete
-                    variants={["banana", "ball", "beicon", "binary", "control", "constant"]}
-                    filter={(q, e)=>{}}
+                <Autocomplete<Tag>
+                    variants={available}
+                    getLabel={(t) => t.label}
+                    onSelect={(t) => setTopics(prev => [...prev, t])}
+                    placeholder="Add a topic..."
                 />
                 <span className={css(styles.headline)}>
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                        {label: "POSTS", isActive: true, value: "Posts"}, 
-                        {label: "SHOTS", isActive: true, value: "Tweets"}, 
+                        {label: "POSTS", isActive: true, value: "Posts"},
+                        {label: "SHOTS", isActive: true, value: "Tweets"},
                         {label: "PODCAST", isActive: true, value: "Talks"},
                     ]}
                     onUpdate={setContentType}

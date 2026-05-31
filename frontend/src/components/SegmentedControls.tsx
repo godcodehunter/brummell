@@ -3,7 +3,7 @@ import { StyleSheet, css } from 'aphrodite';
 
 const segmentedControls = StyleSheet.create({
     container: {
-        display: "flex", 
+        display: "flex",
         height: 25,
     },
     segment: {
@@ -16,43 +16,54 @@ const segmentedControls = StyleSheet.create({
         lineHeight: "1.5em",
         border: "1px solid #4A4A4A",
         cursor: "pointer",
+        userSelect: "none",
+        color: "#D4D4D4",
     },
 });
 
-export const SegmentedControls = ({variants, onUpdate}: {variants: any, onUpdate: (variants: any) => void}) => {
-    const [selected, setSelected] = useState<any[]>([]);
-    
+interface Variant {
+    label: string,
+    value: any,
+    isActive?: boolean,
+}
+
+interface Props {
+    variants: Variant[],
+    onUpdate: (values: any[]) => void,
+}
+
+export const SegmentedControls: React.FC<Props> = ({ variants, onUpdate }) => {
+    const [selected, setSelected] = useState<Variant[]>(
+        () => variants.filter(v => v.isActive),
+    );
+
+    // Reset internal selection when the variants list itself changes.
     useEffect(() => {
-        setSelected(variants.filter((item: any) => item.isActive));
+        setSelected(variants.filter(v => v.isActive));
     }, [variants]);
 
-    const handleToggle = (item: any) => {
-        if(!selected.includes(item)) {
-            setSelected([...selected, item]);
-        } else {
-            setSelected(ex => ex.filter(n => n !== item));
-        }
-        onUpdate(selected.map((item: any)=> item.value));
-    }
-
-    const itemColor = (item: any) => {
-        return selected.includes(item) ? "#1E1E1F" : undefined;
+    const handleToggle = (item: Variant) => {
+        const next = selected.includes(item)
+            ? selected.filter(n => n !== item)
+            : [...selected, item];
+        setSelected(next);
+        onUpdate(next.map(it => it.value));
     };
 
     return (
         <div className={css(segmentedControls.container)}>
-            {
-                variants.map((item: any, i: number) =>(
-                    <div
-                        key={i}
-                        className={css(segmentedControls.segment)}
-                        style={{backgroundColor: selected.includes(item) ? "#1E1E1F" : undefined}}
-                        onClick={() => handleToggle(item)}
-                    >
-                        {item.label}
-                    </div>
-                ))
-            }
+            {variants.map((item, i) => (
+                <div
+                    key={i}
+                    className={css(segmentedControls.segment)}
+                    style={{
+                        backgroundColor: selected.includes(item) ? "#1E1E1F" : undefined,
+                    }}
+                    onClick={() => handleToggle(item)}
+                >
+                    {item.label}
+                </div>
+            ))}
         </div>
     );
 };

@@ -114,4 +114,36 @@ export function initDatabase() {
   `);
 
   console.log("✅ Database scheme initialized");
+  seedTags();
+}
+// Seeds a fixed set of CS-themed tags the first time the tags table is empty.
+// Idempotent — bails out if any tag rows already exist.
+function seedTags() {
+  const { count } = sqlite
+    .prepare("SELECT COUNT(*) AS count FROM tags")
+    .get() as { count: number };
+  if (count > 0) return;
+
+  const samples = [
+    { label: "Algorithms",          color: "#7AB8FF", tooltip: "Data structures, complexity, classic algorithm design." },
+    { label: "Concurrency",         color: "#FF7A8A", tooltip: "Threads, locks, async, memory ordering." },
+    { label: "Compilers",           color: "#C8A2FF", tooltip: "Parsing, IR, optimization, code generation." },
+    { label: "Distributed Systems", color: "#FFB87A", tooltip: "Consensus, replication, partial failure, time." },
+    { label: "Type Theory",         color: "#7AFFB8", tooltip: "Type systems, inference, dependent types." },
+    { label: "Cryptography",        color: "#FFE066", tooltip: "Primitives, protocols, key exchange, hashing." },
+    { label: "Networking",          color: "#66D9E8", tooltip: "TCP/IP, HTTP, congestion control, routing." },
+    { label: "Databases",           color: "#A0C77A", tooltip: "Storage engines, query planning, transactions." },
+    { label: "Operating Systems",   color: "#FF9C7A", tooltip: "Schedulers, virtual memory, syscalls, kernels." },
+    { label: "Performance",         color: "#D17AFF", tooltip: "Profiling, caches, branch prediction, micro-opts." },
+  ];
+
+  const insert = sqlite.prepare(
+    "INSERT INTO tags (label, color, tooltip) VALUES (?, ?, ?)",
+  );
+  const insertAll = sqlite.transaction(() => {
+    for (const t of samples) insert.run(t.label, t.color, t.tooltip);
+  });
+  insertAll();
+
+  console.log(`🌱 Seeded ${samples.length} sample tags`);
 }
