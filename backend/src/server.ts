@@ -17,8 +17,10 @@ import { initDatabase } from "./db/seed.js";
 import { config } from "./config.js";
 import { handleFileRequest } from "./files.js";
 import { extractBearerToken } from "./utils.js"
+import { startRibbonScheduler } from "./ribbon.js";
 
 initDatabase();
+startRibbonScheduler();
 
 // Yoga is a self-contained GraphQL HTTP handler. It implements the GraphQL
 // over HTTP spec, including CORS handling and the GraphiQL playground UI
