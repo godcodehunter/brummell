@@ -203,96 +203,43 @@ const ProfileCardWithContent = () => {
   />;
 };
 
-const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
-  let byMonths = new Map<string, string[]>();
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
-  const addIfNotExist = (month: string, headline: string) => {
-    if (!byMonths.has(month)) {
-      byMonths.set(month, [])
-    }
-    
-    byMonths.get(month)!.push(headline);
+const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
+  // If items span more than one calendar year, qualify each group with the
+  // year so "January 2025" and "January 2026" don't collapse into one bucket.
+  const showYear = new Set(
+    content.map(i => new Date(i.createdAt * 1000).getFullYear()),
+  ).size > 1;
+
+  const byGroup = new Map<string, { headline: string, path: string }[]>();
+  for (const i of content) {
+    const date = new Date(i.createdAt * 1000);
+    const label = showYear
+      ? `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
+      : MONTHS[date.getMonth()];
+    if (!byGroup.has(label)) byGroup.set(label, []);
+    byGroup.get(label)!.push({ headline: i.headline, path: i.path });
   }
 
-  content.map((i) => {
-    var date = new Date(i.createdAt * 1000);
-    let month = date.getMonth()
-
-    switch (month) {
-      case 0: {
-        addIfNotExist("January", i.headline)
-        break;
-      }
-      case 1: {
-        addIfNotExist("February", i.headline)
-        break;
-      }
-      case 2: {
-        addIfNotExist("March", i.headline)
-        break;
-      }
-      case 3: {
-        addIfNotExist("April", i.headline)
-        break;
-      }
-      case 4: {
-        addIfNotExist("May", i.headline)
-        break;
-      }
-      case 5: {
-        addIfNotExist("June", i.headline)
-        break;
-      }
-      case 6: {
-        addIfNotExist("July", i.headline)
-        break;
-      }
-      case 7: {
-        addIfNotExist("August", i.headline)
-        break;
-      }
-      case 8: {
-        addIfNotExist("September", i.headline)
-        break;
-      }
-      case 9: {
-        addIfNotExist("October", i.headline)
-        break;
-      }
-      case 10: {
-        addIfNotExist("November", i.headline)
-        break;
-      }
-      case 11: {
-        addIfNotExist("December", i.headline)
-        break;
-      }
-    }
-  })
-
-  let data: Category[] = []
-
-  byMonths.forEach((v: string[], k: string) => {
-    let root: Category = {
+  const data: Category[] = [];
+  byGroup.forEach((items, label) => {
+    data.push({
       tag: NodeTag.Category,
-      id: k,
-      label: k,
-      children: [],
-    }
-    root.children = v.map((i: string) => {
-      return {
+      id: label,
+      label,
+      children: items.map(({ headline, path }) => ({
         tag: NodeTag.Item,
-        id: `${k}/${i}`,
-        label: i,
-      }
-    })
-    data.push(root)
-  })
+        id: path,
+        label: headline,
+      })),
+    });
+  });
 
-  return <TreeCard
-    title={"TIMELINE"}
-    data={data}
-  />
+  return <TreeCard title={"TIMELINE"} data={data} />;
 };
 
 export const MainPage = () => {

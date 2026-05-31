@@ -230,6 +230,7 @@ builder.objectType("Podcast", {
   fields: (t) => ({
     tag: t.string({ resolve: () => "podcast" }),
     id: t.exposeID("id"),
+    path: t.exposeString("path"),
     headline: t.exposeString("headline"),
     sound: t.exposeString("sound"),
     createdAt: t.exposeInt("created_at"),
@@ -307,6 +308,7 @@ builder.objectType("Article", {
   fields: (t) => ({
     tag: t.string({ resolve: () => "article" }),
     id: t.exposeID("id"),
+    path: t.exposeString("path"),
     kicker: t.exposeString("kicker"),
     headline: t.exposeString("headline"),
     illustration: t.exposeString("illustration"),
