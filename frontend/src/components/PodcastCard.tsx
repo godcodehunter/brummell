@@ -350,7 +350,7 @@ interface PodcastCardProps {
     badge?: "hot" | "new",
     tags: Tag[],
     title: string,
-    sound: string,
+    path: string,
     description: string,
     guests: Guest[]
     subtitles: Subtitle[],
@@ -360,7 +360,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     badge,
     tags,
     title,
-    sound,
+    path,
     description,
     guests,
     subtitles,
@@ -399,7 +399,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             (window as unknown as { webkitAudioContext: typeof AudioContext })
                 .webkitAudioContext;
         const ctx = new AC();
-        fetch(sound)
+        fetch(path)
             .then((r) => r.arrayBuffer())
             .then((buf) => ctx.decodeAudioData(buf))
             .then((decoded) => {
@@ -551,7 +551,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
                     text={BAGE_VARIANTS[badge].text}
                 />
             )}
-            <audio ref={audioRef} src={sound} />
+            <audio ref={audioRef} src={path} />
             <div className={css(styles.header)}>
                 <div className={css(styles.title)}>{title}</div>
                 <p className={css(styles.preview)}>

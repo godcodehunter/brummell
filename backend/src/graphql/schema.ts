@@ -109,7 +109,7 @@ const CommentTargetTypeEnum = builder.enumType("CommentTargetType", {
 const BlogContentPayload = builder.unionType("BlogContentPayload", {
   types: ["Article", "Shot", "Podcast"],
   resolveType: (payload) => {
-    if ("sound" in payload) return "Podcast";
+    if ("subtitles" in payload) return "Podcast";
     if ("illustration" in payload) return "Article";
     return "Shot";
   },
@@ -233,7 +233,6 @@ builder.objectType("Podcast", {
     id: t.exposeID("id"),
     path: t.exposeString("path"),
     headline: t.exposeString("headline"),
-    sound: t.exposeString("sound"),
     createdAt: t.exposeInt("created_at"),
     ribbon: t.field({
       type: RibbonEnum,

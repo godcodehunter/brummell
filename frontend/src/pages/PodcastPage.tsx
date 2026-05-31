@@ -75,7 +75,7 @@ const GET_PODCAST = gql`
     getPodcast(id: $id) {
       ribbon
       headline
-      sound
+      path
       createdAt
       guests {
         image
@@ -173,7 +173,7 @@ export const PodcastPage = () => {
                     badge={podcast.ribbon}
                     tags={podcast.tags}
                     title={podcast.headline}
-                    sound={podcast.sound}
+                    path={podcast.path}
                     description={podcast.description}
                     guests={podcast.guests}
                     subtitles={podcast.subtitles}

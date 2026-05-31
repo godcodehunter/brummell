@@ -70,7 +70,7 @@ export const Default = {
     args: {
         badge: "new",
         tags,
-        sound: "https://c5290dc3-d620-47d8-b36e-9a1e16c34745.mdnplay.dev/shared-assets/audio/t-rex-roar.mp3",
+        path: "https://c5290dc3-d620-47d8-b36e-9a1e16c34745.mdnplay.dev/shared-assets/audio/t-rex-roar.mp3",
         title: "Title",
         description: "Shot description",
         guests,

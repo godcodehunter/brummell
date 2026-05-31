@@ -71,8 +71,6 @@ export type Subtitles = {
 export const podcasts = sqliteTable("podcasts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
-  // Stored inline as a base64 data URL
-  sound: text("sound").notNull(),
   guests: text("guests", { mode: "json" })
     .$type<PodcastGuest[]>()
     .notNull()

@@ -46,7 +46,6 @@ const GET_BLOG_CONTENT = gql`
         id
         path
         headline
-        sound
         createdAt
       }
     }
@@ -79,7 +78,6 @@ const SEARCH_BLOG_CONTENT = gql`
         id
         path
         headline
-        sound
         createdAt
       }
     }
@@ -116,7 +114,6 @@ interface PodcastItem {
   id: number,
   path: string,
   headline: string,
-  sound: string,
   createdAt: number,
 }
 
