@@ -51,7 +51,7 @@ async function searchGoogle(query: string): Promise<Candidate[] | null> {
     return [];
   }
   const json = (await res.json()) as { items?: { link: string }[] };
-  console.log("Google query run result:", JSON.stringify(json));
+  console.log("🔍 Google query run result:", JSON.stringify(json));
   const items = json.items ?? [];
 
   return items.flatMap<Candidate>((it) => {
@@ -85,7 +85,7 @@ function searchLocal(query: string): Candidate[] {
     .all()
     .map<Candidate>(r => ({ type: "podcast", id: r.id }));
   const result = [...articleHits, ...podcastHits];
-  console.log("Local query run result:", JSON.stringify(result));
+  console.log("🔍 Local query run result:", JSON.stringify(result));
   return result;
 }
 
