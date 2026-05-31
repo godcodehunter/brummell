@@ -29,34 +29,51 @@ export type Candidate = { type: EntityType, id: number };
 const isEntityType = (s: string): s is EntityType =>
   s === "article" || s === "podcast" || s === "shot";
 
-// Pull candidate pairs from Google Custom Search. Returns null if the required
-// env vars are unset — caller falls back to the local search path. Returns []
-// on a successful but empty response.
-async function searchGoogle(query: string): Promise<Candidate[] | null> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const cseId = process.env.GOOGLE_CSE_ID;
+// Pull candidate pairs from a SearXNG instance (self-hosted meta-search).
+// Returns null if `SEARXNG_URL` is unset — caller falls back to the local
+// search path. Returns [] on a successful but empty response.
+//
+// Env:
+//   SEARXNG_URL  — base URL of the SearXNG instance, e.g. http://searxng:8080
+//   SITE_URL     — site we restrict results to via the `site:` operator (the
+//                  bare domain, no protocol). If unset, the operator is
+//                  omitted and the search runs across the whole web.
+async function searchSearXNG(query: string): Promise<Candidate[] | null> {
+  const base = process.env.SEARXNG_URL;
+  if (!base) return null;
   const site = process.env.SITE_URL;
-  if (!apiKey || !cseId || !site) return null;
 
+  const q = site ? `${query} site:${site}` : query;
   const params = new URLSearchParams({
-    key: apiKey,
-    cx: cseId,
-    q: `${query} site:${site}`,
+    q,
+    format: "json",
+    // Keep the response light — only general web results, no images/news/etc.
+    categories: "general",
   });
-  const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
+  const url = `${base.replace(/\/$/, "")}/search?${params.toString()}`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: {
+      // Some SearXNG deployments reject the default node fetch UA.
+      "User-Agent": "brummell-backend/1.0",
+    },
+  });
   if (!res.ok) {
-    console.warn(`[searchGoogle] HTTP ${res.status}`);
+    console.warn(`[searchSearXNG] HTTP ${res.status}`);
     return [];
   }
-  const json = (await res.json()) as { items?: { link: string }[] };
-  console.log("🔍 Google query run result:", JSON.stringify(json));
-  const items = json.items ?? [];
+  const json = (await res.json()) as { results?: { url: string }[] };
+  console.log("🔍 SearXNG query run result:", JSON.stringify(json));
+  const results = json.results ?? [];
 
-  return items.flatMap<Candidate>((it) => {
+  // Dedupe identical URLs — SearXNG aggregates multiple upstream engines and
+  // the same blog page often appears more than once.
+  const seen = new Set<string>();
+  return results.flatMap<Candidate>((it) => {
+    if (seen.has(it.url)) return [];
+    seen.add(it.url);
     try {
-      const u = new URL(it.link);
+      const u = new URL(it.url);
       const path = u.pathname.replace(/^\/+|\/+$/g, "");
       const id = Number(u.searchParams.get("id"));
       if (!Number.isInteger(id) || id <= 0) return [];
@@ -156,8 +173,8 @@ export async function runSearch(
 
   let candidates: Candidate[];
   if (trimmed) {
-    const fromGoogle = await searchGoogle(trimmed);
-    candidates = fromGoogle ?? searchLocal(trimmed);
+    const external = await searchSearXNG(trimmed);
+    candidates = external ?? searchLocal(trimmed);
   } else {
     candidates = allEntityCandidates();
   }
