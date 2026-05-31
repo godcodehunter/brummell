@@ -144,7 +144,10 @@ export const SearchCard = ({ onSearch = undefined, style }: SearchCardProps) => 
                 <span className={css(styles.headline)}>
                     SEARCH
                 </span>
-                <Search onSearch={(e) => console.log(e)} />
+                <Search
+                    onChange={setQuery}
+                    onSearch={(e) => console.log("submit:", e, "live:", query)}
+                />
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>
