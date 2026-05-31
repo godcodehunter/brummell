@@ -307,8 +307,6 @@ export const MainPage = () => {
   const { data, loading, error } = useQuery(GET_BLOG_CONTENT);
 
   React.useEffect(() => {
-    console.log("[MainPage] getBlogContent:", data?.getBlogContent);
-    console.log("[MainPage] length check:", data?.getBlogContent?.length);
     if (data?.getBlogContent?.length > 0) {
       setItems(data.getBlogContent);
     }
