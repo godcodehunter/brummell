@@ -307,6 +307,8 @@ export const MainPage = () => {
   const { data, loading, error } = useQuery(GET_BLOG_CONTENT);
 
   React.useEffect(() => {
+    console.log("[MainPage] getBlogContent:", data?.getBlogContent);
+    console.log("[MainPage] length check:", data?.getBlogContent?.length);
     if (data?.getBlogContent?.length > 0) {
       setItems(data.getBlogContent);
     }
@@ -333,7 +335,8 @@ export const MainPage = () => {
         <ProfileCardWithContent />
       </div>
       <div className={css(app.middlePanel)}>
-        <StackGrid
+        {items.length > 0 && <StackGrid
+          key={items.length}
           columnWidth={300}
           gutterWidth={constants.gap}
           gutterHeight={constants.gap}
@@ -358,7 +361,7 @@ export const MainPage = () => {
                 return null;
             }
           })}
-        </StackGrid>
+        </StackGrid>}
       </div>
       <div className={css(app.rightPanel)}>
         <SearchCard />
