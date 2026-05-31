@@ -27,6 +27,7 @@ const GET_BLOG_CONTENT = gql`
       ... on Article {
         tag
         id
+        path
         headline
         illustration
         preview_txt
@@ -43,6 +44,7 @@ const GET_BLOG_CONTENT = gql`
       ... on Podcast {
         tag
         id
+        path
         headline
         sound
         createdAt
@@ -60,6 +62,7 @@ interface Tag {
 interface ArticleItem {
   tag: "article",
   id: number,
+  path: string,
   headline: string,
   illustration: any,
   tags: Tag[],
@@ -78,6 +81,7 @@ interface ShotItem {
 interface PodcastItem {
   tag: "podcast",
   id: number,
+  path: string,
   headline: string,
   sound: string,
   createdAt: number,
@@ -86,6 +90,7 @@ interface PodcastItem {
 type BlogContentItem = ArticleItem | ShotItem | PodcastItem;
 
 interface ArticleLine {
+  path: string,
   headline: string,
   createdAt: number,
 }
@@ -303,8 +308,11 @@ export const MainPage = () => {
   const navigate = useNavigate();
 
   const timeline: ArticleLine[] = items
-    .filter((i): i is ArticleItem => i.tag === "article")
-    .map(i => ({ headline: i.headline, createdAt: i.createdAt }));
+    .map(i => ({ 
+      path: i.path, 
+      headline: i.tag === "shot" ? `Shot #${i.id}` : i.headline, 
+      createdAt: i.createdAt, 
+    }));
 
   return (
     <div className={css(app.root)}>
