@@ -21,12 +21,12 @@ const styles = StyleSheet.create({
         boxShadow: "8px 8px 0px rgba(0, 0, 0, 0.25)",
     },
     field: {
-        display: "flex",  
-        backgroundColor: "#3F3D3D", 
+        display: "flex",
+        backgroundColor: "#3F3D3D",
     },
     input: {
         flexGrow: 1,
-        backgroundColor: "rgba(0, 0, 0, 0)", 
+        backgroundColor: "rgba(0, 0, 0, 0)",
         border: "none",
         paddingLeft: 5,
         ':hover': {
@@ -51,57 +51,51 @@ const styles = StyleSheet.create({
 });
 
 interface SearchProps {
-    // Calling when search is applied, this happens when 
-    // you press Enter or when you click the loupe icon
-    onSearch: (data: String)=>void,
-    
-    // Called when `isSearchInProgress` is true and a text 
-    // is changed or the cross icon is clicked
-    onSuspend: ()=>void,
-    
-    // Must be set to true when searching and false when done
-    // When true right icon is cross otherwise a loupe
-    isSearchInProgress?: boolean,
+    // Fires on every keystroke so the parent can react live (e.g. drive
+    // a debounced query off the current query string).
+    onChange?: (text: string) => void,
+
+    // Fires when the query is "committed" — Enter or the loupe icon.
+    onSearch: (data: string) => void,
 }
 
-const Search = ({onSearch, isSearchInProgress}: SearchProps) => {
-    const ENTER_KEY_CODE = 13
-
+const Search = ({ onChange, onSearch }: SearchProps) => {
     const [hovered, eventHandlers] = useHover();
-    const [focused, setFocused] = useState<Boolean>(false);
+    const [focused, setFocused] = useState<boolean>(false);
     const [text, setText] = useState("");
-    
-    const handleChange = (event: any) => setText(event.target.value);
-    const handleKeyDown = (event: any) => {
-        if(event.keyCode === ENTER_KEY_CODE) {
-            onSearch(text)
-        } 
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = e.target.value;
+        setText(v);
+        onChange?.(v);
+    };
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") onSearch(text);
     };
 
     return (
-        <div className={css(styles.field)} 
-            style={{ 
+        <div className={css(styles.field)}
+            style={{
                 height: 25,
                 padding: focused ? 0 : 0.4,
                 boxSizing: "border-box",
                 border: focused ? "0.4px solid #ABABAB" : undefined,
-            }} 
-            onFocus={() => setFocused(true)} 
-            onBlur={() => setFocused(false)}
-            onKeyDown={handleKeyDown}
-            onChange={handleChange}
+            }}
         >
-            <input className={css(styles.input)}/>
-            {!isSearchInProgress ?
-                <Loupe 
-                    fill={hovered ?  "#FAFAFA": "#ABABAB"} 
-                    style={{width: 20, padding: 4, cursor: "pointer",}} 
-                    {...eventHandlers}
-                    onClick={() => onSearch(text)}
-                />
-                :
-                <></>
-            }
+            <input
+                className={css(styles.input)}
+                value={text}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+            />
+            <Loupe
+                fill={hovered ? "#FAFAFA" : "#ABABAB"}
+                style={{ width: 20, padding: 4, cursor: "pointer", }}
+                {...eventHandlers}
+                onClick={() => onSearch(text)}
+            />
         </div>
     );
 }
@@ -114,16 +108,17 @@ enum ContentType {
 
 interface SearchCardProps {
     onSearch?: (
-        data: String, 
-        tags: String[], 
+        data: String,
+        tags: String[],
         content_type: ContentType[],
     ) => void,
     style?: React.CSSProperties,
 }
 
-export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
+export const SearchCard = ({ onSearch = undefined, style }: SearchCardProps) => {
     const [topics, setTopics] = useState<Tag[]>([]);
     const [contentType, setContentType] = useState<ContentType[]>([]);
+    const [query, setQuery] = useState("");
 
     const { data: tagData } = useQuery(GET_TAGS);
     const allTags: Tag[] = useMemo(() => {
@@ -142,22 +137,22 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
     );
 
     return (
-        <div className={css(styles.substrate)} style={{...style}}>
-            <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
-            <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
+        <div className={css(styles.substrate)} style={{ ...style }}>
+            <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+            <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
             <div className={css(styles.content)}>
                 <span className={css(styles.headline)}>
                     SEARCH
                 </span>
-                <Search onSuspend={()=>{}} onSearch={(e)=>console.log(e)}/>
+                <Search onSearch={(e) => console.log(e)} />
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>
                 <ChipHolder
                     removable
                     data={topics}
-                    style={{marginBottom: topics.length !== 0 ? 6 : 0}}
-                    onRemove={(i)=>{setTopics(R.remove(i, 1, topics));}}
+                    style={{ marginBottom: topics.length !== 0 ? 6 : 0 }}
+                    onRemove={(i) => { setTopics(R.remove(i, 1, topics)); }}
                 />
                 <Autocomplete<Tag>
                     variants={available}
@@ -169,10 +164,10 @@ export const SearchCard = ({onSearch = undefined, style}: SearchCardProps) => {
                     CONTENT TYPE
                 </span>
                 <SegmentedControls variants={[
-                        {label: "POSTS", isActive: true, value: "posts"},
-                        {label: "SHOTS", isActive: true, value: "shots"},
-                        {label: "PODCAST", isActive: true, value: "podcasts"},
-                    ]}
+                    { label: "POSTS", isActive: true, value: "posts" },
+                    { label: "SHOTS", isActive: true, value: "shots" },
+                    { label: "PODCAST", isActive: true, value: "podcasts" },
+                ]}
                     onUpdate={setContentType}
                 />
             </div>
