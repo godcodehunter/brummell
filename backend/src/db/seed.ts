@@ -25,7 +25,6 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS podcasts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       headline TEXT NOT NULL,
-      sound TEXT NOT NULL,
       guests TEXT NOT NULL DEFAULT '[]',
       topics TEXT NOT NULL DEFAULT '[]',
       subtitles TEXT NOT NULL DEFAULT '[]',
