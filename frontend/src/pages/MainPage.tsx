@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, css } from 'aphrodite';
-import StackGrid from "react-stack-grid";
+import { MasonryGrid } from '../components/MasonryGrid';
 import { IconButton } from '../components/InconButton';
 import { gql, useQuery, useSubscription } from "@apollo/client";
 import { useNavigate } from 'react-router-dom';
@@ -333,11 +333,10 @@ export const MainPage = () => {
         <ProfileCardWithContent />
       </div>
       <div className={css(app.middlePanel)}>
-        {items.length > 0 && <StackGrid
-          key={items.length}
+        <MasonryGrid
           columnWidth={300}
-          gutterWidth={constants.gap}
-          gutterHeight={constants.gap}
+          gutterX={constants.gap}
+          gutterY={constants.gap}
         >
           {items.map((item, idx) => {
             switch (item.tag) {
@@ -359,7 +358,7 @@ export const MainPage = () => {
                 return null;
             }
           })}
-        </StackGrid>}
+        </MasonryGrid>
       </div>
       <div className={css(app.rightPanel)}>
         <SearchCard />
