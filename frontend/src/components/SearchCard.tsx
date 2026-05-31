@@ -83,6 +83,7 @@ const Search = ({ value, onChange, onSubmit, isActive, onReset }: SearchProps) =
                 padding: focused ? 0 : 0.4,
                 boxSizing: "border-box",
                 border: focused ? "0.4px solid #ABABAB" : undefined,
+                alignItems: "center",
             }}
         >
             <input
@@ -95,7 +96,13 @@ const Search = ({ value, onChange, onSubmit, isActive, onReset }: SearchProps) =
             />
             {isActive ? (
                 <CloseInSquare
-                    style={{ width: 20, height: 20, padding: 4, cursor: "pointer", boxSizing: "border-box" }}
+                    style={{
+                        width: 19,
+                        height: 19,
+                        marginRight: 3,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                    }}
                     fill={iconColor}
                     {...eventHandlers}
                     onClick={onIconClick}
