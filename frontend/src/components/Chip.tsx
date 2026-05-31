@@ -59,6 +59,7 @@ export const Chip: React.FC<ChipProps> = ({
 const chipHolder = StyleSheet.create({
   container: {
     display: "flex",
+    flexWrap: "wrap",
     gap: 5,
   }
 });
