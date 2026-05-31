@@ -90,6 +90,8 @@ interface PodcastItem {
 type BlogContentItem = ArticleItem | ShotItem | PodcastItem;
 
 interface ArticleLine {
+  tag: BlogContentItem["tag"],
+  id: number,
   path: string,
   headline: string,
   createdAt: number,
@@ -208,38 +210,60 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// Extra fields carried alongside each timeline node so onNodeClick knows what
+// page to navigate to. Items only — categories leave these undefined.
+type TimelineExt = {
+  navTag?: BlogContentItem["tag"],
+  navId?: number,
+};
+
 const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
+  const navigate = useNavigate();
+
   // If items span more than one calendar year, qualify each group with the
   // year so "January 2025" and "January 2026" don't collapse into one bucket.
   const showYear = new Set(
     content.map(i => new Date(i.createdAt * 1000).getFullYear()),
   ).size > 1;
 
-  const byGroup = new Map<string, { headline: string, path: string }[]>();
+  const byGroup = new Map<string, ArticleLine[]>();
   for (const i of content) {
     const date = new Date(i.createdAt * 1000);
     const label = showYear
       ? `${MONTHS[date.getMonth()]} ${date.getFullYear()}`
       : MONTHS[date.getMonth()];
     if (!byGroup.has(label)) byGroup.set(label, []);
-    byGroup.get(label)!.push({ headline: i.headline, path: i.path });
+    byGroup.get(label)!.push(i);
   }
 
-  const data: Category[] = [];
+  const data: Category<TimelineExt>[] = [];
   byGroup.forEach((items, label) => {
     data.push({
       tag: NodeTag.Category,
       id: label,
       label,
-      children: items.map(({ headline, path }) => ({
+      children: items.map(i => ({
         tag: NodeTag.Item,
-        id: path,
-        label: headline,
+        id: i.path,
+        label: i.headline,
+        navTag: i.tag,
+        navId: i.id,
       })),
     });
   });
 
-  return <TreeCard title={"TIMELINE"} data={data} />;
+  return <TreeCard<TimelineExt>
+    title={"TIMELINE"}
+    data={data}
+    onNodeClick={(node) => {
+      if (node.tag !== NodeTag.Item) return;
+      switch (node.navTag) {
+        case "article": navigate(`/article?id=${node.navId}`); break;
+        case "podcast": navigate(`/podcast?id=${node.navId}`); break;
+        // shots have no dedicated page yet — ignore.
+      }
+    }}
+  />;
 };
 
 export const MainPage = () => {
@@ -255,10 +279,12 @@ export const MainPage = () => {
   const navigate = useNavigate();
 
   const timeline: ArticleLine[] = items
-    .map(i => ({ 
-      path: i.path, 
-      headline: i.tag === "shot" ? `Shot #${i.id}` : i.headline, 
-      createdAt: i.createdAt, 
+    .map(i => ({
+      tag: i.tag,
+      id: i.id,
+      path: i.path,
+      headline: i.tag === "shot" ? `Shot #${i.id}` : i.headline,
+      createdAt: i.createdAt,
     }));
 
   return (
