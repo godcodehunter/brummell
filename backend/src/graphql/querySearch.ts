@@ -147,7 +147,9 @@ function filterByType(candidates: Candidate[], contentTypes: string[]): Candidat
 }
 
 // Fetch the full DB row for each candidate so the union resolver can
-// discriminate Article vs Shot vs Podcast off of the row shape.
+// discriminate Article vs Shot vs Podcast off of the row shape. Drafts
+// never reach the public surface — drop them here so every upstream
+// candidate source (SearXNG / local / "all entities") is filtered uniformly.
 function hydrate(candidates: Candidate[]): (Article | Shot | Podcast)[] {
   const out: (Article | Shot | Podcast)[] = [];
   for (const c of candidates) {
@@ -159,7 +161,9 @@ function hydrate(candidates: Candidate[]): (Article | Shot | Podcast)[] {
     } else {
       row = db.select().from(shots).where(eq(shots.id, c.id)).all()[0];
     }
-    if (row) out.push(row);
+    if (!row) continue;
+    if (row.publish_status !== "published") continue;
+    out.push(row);
   }
   return out.sort((a, b) => b.created_at - a.created_at);
 }

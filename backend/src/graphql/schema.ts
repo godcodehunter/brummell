@@ -483,9 +483,9 @@ builder.queryType({
     getBlogContent: t.field({
       type: [BlogContentPayload],
       resolve: () => {
-        const articleRows = db.select().from(articles).all();
-        const podcastRows = db.select().from(podcasts).all();
-        const shotRows = db.select().from(shots).all();
+        const articleRows = db.select().from(articles).where(eq(articles.publish_status, "published")).all();
+        const podcastRows = db.select().from(podcasts).where(eq(podcasts.publish_status, "published")).all();
+        const shotRows = db.select().from(shots).where(eq(shots.publish_status, "published")).all();
         return [...articleRows, ...podcastRows, ...shotRows]
           .sort((a, b) => b.created_at - a.created_at);
       },
@@ -510,8 +510,14 @@ builder.queryType({
       args: {
         id: t.arg.int({ required: true }),
       },
-      resolve: (_, { id }) =>
-        db.select().from(articles).where(eq(articles.id, id)).all()[0] ?? null,
+      // Public read path — drafts must not leak. The admin editor doesn't
+      // route through here (it uses getPayload), so a hard error is fine.
+      resolve: (_, { id }) => {
+        const row = db.select().from(articles).where(eq(articles.id, id)).all()[0];
+        if (!row) return null;
+        if (row.publish_status !== "published") throw new Error("NOT_AVAILABLE");
+        return row;
+      },
     }),
     getPayload: t.field({
       type: "String",
