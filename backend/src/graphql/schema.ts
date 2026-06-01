@@ -539,21 +539,6 @@ builder.queryType({
         }
       },
     }),
-    compileMDX: t.field({
-      type: "MDXBuild",
-      args: {
-        source: t.arg.string({ required: true }),
-      },
-      resolve: async (_, { source }, ctx) => {
-        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
-        try {
-          const { code } = await bundleMDX({ source });
-          return { code, error: null };
-        } catch (err) {
-          return { code: null, error: (err as Error).message };
-        }
-      },
-    }),
     getPodcast: t.field({
       type: "Podcast",
       nullable: true,
@@ -704,6 +689,40 @@ builder.mutationType({
           throw err;
         }
         return true;
+      },
+    }),
+    // Combined save + bundle for the live MDX editor: persists `source` to
+    // disk at `path` and returns the compiled bundle (or compile error) in
+    // one round-trip. Save and compile errors are surfaced differently — a
+    // write failure aborts the whole call, a compile failure returns a
+    // build with `code: null, error: <msg>` so the editor can keep showing
+    // the saved-but-broken source.
+    previewAndSaveMDX: t.field({
+      type: "MDXBuild",
+      args: {
+        path: t.arg.string({ required: true }),
+        source: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { path: relPath, source }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+        try {
+          await fs.writeFile(abs, source);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+            throw new Error("NOT_FOUND");
+          }
+          throw err;
+        }
+
+        try {
+          const { code } = await bundleMDX({ source });
+          return { code, error: null };
+        } catch (err) {
+          return { code: null, error: (err as Error).message };
+        }
       },
     }),
     createFolder: t.field({

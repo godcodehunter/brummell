@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, togglePublishStatus, type MDXBuild } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, togglePublishStatus, type MDXBuild } from "./queryEditor";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -472,8 +472,9 @@ export const ArticleCreator = () => {
         },
     });
 
-    // Live MDX preview: when editing main.mdx, debounce-compile the current
-    // buffer on the backend and keep `mdxBuild` in sync.
+    // Live MDX preview: when editing main.mdx, debounce-persist the current
+    // buffer to disk and keep `mdxBuild` in sync with the compiled bundle.
+    // Save and compile happen in one server round-trip via previewAndSaveMDX.
     useEffect(() => {
         if (!mdxMode) {
             setMdxBuild({ code: null, error: null });
@@ -481,9 +482,11 @@ export const ArticleCreator = () => {
         }
         let cancelled = false;
         const handle = setTimeout(async () => {
+            const mode = editingModeRef.current;
+            if (!mode || typeof mode !== "object" || !("path" in mode)) return;
             try {
-                const { data } = await compileMDX(editorValue);
-                if (!cancelled) setMdxBuild(data.compileMDX);
+                const { data } = await previewAndSaveMDX(mode.path, editorValue);
+                if (!cancelled && data) setMdxBuild(data.previewAndSaveMDX);
             } catch (e) {
                 if (!cancelled) setMdxBuild({ code: null, error: (e as Error).message });
             }

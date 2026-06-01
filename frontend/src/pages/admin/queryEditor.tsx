@@ -240,9 +240,9 @@ export function savePayload(path: string, content: string) {
     });
 }
 
-const COMPILE_MDX = gql`
-    query CompileMDX($source: String!) {
-        compileMDX(source: $source) {
+const PREVIEW_AND_SAVE_MDX = gql`
+    mutation PreviewAndSaveMDX($path: String!, $source: String!) {
+        previewAndSaveMDX(path: $path, source: $source) {
             code
             error
         }
@@ -254,11 +254,10 @@ export interface MDXBuild {
     error: string | null;
 }
 
-export function compileMDX(source: string) {
-    return client.query<{ compileMDX: MDXBuild }, { source: string }>({
-        query: COMPILE_MDX,
-        variables: { source },
-        fetchPolicy: "no-cache",
+export function previewAndSaveMDX(path: string, source: string) {
+    return client.mutate<{ previewAndSaveMDX: MDXBuild }, { path: string; source: string }>({
+        mutation: PREVIEW_AND_SAVE_MDX,
+        variables: { path, source },
     });
 }
 
