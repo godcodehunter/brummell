@@ -887,12 +887,13 @@ builder.mutationType({
         return updated;
       },
     }),
-    // Shots are leaves — no folder, just a DB row. The actual media file is
-    // uploaded separately into the parent directory via PUT /files.
+    // Shots are tweet-style text rows. `text` arrives empty from the
+    // "New Shot" inline-input flow (we use the name as a slug elsewhere,
+    // here we just stash it in the body — user keeps editing in the form).
     addNewShot: t.field({
       type: "Shot",
       args: {
-        path: t.arg.string({ required: true }),
+        text: t.arg.string({ required: true }),
         publish_status: t.arg({ type: PublishStatusEnum, required: true }),
       },
       resolve: (_, args, ctx) => {
@@ -901,7 +902,7 @@ builder.mutationType({
           .insert(shots)
           .values({
             created_at: Math.floor(Date.now() / 1000),
-            path: args.path,
+            text: args.text,
             publish_status: args.publish_status,
           })
           .returning()
