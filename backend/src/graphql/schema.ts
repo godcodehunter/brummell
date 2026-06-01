@@ -276,6 +276,7 @@ builder.objectType("Podcast", {
     id: t.exposeID("id"),
     path: t.exposeString("path"),
     headline: t.exposeString("headline"),
+    preview_txt: t.exposeString("preview_txt"),
     createdAt: t.exposeInt("created_at"),
     ribbon: t.field({
       type: RibbonEnum,
@@ -852,6 +853,7 @@ builder.mutationType({
       args: {
         id: t.arg.int({ required: true }),
         headline: t.arg.string({ required: true }),
+        preview_txt: t.arg.string({ required: true }),
         path: t.arg.string({ required: true }),
         guestsJson: t.arg.string({ required: true }),
         subtitlesJson: t.arg.string({ required: true }),
@@ -874,6 +876,7 @@ builder.mutationType({
         const updated = db.update(podcasts)
           .set({
             headline: args.headline,
+            preview_txt: args.preview_txt,
             path: args.path === "" ? null : args.path,
             guests,
             subtitles: subs,

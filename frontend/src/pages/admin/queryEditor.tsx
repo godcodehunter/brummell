@@ -578,6 +578,7 @@ export interface PodcastSubtitle {
 export interface PodcastMeta {
     id: number;
     headline: string;
+    preview_txt: string;
     path: string | null;
     guests: PodcastGuest[];
     subtitles: PodcastSubtitle[];
@@ -589,6 +590,7 @@ const GET_PODCAST_BY_ID = gql`
         getPodcastById(id: $id) {
             id
             headline
+            preview_txt
             path
             guests { image name whoIs }
             subtitles {
@@ -615,6 +617,7 @@ const UPDATE_PODCAST_META = gql`
     mutation UpdatePodcastMeta(
         $id: Int!,
         $headline: String!,
+        $preview_txt: String!,
         $path: String!,
         $guestsJson: String!,
         $subtitlesJson: String!,
@@ -623,6 +626,7 @@ const UPDATE_PODCAST_META = gql`
         updatePodcastMeta(
             id: $id,
             headline: $headline,
+            preview_txt: $preview_txt,
             path: $path,
             guestsJson: $guestsJson,
             subtitlesJson: $subtitlesJson,
@@ -639,6 +643,7 @@ export function updatePodcastMeta(meta: PodcastMeta) {
         {
             id: number,
             headline: string,
+            preview_txt: string,
             path: string,
             guestsJson: string,
             subtitlesJson: string,
@@ -651,6 +656,7 @@ export function updatePodcastMeta(meta: PodcastMeta) {
             // mutation declares `$id: Int!`, so coerce before sending.
             id: Number(meta.id),
             headline: meta.headline,
+            preview_txt: meta.preview_txt,
             path: meta.path ?? "",
             guestsJson: JSON.stringify(meta.guests),
             subtitlesJson: JSON.stringify(meta.subtitles),

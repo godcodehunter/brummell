@@ -77,6 +77,7 @@ export type Subtitles = {
 export const podcasts = sqliteTable("podcasts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   headline: text("headline").notNull(),
+  preview_txt: text("preview_txt").notNull().default(""),
   guests: text("guests", { mode: "json" })
     .$type<PodcastGuest[]>()
     .notNull()

@@ -1604,6 +1604,15 @@ export const ArticleCreator = () => {
                                 />
                             </div>
                             <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Description</label>
+                                <textarea
+                                    className={css(profileFormStyles.textarea)}
+                                    placeholder="short preview text shown above the player"
+                                    value={podcastForm.preview_txt}
+                                    onChange={e => editPodcast(m => ({ ...m, preview_txt: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
                                 <label className={css(profileFormStyles.label)}>Sound</label>
                                 <input
                                     className={css(profileFormStyles.input)}

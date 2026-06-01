@@ -76,6 +76,7 @@ const GET_PODCAST = gql`
     getPodcast(id: $id) {
       ribbon
       headline
+      preview_txt
       path
       createdAt
       guests {
@@ -175,7 +176,7 @@ export const PodcastPage = () => {
                     tags={podcast.tags.map((t: { color: string }) => ({ ...t, color: chroma(t.color || "#888888") }))}
                     title={podcast.headline}
                     path={podcast.path}
-                    description={podcast.description}
+                    description={podcast.preview_txt}
                     guests={podcast.guests}
                     subtitles={podcast.subtitles}
                 />
