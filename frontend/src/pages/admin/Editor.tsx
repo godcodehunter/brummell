@@ -2,6 +2,7 @@ import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node, type TreeCardController } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
+import { ErrorMsg } from '../../components/ErrorMsg';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
@@ -254,6 +255,74 @@ const editorView = StyleSheet.create({
     },
 });
 
+const noticesStyle = StyleSheet.create({
+    container: {
+        position: "fixed",
+        right: 16,
+        bottom: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        zIndex: 1000,
+        maxWidth: 380,
+        pointerEvents: "none",
+    },
+    notice: {
+        pointerEvents: "auto",
+    },
+    progressBox: {
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "rgba(30,30,31,0.95)",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        fontFamily: "Roboto",
+        fontSize: 12,
+    },
+    progressHeader: {
+        padding: 4,
+        textTransform: "uppercase",
+        fontWeight: "bold",
+        borderBottom: "1px solid #3A3A3A",
+    },
+    progressBody: {
+        padding: 4,
+    },
+    progressBar: {
+        height: 4,
+        backgroundColor: "#3A3A3A",
+        marginTop: 4,
+        overflow: "hidden",
+    },
+    progressFill: {
+        height: "100%",
+        backgroundColor: "#6CA9E8",
+        transition: "width 80ms linear",
+    },
+});
+
+type Notice =
+    | { id: string, kind: "error", title: string, text: string }
+    | { id: string, kind: "progress", title: string, text: string, progress: number };
+
+const ProgressNotice: React.FC<{ title: string, text: string, progress: number }> = ({ title, text, progress }) => (
+    <div className={css(noticesStyle.progressBox)}>
+        <div className={css(noticesStyle.progressHeader)}>{title}</div>
+        <div className={css(noticesStyle.progressBody)}>
+            {text}
+            <div className={css(noticesStyle.progressBar)}>
+                <div className={css(noticesStyle.progressFill)} style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+            </div>
+        </div>
+    </div>
+);
+
+function parentDirOf(id: string): string {
+    const parts = id.split("/");
+    parts.pop();
+    return parts.join("/");
+}
+
 type EditingMode = "profile" | "tags" | { path: string } | null;
 
 export const ArticleCreator = () => {
@@ -279,6 +348,74 @@ export const ArticleCreator = () => {
     const renameSubmittingRef = useRef(false);
     const renameInputRef = useRef<HTMLInputElement | null>(null);
     const treeCtrl = useRef<TreeCardController | null>(null);
+
+    const [notices, setNotices] = useState<Notice[]>([]);
+    const pushError = (title: string, text: string) => {
+        const id = `err-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        setNotices(p => [...p, { id, kind: "error", title, text }]);
+        // Auto-dismiss; errors are surface-level signals, not log entries.
+        setTimeout(() => setNotices(p => p.filter(n => n.id !== id)), 8000);
+    };
+    const upsertProgress = (id: string, title: string, text: string, progress: number) => {
+        setNotices(p => {
+            const idx = p.findIndex(n => n.id === id);
+            const next: Notice = { id, kind: "progress", title, text, progress };
+            if (idx === -1) return [...p, next];
+            const out = p.slice();
+            out[idx] = next;
+            return out;
+        });
+    };
+    const removeNotice = (id: string) => setNotices(p => p.filter(n => n.id !== id));
+
+    // Streaming PUT via XMLHttpRequest — fetch() has no upload-progress events,
+    // and we want a live percentage in the toast. `targetDir` is the parent
+    // directory under FILES_DIR ("" = root); the file's own name is appended.
+    const uploadFile = (targetDir: string, file: File) => {
+        const id = `up-${file.name}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const filePath = targetDir ? `${targetDir}/${file.name}` : file.name;
+        const token = localStorage.getItem("authToken");
+        upsertProgress(id, "Uploading", `${filePath} (0%)`, 0);
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", `/files/${filePath}`);
+        if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.upload.onprogress = e => {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            upsertProgress(id, "Uploading", `${filePath} (${pct}%)`, pct);
+        };
+        xhr.onload = () => {
+            removeNotice(id);
+            if (xhr.status < 200 || xhr.status >= 300) {
+                pushError(`Upload failed (${xhr.status})`, `${filePath}: ${xhr.responseText || xhr.statusText}`);
+                return;
+            }
+            void refetch();
+        };
+        xhr.onerror = () => {
+            removeNotice(id);
+            pushError("Upload failed", `${filePath}: network error`);
+        };
+        xhr.send(file);
+    };
+
+    useEffect(() => {
+        if (error) pushError("Load tree", error.message);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [error]);
+
+    const onTreeDropFiles = (node: Node<ContentItem>, files: FileList) => {
+        // Sidebar pseudo-items aren't filesystem paths — silently ignore drops.
+        if (node.id === "/profile" || node.id === "/tags") return;
+        // Static "Content" root: upload to FILES_DIR top level.
+        // Categories (incl. article/podcast folders): drop INTO the folder.
+        // Items (shots, media, etc.): drop into the item's parent dir.
+        let targetDir: string;
+        if (node.id === "/") targetDir = "";
+        else if (node.tag === NodeTag.Category) targetDir = node.id;
+        else targetDir = parentDirOf(node.id);
+        Array.from(files).forEach(f => uploadFile(targetDir, f));
+    };
 
     // The input element exists in the DOM before rename starts (rendered as
     // readonly), so `autoFocus` won't fire on the transition — focus + select
@@ -312,8 +449,12 @@ export const ArticleCreator = () => {
         setPendingNew(null);
         setPendingValue("");
         if (!name) return;
-        await createFolder(parentId, name);
-        await refetch();
+        try {
+            await createFolder(parentId, name);
+            await refetch();
+        } catch (e) {
+            pushError("Create folder", (e as Error).message);
+        }
     };
 
     useEffect(() => {
@@ -346,7 +487,13 @@ export const ArticleCreator = () => {
             id.startsWith(oldPath + "/") ? newPath + id.slice(oldPath.length) :
             id
         );
-        await renameObject(oldPath, newPath);
+        try {
+            await renameObject(oldPath, newPath);
+        } catch (e) {
+            pushError("Rename", (e as Error).message);
+            await refetch();
+            return;
+        }
         // If the editor is currently editing a path under the renamed object,
         // rebase that path so subsequent saves hit the new location.
         const mode = editingModeRef.current;
@@ -443,7 +590,7 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
-            setEditorValue(`// error: ${err.message}`);
+            pushError("Load profile", err.message);
         },
     });
 
@@ -457,7 +604,7 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
-            setEditorValue(`// error: ${err.message}`);
+            pushError("Load tags", err.message);
         },
     });
 
@@ -468,7 +615,7 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
-            setEditorValue(`// error: ${err.message}`);
+            pushError("Load file", err.message);
         },
     });
 
@@ -503,7 +650,7 @@ export const ArticleCreator = () => {
         try {
             await savePayload(filePath, editorValue);
         } catch (e) {
-            setEditorValue(editorValue + `\n// save error: ${(e as Error).message}`);
+            pushError("Save", (e as Error).message);
         }
     };
     const savePayloadRef = useRef(savePayloadHandler);
@@ -521,7 +668,7 @@ export const ArticleCreator = () => {
         try {
             parsed = JSON.parse(jsonText);
         } catch (e) {
-            setEditorValue(editorValue + `\n// parse error: ${(e as Error).message}`);
+            pushError("Profile parse", (e as Error).message);
             return;
         }
         try {
@@ -536,7 +683,7 @@ export const ArticleCreator = () => {
                 },
             });
         } catch (e) {
-            setEditorValue(editorValue + `\n// save error: ${(e as Error).message}`);
+            pushError("Profile save", (e as Error).message);
         }
     };
 
@@ -628,8 +775,12 @@ export const ArticleCreator = () => {
                 {
                     label: "Toggle Publish Status",
                     onClick: async () => {
-                        await togglePublishStatus(node.id);
-                        await refetch();
+                        try {
+                            await togglePublishStatus(node.id);
+                            await refetch();
+                        } catch (e) {
+                            pushError("Toggle publish", (e as Error).message);
+                        }
                     },
                 },
                 renameEntry,
@@ -668,6 +819,7 @@ export const ArticleCreator = () => {
                     data={dataWithPending}
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
+                    onNodeDropFiles={onTreeDropFiles}
                     viewItem={viewItem}
                     expandIds={[
                         ...(pendingNew ? [pendingNew.parentId] : []),
@@ -739,5 +891,14 @@ export const ArticleCreator = () => {
                 onClose={() => setMenu(null)}
             />
         )}
+        <div className={css(noticesStyle.container)}>
+            {notices.map(n => (
+                <div key={n.id} className={css(noticesStyle.notice)}>
+                    {n.kind === "error"
+                        ? <ErrorMsg title={n.title} text={n.text} />
+                        : <ProgressNotice title={n.title} text={n.text} progress={n.progress} />}
+                </div>
+            ))}
+        </div>
     </div>
 };

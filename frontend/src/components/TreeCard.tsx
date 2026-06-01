@@ -25,7 +25,18 @@ const baseRow = StyleSheet.create({
     active: {
         backgroundColor: "#2A2A2A",
     },
+    dropTarget: {
+        outline: "1px dashed #6CA9E8",
+        outlineOffset: -1,
+        backgroundColor: "rgba(108, 169, 232, 0.12)",
+    },
 });
+
+type RowDragHandlers = {
+    onDragOver: (e: React.DragEvent) => void,
+    onDragLeave: (e: React.DragEvent) => void,
+    onDrop: (e: React.DragEvent) => void,
+};
 
 const categoryRow = StyleSheet.create({
     row: {
@@ -96,6 +107,8 @@ interface CategoryRowProps {
     active: boolean,
     stuck: boolean,
     depth: number,
+    dragOver?: boolean,
+    dragHandlers?: RowDragHandlers,
 }
 
 const GroupRow: React.FC<CategoryRowProps> = ({
@@ -109,6 +122,8 @@ const GroupRow: React.FC<CategoryRowProps> = ({
     active,
     stuck,
     depth,
+    dragOver,
+    dragHandlers,
 }) => {
     const Icon = isOpen ? MinusInSquare : PlusInSquare;
     // Sticky for any open category with rendered children — wrapper-scoped
@@ -119,10 +134,11 @@ const GroupRow: React.FC<CategoryRowProps> = ({
         <div
             data-tree-node-id={nodeId}
             data-tree-category={isSticky ? "" : undefined}
-            className={css(categoryRow.row, isSticky && categoryRow.sticky, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active)}
+            className={css(categoryRow.row, isSticky && categoryRow.sticky, stuck && categoryRow.stuck, onClick && baseRow.interactive, active && baseRow.active, dragOver && baseRow.dropTarget)}
             style={isSticky ? {...rowPadding(depth), top: depth * ROW_HEIGHT, zIndex: 100 - depth} : rowPadding(depth)}
             onClick={onClick}
             onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
+            {...(dragHandlers ?? {})}
         >
             <Icon
                 className={css(categoryRow.toggleIcon)}
@@ -148,15 +164,18 @@ interface ContentRowProps {
     onRightClick?: (e: React.MouseEvent) => void,
     active?: boolean,
     depth?: number,
+    dragOver?: boolean,
+    dragHandlers?: RowDragHandlers,
 }
 
-const ContentRow: React.FC<ContentRowProps> = ({nodeId, view, style, onClick, onRightClick, active, depth = 0}) => (
+const ContentRow: React.FC<ContentRowProps> = ({nodeId, view, style, onClick, onRightClick, active, depth = 0, dragOver, dragHandlers}) => (
     <div
         data-tree-node-id={nodeId}
-        className={css(onClick && baseRow.interactive, active && baseRow.active)}
+        className={css(onClick && baseRow.interactive, active && baseRow.active, dragOver && baseRow.dropTarget)}
         style={{...rowPadding(depth), display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden", ...style}}
         onClick={onClick}
         onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
+        {...(dragHandlers ?? {})}
     >
         {view}
     </div>
@@ -172,6 +191,7 @@ interface TreeProps {
     viewItem?: (node: Node) => React.ReactNode,
     onNodeClick?: (node: Node) => void,
     onNodeRightClick?: (node: Node, e: React.MouseEvent) => void,
+    onNodeDropFiles?: (node: Node, files: FileList) => void,
 }
 
 // Render GroupRow/ContentRow directly here rather than going through a
@@ -179,7 +199,7 @@ interface TreeProps {
 // unmount/remount the whole node subtree whenever Component identity changed,
 // which destroyed DOM state (including focus) for any inputs the caller
 // rendered via `viewItem`.
-const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick}: TreeProps) => {
+const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick, onNodeDropFiles}: TreeProps) => {
     const isOpen = openIds.has(node.id);
     const view = viewItem
         ? viewItem(node)
@@ -187,6 +207,32 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
     const active = highlightedIds.has(node.id);
     const onClick = onNodeClick ? () => onNodeClick(node) : undefined;
     const onRightClick = onNodeRightClick ? (e: React.MouseEvent) => onNodeRightClick(node, e) : undefined;
+
+    const [dragOver, setDragOver] = useState(false);
+    // Native HTML5 file DnD: only react to drags that actually carry files
+    // (mime "Files" — internal drags within the page show different types).
+    // dragleave fires for descendant transitions too, so guard with
+    // currentTarget.contains(relatedTarget) before clearing the highlight.
+    const dragHandlers: RowDragHandlers | undefined = onNodeDropFiles ? {
+        onDragOver: e => {
+            if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+            e.preventDefault();
+            if (!dragOver) setDragOver(true);
+        },
+        onDragLeave: e => {
+            const next = e.relatedTarget as globalThis.Node | null;
+            if (next && (e.currentTarget as HTMLElement).contains(next)) return;
+            setDragOver(false);
+        },
+        onDrop: e => {
+            if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+            e.preventDefault();
+            setDragOver(false);
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) onNodeDropFiles(node, files);
+        },
+    } : undefined;
+
     const renderedNode = node.tag === NodeTag.Category ? (
         <GroupRow
             nodeId={node.id}
@@ -199,6 +245,8 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
             depth={depth}
             active={active}
             stuck={stuckIds.has(node.id)}
+            dragOver={dragOver}
+            dragHandlers={dragHandlers}
         />
     ) : (
         <ContentRow
@@ -208,6 +256,8 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
             onRightClick={onRightClick}
             depth={depth}
             active={active}
+            dragOver={dragOver}
+            dragHandlers={dragHandlers}
         />
     );
     if (node.tag !== NodeTag.Category) return renderedNode;
@@ -229,6 +279,7 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
                     viewItem={viewItem}
                     onNodeClick={onNodeClick}
                     onNodeRightClick={onNodeRightClick}
+                    onNodeDropFiles={onNodeDropFiles}
                 />
             )}
         </div>
@@ -318,9 +369,13 @@ interface TreeCardProps<E = {}> {
     // `TreeCardController`). Optional; pass when you need to remap openIds
     // from outside (e.g. after a rename invalidates the existing ids).
     controllerRef?: React.MutableRefObject<TreeCardController | null>,
+    // Fires when the user drops native files onto a row (HTML5 file DnD).
+    // Each row in the tree becomes a drop target when this is set; the
+    // caller decides where the files actually land based on `node`.
+    onNodeDropFiles?: (node: Node<E>, files: FileList) => void,
 }
 
-export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef}: TreeCardProps<E>) {
+export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef, onNodeDropFiles}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
 
     useEffect(() => {
@@ -483,6 +538,7 @@ export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRi
                             viewItem={viewItem as ((node: Node) => React.ReactNode) | undefined}
                             onNodeClick={onNodeClick as ((node: Node) => void) | undefined}
                             onNodeRightClick={onNodeRightClick as ((node: Node, e: React.MouseEvent) => void) | undefined}
+                            onNodeDropFiles={onNodeDropFiles as ((node: Node, files: FileList) => void) | undefined}
                         />)
                     ) : (
                         <ContentRow
