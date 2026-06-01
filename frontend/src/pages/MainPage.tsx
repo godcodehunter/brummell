@@ -34,6 +34,7 @@ const GET_BLOG_CONTENT = gql`
         preview_txt
         reading_time_min
         createdAt
+        ribbon
         tags { tooltip label color }
       }
       ... on Shot {
@@ -48,6 +49,7 @@ const GET_BLOG_CONTENT = gql`
         path
         headline
         createdAt
+        ribbon
       }
     }
   }
@@ -66,6 +68,7 @@ const SEARCH_BLOG_CONTENT = gql`
         preview_txt
         reading_time_min
         createdAt
+        ribbon
         tags { tooltip label color }
       }
       ... on Shot {
@@ -80,6 +83,7 @@ const SEARCH_BLOG_CONTENT = gql`
         path
         headline
         createdAt
+        ribbon
       }
     }
   }
@@ -101,6 +105,7 @@ interface ArticleItem {
   preview_txt: string,
   reading_time_min: number,
   createdAt: number,
+  ribbon: "hot" | "new" | null,
 }
 
 interface ShotItem {
@@ -116,6 +121,7 @@ interface PodcastItem {
   path: string,
   headline: string,
   createdAt: number,
+  ribbon: "hot" | "new" | null,
 }
 
 type BlogContentItem = ArticleItem | ShotItem | PodcastItem;
@@ -367,6 +373,7 @@ export const MainPage = () => {
                     reading_time={Duration.fromObject({ minutes: item.reading_time_min })}
                     created_at={DateTime.fromSeconds(item.createdAt)}
                     onOpen={() => navigate(`/article?id=${item.id}`)}
+                    ribbon={item.ribbon}
                   />
                 );
               case "podcast":
@@ -376,6 +383,7 @@ export const MainPage = () => {
                     headline={item.headline}
                     created_at={DateTime.fromSeconds(item.createdAt)}
                     onOpen={() => navigate(`/podcast?id=${item.id}`)}
+                    ribbon={item.ribbon}
                   />
                 );
               case "shot":

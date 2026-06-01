@@ -4,6 +4,7 @@ import { globalStyles } from "../globalStyles";
 import chroma from 'chroma-js';
 import Badge, { BAGE_VARIANTS } from "./Badge";
 import { ChipHolder, Tag } from "./Chip";
+import { AudioTrack } from "./AudioTrack";
 
 const SCROLL_AREA_BG = "#1E1E1F";
 const BASE_PADDING_X = 12;
@@ -87,225 +88,9 @@ const styles = StyleSheet.create({
     },
 });
 
-type DrawFn = (
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-) => void;
-
-interface CanvasProps {
-    draw: DrawFn;
-    onSeek?: (fraction: number) => void;
-    className?: string;
-}
-
-const Canvas: React.FC<CanvasProps> = ({ draw, onSeek, className }) => {
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const drawRef = useRef(draw);
-    drawRef.current = draw;
-    const onSeekRef = useRef(onSeek);
-    onSeekRef.current = onSeek;
-    const renderRef = useRef<() => void>(() => { });
-    const draggingRef = useRef(false);
-
-    const fractionFromEvent = (
-        e: React.PointerEvent<HTMLCanvasElement>,
-    ): number => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        return Math.max(0, Math.min(1, x / rect.width));
-    };
-
-    const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!onSeekRef.current) return;
-        draggingRef.current = true;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onSeekRef.current(fractionFromEvent(e));
-    };
-    const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!draggingRef.current || !onSeekRef.current) return;
-        onSeekRef.current(fractionFromEvent(e));
-    };
-    const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-        if (!draggingRef.current) return;
-        draggingRef.current = false;
-        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-    };
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const render = () => {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            const cssWidth = Math.max(1, Math.floor(rect.width));
-            const cssHeight = Math.max(1, Math.floor(rect.height));
-            const pixelWidth = Math.floor(cssWidth * dpr);
-            const pixelHeight = Math.floor(cssHeight * dpr);
-
-            if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-                canvas.width = pixelWidth;
-                canvas.height = pixelHeight;
-            }
-
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            ctx.clearRect(0, 0, cssWidth, cssHeight);
-            drawRef.current(ctx, cssWidth, cssHeight);
-        };
-        renderRef.current = render;
-
-        render();
-
-        const resizeObserver = new ResizeObserver(render);
-        resizeObserver.observe(canvas);
-
-        const mql = window.matchMedia(
-            `(resolution: ${window.devicePixelRatio}dppx)`,
-        );
-        mql.addEventListener("change", render);
-
-        return () => {
-            resizeObserver.disconnect();
-            mql.removeEventListener("change", render);
-        };
-    }, []);
-
-    useEffect(() => {
-        renderRef.current();
-    }, [draw]);
-
-    return (
-        <canvas
-            ref={canvasRef}
-            className={className}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-        />
-    );
-};
-
-interface BarProps {
-    // Current value, 0..1.
-    value: number;
-    onChange: (value: number) => void;
-    // Fixed minimum length of the bar, in px. It never shrinks below this.
-    minWidth?: number;
-}
-
-// Horizontal draggable level bar (used here as the volume control). Same
-// pointer-capture drag model as the waveform Canvas.
-const Bar: React.FC<BarProps> = ({ value, onChange, minWidth = 120 }) => {
-    const draggingRef = useRef(false);
-
-    const fractionFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    };
-
-    const handleDown = (e: React.PointerEvent<HTMLDivElement>) => {
-        draggingRef.current = true;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onChange(fractionFromEvent(e));
-    };
-    const handleMove = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (!draggingRef.current) return;
-        onChange(fractionFromEvent(e));
-    };
-    const handleUp = (e: React.PointerEvent<HTMLDivElement>) => {
-        if (!draggingRef.current) return;
-        draggingRef.current = false;
-        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-            e.currentTarget.releasePointerCapture(e.pointerId);
-        }
-    };
-
-    const filled = `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
-
-    return (
-        <div
-            onPointerDown={handleDown}
-            onPointerMove={handleMove}
-            onPointerUp={handleUp}
-            onPointerCancel={handleUp}
-            style={{
-                flex: `0 0 ${minWidth}px`,
-                minWidth,
-                height: 6,
-                alignSelf: "center",
-                position: "relative",
-                backgroundColor: SCROLL_AREA_BG,
-                cursor: "pointer",
-                touchAction: "none",
-            }}
-        >
-            <div
-                style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: filled,
-                    backgroundColor: "#D4D4D4",
-                }}
-            />
-        </div>
-    );
-};
-
-const PEAKS_BUCKETS = 2000;
-
-const computePeaks = (buffer: AudioBuffer, buckets: number): Float32Array => {
-    const channel = buffer.getChannelData(0);
-    const samplesPerBucket = Math.max(1, Math.floor(channel.length / buckets));
-    const peaks = new Float32Array(buckets);
-    for (let i = 0; i < buckets; i++) {
-        const start = i * samplesPerBucket;
-        const end = Math.min(start + samplesPerBucket, channel.length);
-        let max = 0;
-        for (let j = start; j < end; j++) {
-            const v = Math.abs(channel[j]);
-            if (v > max) max = v;
-        }
-        peaks[i] = max;
-    }
-    return peaks;
-};
-
-type SpeakerRange = { start: number; end: number; speakerIdx: number };
-
-const mergeSubtitleRanges = (
-    subs: Subtitle[],
-): SpeakerRange[] => {
-    const all: SpeakerRange[] = [];
-    for (const sub of subs) {
-        for (const w of sub.words) {
-            all.push({
-                start: w.range.start,
-                end: w.range.end,
-                speakerIdx: sub.speakerIdx,
-            });
-        }
-    }
-    all.sort((a, b) => a.start - b.start);
-
-    const merged: SpeakerRange[] = [];
-    for (const r of all) {
-        const last = merged[merged.length - 1];
-        if (last && last.speakerIdx === r.speakerIdx && r.start <= last.end) {
-            last.end = Math.max(last.end, r.end);
-        } else {
-            merged.push({ ...r });
-        }
-    }
-    return merged;
-};
+// Waveform Canvas, volume Bar, peaks computation and speaker-range merging
+// used to live here; they've moved into AudioTrack so the admin meta form
+// can reuse the same widget. See components/AudioTrack.tsx.
 
 const GuestInsert = ({ identColor, avatar, nickname, whoIs }: { avatar: string, nickname: string, identColor: string, whoIs: string }) => {
     const base = "#585858";
@@ -377,134 +162,19 @@ export const PodcastHead: React.FC<PodcastHeadProps> = ({
         [guests],
     );
 
-    const audioRef = useRef<HTMLAudioElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
-    const [peaks, setPeaks] = useState<Float32Array | null>(null);
-    const [progress, setProgress] = useState(0);
-    const [duration, setDuration] = useState(0);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [volume, setVolume] = useState(1);
-    const mergedRanges = useMemo(() => mergeSubtitleRanges(subtitles), []);
-
-    // Keep the <audio> element's volume in sync with the Bar control.
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (audio) audio.volume = volume;
-    }, [volume]);
-
-    useEffect(() => {
-        let cancelled = false;
-        const AC: typeof AudioContext =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext: typeof AudioContext })
-                .webkitAudioContext;
-        const ctx = new AC();
-        fetch(path)
-            .then((r) => r.arrayBuffer())
-            .then((buf) => ctx.decodeAudioData(buf))
-            .then((decoded) => {
-                if (cancelled) return;
-                setPeaks(computePeaks(decoded, PEAKS_BUCKETS));
-            })
-            .catch(() => { })
-            .finally(() => ctx.close());
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        const update = () => {
-            const d = audio.duration;
-            if (isFinite(d) && d > 0) setDuration(d);
-            setProgress(d > 0 && isFinite(d) ? audio.currentTime / d : 0);
-        };
-        const syncPlaying = () => setIsPlaying(!audio.paused);
-        update();
-        syncPlaying();
-        audio.addEventListener("loadedmetadata", update);
-        audio.addEventListener("durationchange", update);
-        audio.addEventListener("timeupdate", update);
-        audio.addEventListener("seeked", update);
-        audio.addEventListener("ended", update);
-        audio.addEventListener("play", syncPlaying);
-        audio.addEventListener("pause", syncPlaying);
-        audio.addEventListener("ended", syncPlaying);
-        return () => {
-            audio.removeEventListener("loadedmetadata", update);
-            audio.removeEventListener("durationchange", update);
-            audio.removeEventListener("timeupdate", update);
-            audio.removeEventListener("seeked", update);
-            audio.removeEventListener("ended", update);
-            audio.removeEventListener("play", syncPlaying);
-            audio.removeEventListener("pause", syncPlaying);
-            audio.removeEventListener("ended", syncPlaying);
-        };
-    }, []);
-
-    const draw: DrawFn = (ctx, width, height) => {
-        ctx.fillStyle = "#1a1a1a";
-        ctx.fillRect(0, 0, width, height);
-        if (!peaks || duration <= 0) return;
-
-        const mid = height / 2;
-        const cursorX = width * progress;
-        let rIdx = 0;
-        for (let x = 0; x < width; x++) {
-            const t = (x / width) * duration;
-            while (
-                rIdx < mergedRanges.length &&
-                mergedRanges[rIdx].end < t
-            ) {
-                rIdx++;
-            }
-            const r = mergedRanges[rIdx];
-            const inRange = r && r.start <= t && t <= r.end;
-            const color = inRange ? coloredGuests[r.speakerIdx].color : "#555";
-
-            const i = Math.min(
-                peaks.length - 1,
-                Math.floor((x / width) * peaks.length),
-            );
-            const h = peaks[i] * mid * 0.9;
-            ctx.fillStyle = color;
-            ctx.fillRect(x, mid - h, 1, h * 2);
-        }
-
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(cursorX, 0, 1, height);
-    };
-
-    const togglePlayback = () => {
-        const audio = audioRef.current;
-        if (!audio) return;
-        if (audio.paused) {
-            audio.play().catch(() => { });
-        } else {
-            audio.pause();
-        }
-    };
+    // AudioTrack owns playback + waveform — we just listen for current time
+    // to drive subtitle highlighting/scroll and word-level click-to-seek.
+    const [currentTime, setCurrentTime] = useState(0);
+    const movePlayingToRef = useRef<((t: number) => void) | null>(null);
 
     const movePlayingTo = (start: number) => {
-        const audio = audioRef.current;
-        if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
-        const clamped = Math.max(0, Math.min(start, audio.duration));
-        audio.currentTime = clamped;
-        setProgress(clamped / audio.duration);
-    };
-
-    const seekBy = (deltaSeconds: number) => {
-        const audio = audioRef.current;
-        if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
-        movePlayingTo(audio.currentTime + deltaSeconds);
+        movePlayingToRef.current?.(start);
     };
 
     // Index of the subtitle row currently being spoken (any of its words
     // covers the playhead). -1 when nothing is playing.
     const activeRowIdx = useMemo(() => {
-        const currentTime = progress * duration;
         return subtitles.findIndex((item) =>
             item.words.some(
                 (w) =>
@@ -512,7 +182,7 @@ export const PodcastHead: React.FC<PodcastHeadProps> = ({
                     currentTime <= w.range.end,
             ),
         );
-    }, [progress, duration]);
+    }, [currentTime, subtitles]);
 
     // Keep the spoken row visible inside the subtitle scroller (and only
     // that scroller — same min-nudge approach as the TreeCard active row).
@@ -551,7 +221,6 @@ export const PodcastHead: React.FC<PodcastHeadProps> = ({
                     text={BAGE_VARIANTS[badge].text}
                 />
             )}
-            <audio ref={audioRef} src={path} />
             <div className={css(styles.header)}>
                 <div className={css(styles.title)}>{title}</div>
                 <p className={css(styles.preview)}>
@@ -559,64 +228,13 @@ export const PodcastHead: React.FC<PodcastHeadProps> = ({
                 </p>
                 <ChipHolder data={tags} />
             </div>
-            <Canvas
-                draw={draw}
-                onSeek={(fraction) => {
-                    const audio = audioRef.current;
-                    if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return;
-                    audio.currentTime = fraction * audio.duration;
-                    setProgress(fraction);
-                }}
-                className={css(styles.canvas)}
+            <AudioTrack
+                src={path}
+                guestColors={coloredGuests}
+                subtitles={subtitles}
+                onProgress={(t, _d) => setCurrentTime(t)}
+                onSeekHandler={(fn) => { movePlayingToRef.current = fn; }}
             />
-            <div
-                className={css(styles.row)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 10, padding: "10px" }}
-            >
-                <div
-                    className={css(
-                        globalStyles.pressable,
-                        styles.button,
-                    )}
-                    onClick={() => seekBy(-10)}
-                >
-                    <span>{"« 10s"}</span>
-                </div>
-                <div
-                    className={css(
-                        globalStyles.pressable,
-                        styles.button,
-                    )}
-                    onClick={togglePlayback}
-                >
-                    <span>{isPlaying ? "PAUSE" : "PLAY"}</span>
-                </div>
-                <div
-                    className={css(
-                        globalStyles.pressable,
-                        styles.button,
-                    )}
-                    onClick={() => seekBy(10)}
-                >
-                    <span>{"10s »"}</span>
-                </div>
-                <div style={{
-                    marginLeft: "auto",
-                    display: "flex",
-                    flexDirection: "row",
-                    gap: 10,
-                }}>
-                    <span style={{
-                        fontWeight: "bold",
-                        fontFamily: "Roboto",
-                        fontSize: 12,
-                        color: "#ABABAB",
-                        letterSpacing: 0.5,
-                        textTransform: "uppercase",
-                    }}>{"VOLUME"}</span>
-                    <Bar value={volume} onChange={setVolume} minWidth={120} />
-                </div>
-            </div>
             <>
                 <span className={css(globalStyles.headline, styles.headline)}>
                     {"GUESTS"}
@@ -645,8 +263,6 @@ export const PodcastHead: React.FC<PodcastHeadProps> = ({
             <div ref={scrollRef} className={css(styles.scrollArea)}>
                 {subtitles.map((item, itemIdx) => {
                     const speaker = coloredGuests[item.speakerIdx];
-
-                    const currentTime = progress * duration;
                     const Speaker = () =>
                         <b style={{ fontWeight: "bold", color: speaker.color }}>{`${speaker.name}: `}</b>;
                     const Words = () => (

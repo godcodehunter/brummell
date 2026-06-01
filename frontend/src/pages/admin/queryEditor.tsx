@@ -117,23 +117,14 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
     }
 
     if (item.contentType === "podcast") {
+        // Podcast is now edited as a single form (sound file + guests +
+        // subtitles JSON), so no more def/main pseudo-children — the row
+        // itself opens the editor when clicked.
         return {
             ...item,
-            tag: NodeTag.Category,
+            tag: NodeTag.Item,
             id: item.id,
             label: `${icon} ${name} ${status}`,
-            children: [
-                {
-                    id: `${item.id}/def`,
-                    tag: NodeTag.Item,
-                    label: "def.json",
-                },
-                {
-                    id: `${item.id}/main`,
-                    tag: NodeTag.Item,
-                    label: "main.sound",
-                }
-            ],
         };
     }
 
@@ -151,6 +142,7 @@ const GET_EDITABLE_ITEMS = gql`
             id
             contentType
             publishStatus
+            entityId
         }
     }
 `;
@@ -303,12 +295,41 @@ export function createArticle(path: string, name: string) {
     });
 }
 
+const ADD_NEW_PODCAST = gql`
+    mutation AddNewPodcast($headline: String!, $path: String!, $publish_status: PublishStatus!) {
+        addNewPodcast(headline: $headline, path: $path, publish_status: $publish_status) {
+            id
+        }
+    }
+`;
+
 export function createPodcast(path: string, name: string) {
-    /* TODO */
+    return client.mutate({
+        mutation: ADD_NEW_PODCAST,
+        variables: {
+            headline: name,
+            path: path ? `${path}/${name}` : name,
+            publish_status: "draft",
+        },
+    });
 }
 
+const ADD_NEW_SHOT = gql`
+    mutation AddNewShot($path: String!, $publish_status: PublishStatus!) {
+        addNewShot(path: $path, publish_status: $publish_status) {
+            id
+        }
+    }
+`;
+
 export function createShot(path: string, name: string) {
-    /* TODO */
+    return client.mutate({
+        mutation: ADD_NEW_SHOT,
+        variables: {
+            path: path ? `${path}/${name}` : name,
+            publish_status: "draft",
+        },
+    });
 }
 
 const RENAME_OBJECT = gql`
@@ -484,6 +505,151 @@ export function updateArticleMeta(meta: ArticleMeta) {
             preview_txt: meta.preview_txt,
             reading_time_min: meta.reading_time_min,
             difficulty: meta.difficulty,
+            tagIds: meta.tags.map(t => Number(t.id)),
+        },
+    });
+}
+
+export interface ShotMeta {
+    id: number;
+    path: string | null;
+    tags: TagRow[];
+}
+
+const GET_SHOT_BY_ID = gql`
+    query GetShotById($id: Int!) {
+        getShotById(id: $id) {
+            id
+            path
+            tags { id label color tooltip }
+        }
+    }
+`;
+
+export function getShotById(id: number) {
+    return client.query<{ getShotById: ShotMeta | null }, { id: number }>({
+        query: GET_SHOT_BY_ID,
+        variables: { id },
+        fetchPolicy: "no-cache",
+    });
+}
+
+const UPDATE_SHOT_META = gql`
+    mutation UpdateShotMeta($id: Int!, $path: String!, $tagIds: [Int!]!) {
+        updateShotMeta(id: $id, path: $path, tagIds: $tagIds) {
+            id
+            path
+        }
+    }
+`;
+
+export function updateShotMeta(meta: ShotMeta) {
+    return client.mutate<
+        { updateShotMeta: { id: string, path: string | null } },
+        { id: number, path: string, tagIds: number[] }
+    >({
+        mutation: UPDATE_SHOT_META,
+        variables: {
+            id: meta.id,
+            path: meta.path ?? "",
+            tagIds: meta.tags.map(t => Number(t.id)),
+        },
+    });
+}
+
+export interface PodcastGuest {
+    image: string;
+    name: string;
+    whoIs: string;
+}
+
+export interface PodcastSubtitleWord {
+    range: { start: number, end: number };
+    text: string;
+}
+
+export interface PodcastSubtitle {
+    speakerIdx: number;
+    words: PodcastSubtitleWord[];
+}
+
+export interface PodcastMeta {
+    id: number;
+    headline: string;
+    path: string | null;
+    guests: PodcastGuest[];
+    subtitles: PodcastSubtitle[];
+    tags: TagRow[];
+}
+
+const GET_PODCAST_BY_ID = gql`
+    query GetPodcastById($id: Int!) {
+        getPodcastById(id: $id) {
+            id
+            headline
+            path
+            guests { image name whoIs }
+            subtitles {
+                speakerIdx
+                words {
+                    range { start end }
+                    text
+                }
+            }
+            tags { id label color tooltip }
+        }
+    }
+`;
+
+export function getPodcastById(id: number) {
+    return client.query<{ getPodcastById: PodcastMeta | null }, { id: number }>({
+        query: GET_PODCAST_BY_ID,
+        variables: { id },
+        fetchPolicy: "no-cache",
+    });
+}
+
+const UPDATE_PODCAST_META = gql`
+    mutation UpdatePodcastMeta(
+        $id: Int!,
+        $headline: String!,
+        $path: String!,
+        $guestsJson: String!,
+        $subtitlesJson: String!,
+        $tagIds: [Int!]!
+    ) {
+        updatePodcastMeta(
+            id: $id,
+            headline: $headline,
+            path: $path,
+            guestsJson: $guestsJson,
+            subtitlesJson: $subtitlesJson,
+            tagIds: $tagIds
+        ) {
+            id
+        }
+    }
+`;
+
+export function updatePodcastMeta(meta: PodcastMeta) {
+    return client.mutate<
+        { updatePodcastMeta: { id: string } },
+        {
+            id: number,
+            headline: string,
+            path: string,
+            guestsJson: string,
+            subtitlesJson: string,
+            tagIds: number[],
+        }
+    >({
+        mutation: UPDATE_PODCAST_META,
+        variables: {
+            id: meta.id,
+            headline: meta.headline,
+            path: meta.path ?? "",
+            guestsJson: JSON.stringify(meta.guests),
+            subtitlesJson: JSON.stringify(meta.subtitles),
             tagIds: meta.tags.map(t => Number(t.id)),
         },
     });

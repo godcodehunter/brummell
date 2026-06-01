@@ -6,26 +6,29 @@ import { ReactComponent as Calendar } from '../assets/calendar.svg';
 import { DateTime, Duration } from 'luxon';
 import { globalStyles } from '../globalStyles';
 import { stringifyDuration, stringifyTime } from '../utilsTime';
+import Badge, { BAGE_VARIANTS } from './Badge';
 
 interface ArticleCardProps {
     illustration: string,
     headline: string,
-    tags: Tag[], 
+    tags: Tag[],
     preview_txt: string,
-    reading_time: Duration, 
+    reading_time: Duration,
     created_at: DateTime,
     onOpen: () => void,
+    ribbon?: "hot" | "new" | null,
     style?: any,
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
-    illustration, 
-    headline, 
+    illustration,
+    headline,
     tags,
     preview_txt,
     reading_time,
     created_at,
     onOpen,
+    ribbon,
     style={}
 }) => {
     return (
@@ -34,9 +37,15 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet"/>
         <div
             className={css(globalStyles.substrate, globalStyles.pressable)}
-            style={style}
+            style={{ position: "relative", ...style }}
             onClick={onOpen}
         >
+            {ribbon && (
+                <Badge
+                    color={BAGE_VARIANTS[ribbon].color}
+                    text={BAGE_VARIANTS[ribbon].text}
+                />
+            )}
             <div style={{display: "flex", flexDirection: "column"}}>
                 <img
                     src={illustration}

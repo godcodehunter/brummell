@@ -54,7 +54,9 @@ export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
-  path: text("path").notNull(),
+  // The shot's single media file (image/video). Nullable — a freshly
+  // created shot has no media yet; the editor form lets the user fill it.
+  path: text("path"),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 
@@ -85,7 +87,9 @@ export const podcasts = sqliteTable("podcasts", {
     .default([]),
   // Unix timestamp in seconds.
   created_at: integer("created_at").notNull(),
-  path: text("path").notNull(),
+  // Audio file path under FILES_DIR. Nullable — the podcast can exist as
+  // a row before its sound asset is uploaded.
+  path: text("path"),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 

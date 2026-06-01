@@ -6,12 +6,14 @@ import cassette from '../assets/cassette.png';
 import { DateTime } from 'luxon';
 import { globalStyles } from '../globalStyles';
 import { stringifyTime } from '../utilsTime';
+import Badge, { BAGE_VARIANTS } from './Badge';
 
 interface PodcastCardProps {
     headline: string,
     tags?: Tag[],
     created_at: DateTime,
     onOpen: () => void,
+    ribbon?: "hot" | "new" | null,
     style?: any,
 }
 
@@ -23,6 +25,7 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
     tags = [],
     created_at,
     onOpen,
+    ribbon,
     style = {},
 }) => {
     return (
@@ -31,9 +34,15 @@ export const PodcastCard: React.FC<PodcastCardProps> = ({
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
             <div
                 className={css(globalStyles.substrate, globalStyles.pressable)}
-                style={style}
+                style={{ position: "relative", ...style }}
                 onClick={onOpen}
             >
+                {ribbon && (
+                    <Badge
+                        color={BAGE_VARIANTS[ribbon].color}
+                        text={BAGE_VARIANTS[ribbon].text}
+                    />
+                )}
                 <div style={{ display: "flex", flexDirection: "column" }}>
                     <img
                         src={cassette}

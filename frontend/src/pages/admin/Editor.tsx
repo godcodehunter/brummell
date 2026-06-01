@@ -9,7 +9,8 @@ import chroma from 'chroma-js';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { previewAndSaveMDX, createArticle, createFolder, createTag, deleteTag, fetchPayload, getArticleByPath, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type TagRow, type TagUsageRow } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, createPodcast, createShot, createTag, deleteTag, fetchPayload, getArticleByPath, getPodcastById, getShotById, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updatePodcastMeta, updateShotMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type PodcastMeta, type ShotMeta, type TagRow, type TagUsageRow } from "./queryEditor";
+import { AudioTrack } from "../../components/AudioTrack";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -137,6 +138,9 @@ export interface ContentItem {
     contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
+    // DB row id for article/shot/podcast (used by the form editors to
+    // mutate rows whose `path` may be null and thus not addressable).
+    entityId?: number;
 }
 
 // GraphQL camelCase shape — what fetchOwner actually returns.
@@ -530,7 +534,8 @@ export const ArticleCreator = () => {
     // transient placeholder row in the tree under `parentId` and let the
     // viewItem render an autofocused input. Enter/blur with content commits;
     // empty value cancels.
-    const [pendingNew, setPendingNew] = useState<{ parentId: string } | null>(null);
+    type PendingKind = "folder" | "article" | "podcast" | "shot";
+    const [pendingNew, setPendingNew] = useState<{ parentId: string, kind: PendingKind } | null>(null);
     const [pendingValue, setPendingValue] = useState("");
     const submittingRef = useRef(false);
 
@@ -640,14 +645,24 @@ export const ArticleCreator = () => {
         submittingRef.current = true;
         const name = pendingValue.trim();
         const parentId = pendingNew.parentId;
+        const kind = pendingNew.kind;
         setPendingNew(null);
         setPendingValue("");
         if (!name) return;
         try {
-            await createFolder(parentId, name);
+            switch (kind) {
+                case "folder":  await createFolder(parentId, name); break;
+                case "article": await createArticle(parentId, name); break;
+                case "podcast": await createPodcast(parentId, name); break;
+                case "shot":    await createShot(parentId, name); break;
+            }
             await refetch();
         } catch (e) {
-            pushError("Create folder", (e as Error).message);
+            const label = kind === "folder" ? "Create folder"
+                        : kind === "article" ? "Create article"
+                        : kind === "podcast" ? "Create podcast"
+                        : "Create shot";
+            pushError(label, (e as Error).message);
         }
     };
 
@@ -787,6 +802,8 @@ export const ArticleCreator = () => {
             setMdxMode(false);
             setTagsMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             setProfileMode(true);
             profileDirtyRef.current = false;
             const o = data?.getOwner;
@@ -805,6 +822,8 @@ export const ArticleCreator = () => {
             setMdxMode(false);
             setTagsMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             setProfileMode(false);
             pushError("Load profile", err.message);
         },
@@ -824,6 +843,8 @@ export const ArticleCreator = () => {
             setMdxMode(false);
             setProfileMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             setTagsMode(true);
             setTagsForm((data.getTag ?? []).map(t => ({
                 id: Number(t.id),
@@ -837,6 +858,8 @@ export const ArticleCreator = () => {
             setMdxMode(false);
             setProfileMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             setTagsMode(false);
             pushError("Load tags", err.message);
         },
@@ -926,6 +949,8 @@ export const ArticleCreator = () => {
             setTagsMode(false);
             setProfileMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             pushError("Load file", err.message);
         },
     });
@@ -959,6 +984,8 @@ export const ArticleCreator = () => {
         setMdxMode(false);
         setTagsMode(false);
         setProfileMode(false);
+        setShotMode(false);
+        setPodcastMode(false);
         setMetaMode(true);
         metaDirtyRef.current = false;
         try {
@@ -985,6 +1012,139 @@ export const ArticleCreator = () => {
         }, 400);
         return () => { cancelled = true; clearTimeout(handle); };
     }, [metaForm, metaMode]);
+
+    // Shot meta form (just path + tags). Same dirty-flag pattern: the
+    // initial fetch sets the form without flipping dirty, edits do.
+    const [shotMode, setShotMode] = useState(false);
+    const [shotForm, setShotForm] = useState<ShotMeta | null>(null);
+    const shotDirtyRef = useRef(false);
+    const editShot = (mutator: (m: ShotMeta) => ShotMeta) => {
+        shotDirtyRef.current = true;
+        setShotForm(p => p ? mutator(p) : p);
+    };
+
+    const openShotMeta = async (entityId: number) => {
+        editingModeRef.current = null;
+        setMdxMode(false);
+        setTagsMode(false);
+        setProfileMode(false);
+        setMetaMode(false);
+        setPodcastMode(false);
+        setShotMode(true);
+        shotDirtyRef.current = false;
+        try {
+            const { data } = await getShotById(entityId);
+            const m = data.getShotById;
+            if (!m) throw new Error("Shot not found");
+            setShotForm({ ...m });
+        } catch (e) {
+            setShotMode(false);
+            pushError("Load shot", (e as Error).message);
+        }
+    };
+
+    useEffect(() => {
+        if (!shotMode || !shotForm) return;
+        if (!shotDirtyRef.current) return;
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            try {
+                await updateShotMeta(shotForm);
+                if (!cancelled) void refetch();
+            } catch (e) {
+                if (!cancelled) pushError("Shot save", (e as Error).message);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [shotForm, shotMode]);
+
+    // Podcast meta form. Subtitles are edited as raw JSON in a Monaco
+    // editor — we keep both the source text and the last successfully
+    // parsed value so the save uses parsed and the editor keeps the raw
+    // text the user is in the middle of typing. Parse errors block save
+    // and surface as an ErrMsg under the JSON editor.
+    const [podcastMode, setPodcastMode] = useState(false);
+    const [podcastForm, setPodcastForm] = useState<PodcastMeta | null>(null);
+    const podcastDirtyRef = useRef(false);
+    const [subtitlesText, setSubtitlesText] = useState("");
+    const [subtitlesError, setSubtitlesError] = useState<string | null>(null);
+    const editPodcast = (mutator: (m: PodcastMeta) => PodcastMeta) => {
+        podcastDirtyRef.current = true;
+        setPodcastForm(p => p ? mutator(p) : p);
+    };
+
+    const openPodcastMeta = async (entityId: number) => {
+        editingModeRef.current = null;
+        setMdxMode(false);
+        setTagsMode(false);
+        setProfileMode(false);
+        setMetaMode(false);
+        setShotMode(false);
+        setPodcastMode(true);
+        podcastDirtyRef.current = false;
+        setSubtitlesError(null);
+        try {
+            const { data } = await getPodcastById(entityId);
+            const m = data.getPodcastById;
+            if (!m) throw new Error("Podcast not found");
+            setPodcastForm({ ...m });
+            setSubtitlesText(JSON.stringify(m.subtitles ?? [], null, 2));
+        } catch (e) {
+            setPodcastMode(false);
+            pushError("Load podcast", (e as Error).message);
+        }
+    };
+
+    // Validate the JSON buffer whenever it changes; on success push the
+    // parsed value into podcastForm. Any structural mismatch is surfaced
+    // as a human-readable error string under the editor.
+    useEffect(() => {
+        if (!podcastMode || !podcastForm) return;
+        let parsed: unknown;
+        try {
+            parsed = subtitlesText.trim() === "" ? [] : JSON.parse(subtitlesText);
+        } catch (e) {
+            setSubtitlesError(`Parse error: ${(e as Error).message}`);
+            return;
+        }
+        if (!Array.isArray(parsed)) {
+            setSubtitlesError("Subtitles must be a JSON array of speaker rows.");
+            return;
+        }
+        // Cheap shape check — index errors point the user at the offending row.
+        for (let i = 0; i < parsed.length; i++) {
+            const row = parsed[i] as { speakerIdx?: unknown, words?: unknown };
+            if (typeof row?.speakerIdx !== "number") {
+                setSubtitlesError(`Row ${i}: speakerIdx must be a number.`);
+                return;
+            }
+            if (!Array.isArray(row.words)) {
+                setSubtitlesError(`Row ${i}: words must be an array.`);
+                return;
+            }
+        }
+        setSubtitlesError(null);
+        editPodcast(p => ({ ...p, subtitles: parsed as PodcastMeta["subtitles"] }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subtitlesText, podcastMode]);
+
+    useEffect(() => {
+        if (!podcastMode || !podcastForm) return;
+        if (!podcastDirtyRef.current) return;
+        // Don't save while the JSON buffer is broken — re-saving the last
+        // valid subtitles would overwrite the user's in-progress edit.
+        if (subtitlesError) return;
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            try {
+                await updatePodcastMeta(podcastForm);
+                if (!cancelled) void refetch();
+            } catch (e) {
+                if (!cancelled) pushError("Podcast save", (e as Error).message);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [podcastForm, podcastMode, subtitlesError]);
 
     // Live MDX preview: when editing main.mdx, debounce-persist the current
     // buffer to disk and keep `mdxBuild` in sync with the compiled bundle.
@@ -1089,11 +1249,20 @@ export const ArticleCreator = () => {
             setProfileMode(false);
             setTagsMode(false);
             setMetaMode(false);
+            setShotMode(false);
+            setPodcastMode(false);
             fetchArticle({ variables: { path: node.id } });
         }
         if (node.id.endsWith("/metadata") && getParentNode(data, node)?.contentType === "article") {
             const articlePath = node.id.slice(0, -"/metadata".length);
             void openArticleMeta(articlePath);
+        }
+        const ext = node as Node<ContentItem>;
+        if (ext.contentType === "shot" && typeof ext.entityId === "number") {
+            void openShotMeta(ext.entityId);
+        }
+        if (ext.contentType === "podcast" && typeof ext.entityId === "number") {
+            void openPodcastMeta(ext.entityId);
         }
     }
 
@@ -1117,6 +1286,15 @@ export const ArticleCreator = () => {
                 setPendingRename({ targetId: node.id });
             },
         }
+        const copyPath = {
+            label: "Copy path",
+            onClick: () => {
+                const text = `/files/${node.id}`;
+                navigator.clipboard.writeText(text).catch(e =>
+                    pushError("Copy path", (e as Error).message)
+                );
+            },
+        }
 
         // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
         if (node.id === "/profile" || node.id === "/tags") {
@@ -1133,6 +1311,7 @@ export const ArticleCreator = () => {
 
             if (node.id !== "/") {
                 result.unshift(renameEntry)
+                result.push(copyPath);
                 result.push(
                     { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
                 )
@@ -1155,6 +1334,7 @@ export const ArticleCreator = () => {
                     },
                 },
                 renameEntry,
+                copyPath,
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];
 
@@ -1178,6 +1358,7 @@ export const ArticleCreator = () => {
         // Common files
         return [
             renameEntry,
+            copyPath,
             { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
         ];
     }
@@ -1242,6 +1423,172 @@ export const ArticleCreator = () => {
                                     className={css(profileFormStyles.refAdd)}
                                     onClick={() => void addTagRow()}
                                 >+ Add tag</button>
+                            </div>
+                        </div>
+                    </div>
+                ) : shotMode && shotForm ? (
+                    <div className={css(profileFormStyles.scroller)}>
+                        <div className={css(profileFormStyles.inner)}>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Media file</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    placeholder="path under /files or data: / http(s):// URL"
+                                    value={shotForm.path ?? ""}
+                                    onChange={e => editShot(m => ({ ...m, path: e.target.value }))}
+                                />
+                                {shotForm.path && (
+                                    <div className={css(profileFormStyles.avatarPreviewWrap)}>
+                                        <img
+                                            className={css(profileFormStyles.avatarPreview)}
+                                            src={resolveAssetSrc(shotForm.path)}
+                                            alt=""
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Tags</label>
+                                <TagSelector
+                                    selected={shotForm.tags.map(t => ({
+                                        label: t.label,
+                                        color: chroma(t.color || "#888888"),
+                                        tooltip: t.tooltip,
+                                    } as Tag))}
+                                    onChange={next => editShot(m => ({
+                                        ...m,
+                                        tags: next
+                                            .map(chip => tagByLabel.get(chip.label))
+                                            .filter((t): t is TagRow => !!t),
+                                    }))}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) : podcastMode && podcastForm ? (
+                    <div className={css(profileFormStyles.scroller)}>
+                        <div className={css(profileFormStyles.inner)}>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Headline</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    value={podcastForm.headline}
+                                    onChange={e => editPodcast(m => ({ ...m, headline: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Sound</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    placeholder="path under /files"
+                                    value={podcastForm.path ?? ""}
+                                    onChange={e => editPodcast(m => ({ ...m, path: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Guests</label>
+                                <div className={css(profileFormStyles.refsList)}>
+                                    {podcastForm.guests.map((g, i) => (
+                                        <div key={i} className={css(profileFormStyles.refRow)}>
+                                            <input
+                                                className={css(profileFormStyles.input, profileFormStyles.refIconInput)}
+                                                placeholder="image (path/URL)"
+                                                value={g.image}
+                                                onChange={e => editPodcast(m => ({
+                                                    ...m,
+                                                    guests: m.guests.map((x, j) => j === i ? { ...x, image: e.target.value } : x),
+                                                }))}
+                                            />
+                                            <input
+                                                className={css(profileFormStyles.input, profileFormStyles.refIconInput)}
+                                                placeholder="name"
+                                                value={g.name}
+                                                onChange={e => editPodcast(m => ({
+                                                    ...m,
+                                                    guests: m.guests.map((x, j) => j === i ? { ...x, name: e.target.value } : x),
+                                                }))}
+                                            />
+                                            <input
+                                                className={css(profileFormStyles.input, profileFormStyles.refUrlInput)}
+                                                placeholder="who is"
+                                                value={g.whoIs}
+                                                onChange={e => editPodcast(m => ({
+                                                    ...m,
+                                                    guests: m.guests.map((x, j) => j === i ? { ...x, whoIs: e.target.value } : x),
+                                                }))}
+                                            />
+                                            <button
+                                                className={css(profileFormStyles.refDelete)}
+                                                onClick={() => editPodcast(m => ({
+                                                    ...m,
+                                                    guests: m.guests.filter((_, j) => j !== i),
+                                                }))}
+                                                aria-label="Remove guest"
+                                            >×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    className={css(profileFormStyles.refAdd)}
+                                    onClick={() => editPodcast(m => ({
+                                        ...m,
+                                        guests: [...m.guests, { image: "", name: "", whoIs: "" }],
+                                    }))}
+                                >+ Add guest</button>
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Tags</label>
+                                <TagSelector
+                                    selected={podcastForm.tags.map(t => ({
+                                        label: t.label,
+                                        color: chroma(t.color || "#888888"),
+                                        tooltip: t.tooltip,
+                                    } as Tag))}
+                                    onChange={next => editPodcast(m => ({
+                                        ...m,
+                                        tags: next
+                                            .map(chip => tagByLabel.get(chip.label))
+                                            .filter((t): t is TagRow => !!t),
+                                    }))}
+                                />
+                            </div>
+                            {podcastForm.path && (
+                                <div className={css(profileFormStyles.field)}>
+                                    <label className={css(profileFormStyles.label)}>Track</label>
+                                    <AudioTrack
+                                        src={resolveAssetSrc(podcastForm.path)}
+                                        subtitles={subtitlesError ? [] : podcastForm.subtitles}
+                                        guestColors={podcastForm.guests.map((_g, idx) => ({
+                                            color: chroma.hsl((idx * 73) % 360, 0.7, 0.65).hex(),
+                                        }))}
+                                    />
+                                </div>
+                            )}
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Subtitles (JSON)</label>
+                                <div style={{ color: "#858585", fontSize: 12, marginBottom: 4 }}>
+                                    Array of <code>{`{ speakerIdx: number, words: [{ range: { start, end }, text }] }`}</code>.
+                                    Times are in seconds; <code>speakerIdx</code> indexes into the guests above.
+                                </div>
+                                <div style={{ border: "1px solid #3A3A3A" }}>
+                                    <Editor
+                                        value={subtitlesText}
+                                        onChange={v => setSubtitlesText(v ?? "")}
+                                        height="280px"
+                                        defaultLanguage="json"
+                                        theme="vs-dark"
+                                        options={{
+                                            wordWrap: "on",
+                                            minimap: { enabled: false },
+                                            lineNumbers: "off",
+                                        }}
+                                    />
+                                </div>
+                                {subtitlesError && (
+                                    <div style={{ marginTop: 6 }}>
+                                        <ErrorMsg title="Subtitles JSON" text={subtitlesError} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

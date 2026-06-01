@@ -93,12 +93,43 @@ type TagUsage = {
   label: string;
 };
 
+// Upsert the tag_set row for one entity: empty list → delete the row,
+// non-empty list on an existing row → update tag_ids, otherwise insert.
+// Single chokepoint shared by every updateXMeta resolver.
+function writeTagSet(
+  type: "article" | "shot" | "podcast",
+  entityId: number,
+  tagIds: number[],
+) {
+  const existing = db.select().from(tagSets)
+    .where(and(eq(tagSets.type, type), eq(tagSets.entity_id, entityId)))
+    .all()[0];
+  if (existing) {
+    if (tagIds.length === 0) {
+      db.delete(tagSets).where(eq(tagSets.id, existing.id)).run();
+    } else {
+      db.update(tagSets)
+        .set({ tag_ids: tagIds })
+        .where(eq(tagSets.id, existing.id))
+        .run();
+    }
+  } else if (tagIds.length > 0) {
+    db.insert(tagSets)
+      .values({ type, entity_id: entityId, tag_ids: tagIds })
+      .run();
+  }
+}
+
 interface EditableItem {
   id: string,
   // Item without type is considered a folder.
   contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
   // Only `shot`, `article` and `podcast` can be published or draft.
   publishStatus?: "published" | "draft";
+  // DB row id for article/shot/podcast — lets the admin form mutate the
+  // entity directly (shot/podcast paths are nullable, so the tree falls
+  // back to synthetic strings that can't be parsed back to an id).
+  entityId?: number;
 }
 
 const ContentTypeEnum = builder.enumType("ContentType", {
@@ -183,6 +214,11 @@ builder.objectType("EditableItem", {
       type: PublishStatusEnum,
       nullable: true,
       resolve: (item) => item.publishStatus ?? null,
+    }),
+    entityId: t.field({
+      type: "Int",
+      nullable: true,
+      resolve: (item) => item.entityId ?? null,
     }),
   }),
 });
@@ -424,22 +460,26 @@ builder.queryType({
         // First collect all db items
         let a = db.select().from(articles).all().map((article): EditableItem => ({
           id: article.path,
-          // Reference to folder
           contentType: "article",
           publishStatus: article.publish_status,
+          entityId: article.id,
         }));
 
+        // Synthetic ids for rows whose path hasn't been set yet — the tree
+        // needs a stable string to key on. Real path takes priority once it
+        // exists, so a future rename keeps the same row identity downstream.
         let p = db.select().from(podcasts).all().map((podcast): EditableItem => ({
-          id: podcast.path,
-          // Reference to file in fs
+          id: podcast.path ?? `__podcast/${podcast.id}`,
           contentType: "podcast",
           publishStatus: podcast.publish_status,
+          entityId: podcast.id,
         }));
 
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
-          id: shot.path,
+          id: shot.path ?? `__shot/${shot.id}`,
           contentType: "shot",
           publishStatus: shot.publish_status,
+          entityId: shot.id,
         }));
 
         let mirrowedItems = [...a, ...p, ...s];
@@ -549,6 +589,27 @@ builder.queryType({
         return db.select().from(articles).where(eq(articles.path, relPath)).all()[0] ?? null;
       },
     }),
+    // Shot/Podcast lookups are id-keyed because their paths are nullable —
+    // the tree falls back to a synthetic id when path isn't set, and that
+    // synthetic id is not stored anywhere, so we can't query by it.
+    getShotById: t.field({
+      type: "Shot",
+      nullable: true,
+      args: { id: t.arg.int({ required: true }) },
+      resolve: (_, { id }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        return db.select().from(shots).where(eq(shots.id, id)).all()[0] ?? null;
+      },
+    }),
+    getPodcastById: t.field({
+      type: "Podcast",
+      nullable: true,
+      args: { id: t.arg.int({ required: true }) },
+      resolve: (_, { id }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        return db.select().from(podcasts).where(eq(podcasts.id, id)).all()[0] ?? null;
+      },
+    }),
     getPayload: t.field({
       type: "String",
       args: {
@@ -602,7 +663,7 @@ builder.queryType({
             if (r) out.push({ type: "podcast", id: r.id, label: r.headline });
           } else {
             const r = db.select().from(shots).where(eq(shots.id, s.entity_id)).all()[0];
-            if (r) out.push({ type: "shot", id: r.id, label: r.path });
+            if (r) out.push({ type: "shot", id: r.id, label: r.path ?? `Shot #${r.id}` });
           }
         }
         return out;
@@ -696,6 +757,132 @@ builder.mutationType({
         return created;
       },
     }),
+    // Mirrors addNewArticle for podcasts: mkdir the folder, insert the row.
+    // No "main.sound" file is materialised on disk — that comes via DnD
+    // upload of an audio file under the new podcast directory.
+    addNewPodcast: t.field({
+      type: "Podcast",
+      args: {
+        headline: t.arg.string({ required: true }),
+        path: t.arg.string({ required: true }),
+        publish_status: t.arg({ type: PublishStatusEnum, required: true }),
+      },
+      resolve: async (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${args.path.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+
+        try {
+          await fs.mkdir(abs);
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === "ENOENT") throw new Error("PARENT_NOT_FOUND");
+          if (code === "EEXIST") throw new Error("ALREADY_EXISTS");
+          throw err;
+        }
+
+        const created = db
+          .insert(podcasts)
+          .values({
+            headline: args.headline,
+            created_at: Math.floor(Date.now() / 1000),
+            path: args.path,
+            publish_status: args.publish_status,
+          })
+          .returning()
+          .all()[0]!;
+        return created;
+      },
+    }),
+    // Form-driven patch for a shot. Identified by numeric id since the
+    // tree id may be a synthetic `__shot/<id>` when path is null. Empty
+    // `path` is treated as "clear the file pointer".
+    updateShotMeta: t.field({
+      type: "Shot",
+      args: {
+        id: t.arg.int({ required: true }),
+        path: t.arg.string({ required: true }),
+        tagIds: t.arg.intList({ required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const updated = db.update(shots)
+          .set({ path: args.path === "" ? null : args.path })
+          .where(eq(shots.id, args.id))
+          .returning()
+          .all()[0];
+        if (!updated) throw new Error("NOT_FOUND");
+        writeTagSet("shot", updated.id, args.tagIds);
+        return updated;
+      },
+    }),
+    // Form-driven patch for a podcast. `guestsJson` / `subtitlesJson` are
+    // JSON-encoded strings parsed in the resolver — the admin form already
+    // edits subtitles as raw JSON, and guests are an array we'd rather not
+    // map through an input-type tree. Validation errors (bad JSON, wrong
+    // shape) surface as GraphQL errors.
+    updatePodcastMeta: t.field({
+      type: "Podcast",
+      args: {
+        id: t.arg.int({ required: true }),
+        headline: t.arg.string({ required: true }),
+        path: t.arg.string({ required: true }),
+        guestsJson: t.arg.string({ required: true }),
+        subtitlesJson: t.arg.string({ required: true }),
+        tagIds: t.arg.intList({ required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        let guests: PodcastGuest[];
+        let subs: Subtitles[];
+        try {
+          guests = JSON.parse(args.guestsJson);
+        } catch (e) {
+          throw new Error(`INVALID_GUESTS_JSON: ${(e as Error).message}`);
+        }
+        try {
+          subs = JSON.parse(args.subtitlesJson);
+        } catch (e) {
+          throw new Error(`INVALID_SUBTITLES_JSON: ${(e as Error).message}`);
+        }
+        const updated = db.update(podcasts)
+          .set({
+            headline: args.headline,
+            path: args.path === "" ? null : args.path,
+            guests,
+            subtitles: subs,
+          })
+          .where(eq(podcasts.id, args.id))
+          .returning()
+          .all()[0];
+        if (!updated) throw new Error("NOT_FOUND");
+        writeTagSet("podcast", updated.id, args.tagIds);
+        return updated;
+      },
+    }),
+    // Shots are leaves — no folder, just a DB row. The actual media file is
+    // uploaded separately into the parent directory via PUT /files.
+    addNewShot: t.field({
+      type: "Shot",
+      args: {
+        path: t.arg.string({ required: true }),
+        publish_status: t.arg({ type: PublishStatusEnum, required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const created = db
+          .insert(shots)
+          .values({
+            created_at: Math.floor(Date.now() / 1000),
+            path: args.path,
+            publish_status: args.publish_status,
+          })
+          .returning()
+          .all()[0]!;
+        return created;
+      },
+    }),
     // Patches an article's metadata in place. Identified by `path` because
     // that's what the admin tree carries (no need to expose the numeric id
     // to the UI). publish_status is not editable here — use
@@ -729,24 +916,7 @@ builder.mutationType({
           .returning()
           .all()[0];
         if (!updated) throw new Error("NOT_FOUND");
-
-        const existing = db.select().from(tagSets)
-          .where(and(eq(tagSets.type, "article"), eq(tagSets.entity_id, updated.id)))
-          .all()[0];
-        if (existing) {
-          if (args.tagIds.length === 0) {
-            db.delete(tagSets).where(eq(tagSets.id, existing.id)).run();
-          } else {
-            db.update(tagSets)
-              .set({ tag_ids: args.tagIds })
-              .where(eq(tagSets.id, existing.id))
-              .run();
-          }
-        } else if (args.tagIds.length > 0) {
-          db.insert(tagSets)
-            .values({ type: "article", entity_id: updated.id, tag_ids: args.tagIds })
-            .run();
-        }
+        writeTagSet("article", updated.id, args.tagIds);
         return updated;
       },
     }),
@@ -909,6 +1079,10 @@ builder.mutationType({
             .where(or(eq(table.path, oldPath), like(table.path, prefixLike)))
             .all();
           for (const row of affected) {
+            // Affected query already filters by oldPath/prefix so the path
+            // can't be null here, but TS doesn't narrow from drizzle's
+            // `where`. Skip defensively rather than coercing.
+            if (row.path == null) continue;
             db.update(table)
               .set({ path: remapPath(row.path) })
               .where(eq(table.id, row.id))
