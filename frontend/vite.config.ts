@@ -14,6 +14,10 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      '/files': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
     },
   },
 });
