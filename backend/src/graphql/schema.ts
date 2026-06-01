@@ -475,8 +475,10 @@ builder.queryType({
           entityId: podcast.id,
         }));
 
+        // Shots have no on-disk path anymore (they're text rows); the tree
+        // uses a synthetic id `__shot/<n>` and the form opens by entityId.
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
-          id: shot.path ?? `__shot/${shot.id}`,
+          id: `__shot/${shot.id}`,
           contentType: "shot",
           publishStatus: shot.publish_status,
           entityId: shot.id,
@@ -820,20 +822,19 @@ builder.mutationType({
         return created;
       },
     }),
-    // Form-driven patch for a shot. Identified by numeric id since the
-    // tree id may be a synthetic `__shot/<id>` when path is null. Empty
-    // `path` is treated as "clear the file pointer".
+    // Form-driven patch for a shot. Shots are tweet-style text rows
+    // identified by numeric id (the tree shows `__shot/<id>`).
     updateShotMeta: t.field({
       type: "Shot",
       args: {
         id: t.arg.int({ required: true }),
-        path: t.arg.string({ required: true }),
+        text: t.arg.string({ required: true }),
         tagIds: t.arg.intList({ required: true }),
       },
       resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
         const updated = db.update(shots)
-          .set({ path: args.path === "" ? null : args.path })
+          .set({ text: args.text })
           .where(eq(shots.id, args.id))
           .returning()
           .all()[0];
