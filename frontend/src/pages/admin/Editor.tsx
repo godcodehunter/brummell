@@ -1,6 +1,6 @@
 import Editor from "@monaco-editor/react";
 import { StyleSheet, css } from "aphrodite";
-import { TreeCard, NodeTag, Category, Node } from '../../components/TreeCard';
+import { TreeCard, NodeTag, Category, Node, type TreeCardController } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -278,6 +278,7 @@ export const ArticleCreator = () => {
     const [renameValue, setRenameValue] = useState("");
     const renameSubmittingRef = useRef(false);
     const renameInputRef = useRef<HTMLInputElement | null>(null);
+    const treeCtrl = useRef<TreeCardController | null>(null);
 
     // The input element exists in the DOM before rename starts (rendered as
     // readonly), so `autoFocus` won't fire on the transition — focus + select
@@ -337,6 +338,14 @@ export const ArticleCreator = () => {
         const parts = oldPath.split("/");
         parts[parts.length - 1] = newName;
         const newPath = parts.join("/");
+        // Migrate the tree's open-set onto the new id-space before refetch.
+        // Otherwise openIds keeps pointing at oldPath/* — which no longer exists
+        // in the refetched data — so the renamed subtree appears collapsed.
+        treeCtrl.current?.rewriteOpenIds(id =>
+            id === oldPath ? newPath :
+            id.startsWith(oldPath + "/") ? newPath + id.slice(oldPath.length) :
+            id
+        );
         await renameObject(oldPath, newPath);
         // If the editor is currently editing a path under the renamed object,
         // rebase that path so subsequent saves hit the new location.
@@ -375,7 +384,6 @@ export const ArticleCreator = () => {
                                 cancelPending();
                             }
                         }}
-                        onClick={e => e.stopPropagation()}
                     />
                 </div>
             );
@@ -397,6 +405,15 @@ export const ArticleCreator = () => {
                     className={css(editorView.nameField)}
                     value={name}
                     readOnly={!isRenaming}
+                    // Block row's onClick only while renaming so typing/clicking
+                    // inside the field doesn't try to "open" the node. When not
+                    // renaming the click should bubble — that's how rows act as
+                    // a "select / open" surface.
+                    onClick={isRenaming ? e => e.stopPropagation() : undefined}
+                    // For non-renaming readonly inputs we let the click bubble,
+                    // but the input would still steal text-cursor + focus. Force
+                    // the cursor back to pointer so the row reads as a button.
+                    style={isRenaming ? undefined : { cursor: "pointer" }}
                     onChange={isRenaming ? e => setRenameValue(e.target.value) : undefined}
                     onBlur={isRenaming ? () => { void commitRename(); } : undefined}
                     onKeyDown={isRenaming ? e => {
@@ -408,7 +425,6 @@ export const ArticleCreator = () => {
                             cancelRename();
                         }
                     } : undefined}
-                    onClick={e => e.stopPropagation()}
                 />
                 {status && <span className={css(editorView.icon)}>{status}</span>}
             </div>
@@ -648,6 +664,7 @@ export const ArticleCreator = () => {
                         ...(pendingNew ? [pendingNew.parentId] : []),
                         ...(pendingRename ? [pendingRename.targetId] : []),
                     ]}
+                    controllerRef={treeCtrl}
                     style={{ height: "100%" }}
                 />
             </Panel>

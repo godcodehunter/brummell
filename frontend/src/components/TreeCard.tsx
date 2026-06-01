@@ -293,6 +293,13 @@ function findPath(nodes: Node[], targetId: string, acc: string[] = []): string[]
     return null;
 }
 
+// Imperative escape hatch — used by callers that mutate node ids (e.g.
+// rename) and need to migrate the internally-tracked "open" set so the
+// renamed subtree stays expanded across the data refetch.
+export type TreeCardController = {
+    rewriteOpenIds: (remap: (id: string) => string) => void,
+};
+
 interface TreeCardProps<E = {}> {
     data: Node<E>[],
     title: string,
@@ -307,10 +314,29 @@ interface TreeCardProps<E = {}> {
     // returned ReactNode replaces the label slot (next to the toggle icon for
     // categories; the row body for items). Defaults to `node.label`.
     viewItem?: (node: Node<E>) => React.ReactNode,
+    // Receives a controller object exposing imperative operations (see
+    // `TreeCardController`). Optional; pass when you need to remap openIds
+    // from outside (e.g. after a rename invalidates the existing ids).
+    controllerRef?: React.MutableRefObject<TreeCardController | null>,
 }
 
-export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem}: TreeCardProps<E>) {
+export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
+
+    useEffect(() => {
+        if (!controllerRef) return;
+        controllerRef.current = {
+            rewriteOpenIds(remap) {
+                setOpenIds(prev => {
+                    const next = new Set<string>();
+                    for (const id of prev) next.add(remap(id));
+                    return next;
+                });
+            },
+        };
+        return () => { controllerRef.current = null; };
+    }, [controllerRef]);
+
     const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
 
