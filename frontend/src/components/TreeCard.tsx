@@ -36,7 +36,13 @@ type RowDragHandlers = {
     onDragOver: (e: React.DragEvent) => void,
     onDragLeave: (e: React.DragEvent) => void,
     onDrop: (e: React.DragEvent) => void,
+    onDragStart?: (e: React.DragEvent) => void,
+    draggable?: boolean,
 };
+
+// Custom mime used to mark drags that originate from inside the tree, so
+// the drop handlers can tell node-moves apart from file uploads.
+const NODE_MIME = "application/x-brummell-tree-node";
 
 const categoryRow = StyleSheet.create({
     row: {
@@ -192,6 +198,9 @@ interface TreeProps {
     onNodeClick?: (node: Node) => void,
     onNodeRightClick?: (node: Node, e: React.MouseEvent) => void,
     onNodeDropFiles?: (node: Node, files: FileList) => void,
+    onNodeMove?: (sourceId: string, target: Node) => void,
+    isNodeDraggable?: (node: Node) => boolean,
+    isNodeDropTarget?: (node: Node) => boolean,
 }
 
 // Render GroupRow/ContentRow directly here rather than going through a
@@ -199,7 +208,7 @@ interface TreeProps {
 // unmount/remount the whole node subtree whenever Component identity changed,
 // which destroyed DOM state (including focus) for any inputs the caller
 // rendered via `viewItem`.
-const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick, onNodeDropFiles}: TreeProps) => {
+const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick, onNodeDropFiles, onNodeMove, isNodeDraggable, isNodeDropTarget}: TreeProps) => {
     const isOpen = openIds.has(node.id);
     const view = viewItem
         ? viewItem(node)
@@ -209,13 +218,25 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
     const onRightClick = onNodeRightClick ? (e: React.MouseEvent) => onNodeRightClick(node, e) : undefined;
 
     const [dragOver, setDragOver] = useState(false);
-    // Native HTML5 file DnD: only react to drags that actually carry files
-    // (mime "Files" — internal drags within the page show different types).
-    // dragleave fires for descendant transitions too, so guard with
-    // currentTarget.contains(relatedTarget) before clearing the highlight.
-    const dragHandlers: RowDragHandlers | undefined = onNodeDropFiles ? {
+
+    const acceptsFiles = !!onNodeDropFiles;
+    const acceptsNodes = !!onNodeMove && (!isNodeDropTarget || isNodeDropTarget(node));
+    const canDrag = !!onNodeMove && (!isNodeDraggable || isNodeDraggable(node));
+
+    // Two DnD lanes share this row: HTML5 file uploads (mime "Files") and
+    // internal node moves (mime NODE_MIME). dragover highlights for either,
+    // drop branches on the mime found in dataTransfer.types.
+    const dragHandlers: RowDragHandlers | undefined = (acceptsFiles || acceptsNodes || canDrag) ? {
+        draggable: canDrag,
+        onDragStart: canDrag ? e => {
+            e.dataTransfer.setData(NODE_MIME, node.id);
+            e.dataTransfer.effectAllowed = "move";
+        } : undefined,
         onDragOver: e => {
-            if (!Array.from(e.dataTransfer.types).includes("Files")) return;
+            const types = Array.from(e.dataTransfer.types);
+            const hasFiles = acceptsFiles && types.includes("Files");
+            const hasNode = acceptsNodes && types.includes(NODE_MIME);
+            if (!hasFiles && !hasNode) return;
             e.preventDefault();
             if (!dragOver) setDragOver(true);
         },
@@ -225,11 +246,24 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
             setDragOver(false);
         },
         onDrop: e => {
-            if (!Array.from(e.dataTransfer.types).includes("Files")) return;
-            e.preventDefault();
-            setDragOver(false);
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) onNodeDropFiles(node, files);
+            const types = Array.from(e.dataTransfer.types);
+            if (acceptsFiles && types.includes("Files")) {
+                e.preventDefault();
+                setDragOver(false);
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) onNodeDropFiles!(node, files);
+                return;
+            }
+            if (acceptsNodes && types.includes(NODE_MIME)) {
+                e.preventDefault();
+                setDragOver(false);
+                const sourceId = e.dataTransfer.getData(NODE_MIME);
+                // Reject self-drops and drops into own descendant prefix —
+                // moving X into X/foo would also blow away the subtree.
+                if (!sourceId || sourceId === node.id) return;
+                if (node.id === sourceId || node.id.startsWith(sourceId + "/")) return;
+                onNodeMove!(sourceId, node);
+            }
         },
     } : undefined;
 
@@ -280,6 +314,9 @@ const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds
                     onNodeClick={onNodeClick}
                     onNodeRightClick={onNodeRightClick}
                     onNodeDropFiles={onNodeDropFiles}
+                    onNodeMove={onNodeMove}
+                    isNodeDraggable={isNodeDraggable}
+                    isNodeDropTarget={isNodeDropTarget}
                 />
             )}
         </div>
@@ -373,9 +410,16 @@ interface TreeCardProps<E = {}> {
     // Each row in the tree becomes a drop target when this is set; the
     // caller decides where the files actually land based on `node`.
     onNodeDropFiles?: (node: Node<E>, files: FileList) => void,
+    // Internal node move: user drags one row onto another. Caller decides
+    // what "move" means (typically: rename source path to live under
+    // target). `sourceId` is the dragged row's tree id; lookup is owner's
+    // responsibility.
+    onNodeMove?: (sourceId: string, target: Node<E>) => void,
+    isNodeDraggable?: (node: Node<E>) => boolean,
+    isNodeDropTarget?: (node: Node<E>) => boolean,
 }
 
-export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef, onNodeDropFiles}: TreeCardProps<E>) {
+export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef, onNodeDropFiles, onNodeMove, isNodeDraggable, isNodeDropTarget}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
 
     useEffect(() => {
@@ -539,6 +583,9 @@ export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRi
                             onNodeClick={onNodeClick as ((node: Node) => void) | undefined}
                             onNodeRightClick={onNodeRightClick as ((node: Node, e: React.MouseEvent) => void) | undefined}
                             onNodeDropFiles={onNodeDropFiles as ((node: Node, files: FileList) => void) | undefined}
+                            onNodeMove={onNodeMove as ((sourceId: string, target: Node) => void) | undefined}
+                            isNodeDraggable={isNodeDraggable as ((node: Node) => boolean) | undefined}
+                            isNodeDropTarget={isNodeDropTarget as ((node: Node) => boolean) | undefined}
                         />)
                     ) : (
                         <ContentRow

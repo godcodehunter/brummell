@@ -9,7 +9,7 @@ import chroma from 'chroma-js';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { previewAndSaveMDX, createArticle, createFolder, createPodcast, createShot, createTag, deleteTag, fetchPayload, getArticleByPath, getPodcastById, getShotById, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updatePodcastMeta, updateShotMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type PodcastMeta, type ShotMeta, type TagRow, type TagUsageRow } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, createPodcast, createShot, createTag, deleteByPath, deletePodcastById, deleteShotById, deleteTag, fetchPayload, getArticleByPath, getDeleteImpact, getPodcastById, getShotById, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updatePodcastMeta, updateShotMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type PodcastMeta, type ShotMeta, type TagRow, type TagUsageRow } from "./queryEditor";
 import { AudioTrack } from "../../components/AudioTrack";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
@@ -602,6 +602,124 @@ export const ArticleCreator = () => {
         if (error) pushError("Load tree", error.message);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [error]);
+
+    // DnD-driven move: the user drags one tree row onto another. We map
+    // that to a renameObject call (same prefix-aware rewrite the rename
+    // form uses), then migrate the open-set so the moved subtree stays
+    // expanded across the refetch.
+    const onTreeNodeMove = async (sourceId: string, target: Node<ContentItem>) => {
+        // Sanity bail-outs (TreeCard already does most of these, repeated
+        // here so a malformed drag doesn't accidentally rename).
+        if (!sourceId || sourceId === "/" || sourceId.startsWith("/")) return;
+        if (sourceId.startsWith("__")) return;
+        const name = lastSegment(sourceId);
+        const targetBase = target.id === "/" ? "" : target.id;
+        const newPath = targetBase ? `${targetBase}/${name}` : name;
+        if (newPath === sourceId) return;
+        treeCtrl.current?.rewriteOpenIds(id =>
+            id === sourceId ? newPath :
+            id.startsWith(sourceId + "/") ? newPath + id.slice(sourceId.length) :
+            id
+        );
+        try {
+            await renameObject(sourceId, newPath);
+        } catch (e) {
+            pushError("Move", (e as Error).message);
+            await refetch();
+            return;
+        }
+        const mode = editingModeRef.current;
+        if (mode && typeof mode === "object" && "path" in mode) {
+            if (mode.path === sourceId) editingModeRef.current = { path: newPath };
+            else if (mode.path.startsWith(sourceId + "/")) {
+                editingModeRef.current = { path: newPath + mode.path.slice(sourceId.length) };
+            }
+        }
+        await refetch();
+    };
+
+    const isNodeDraggable = (node: Node<ContentItem>): boolean => {
+        if (node.id === "/" || node.id === "/profile" || node.id === "/tags") return false;
+        if (pendingId && node.id === pendingId) return false;
+        if (node.id.startsWith("__")) return false;
+        if (node.id.endsWith("/metadata")) return false;
+        return true;
+    };
+
+    // Delete-confirm: mirrors the tag-delete dialog. `target` is either a
+    // tree path (handles folders / articles / files) or a `(type, id)` pair
+    // (handles shot/podcast rows whose path is null and thus not deletable
+    // by path). Either way, `impact` is what shows in the dialog.
+    type DeleteTarget =
+        | { kind: "path", path: string, name: string }
+        | { kind: "entity", entity: "shot" | "podcast", id: number, name: string };
+    const [deleteConfirm, setDeleteConfirm] = useState<{ target: DeleteTarget, impact: TagUsageRow[] } | null>(null);
+
+    const requestDelete = async (node: Node<ContentItem>) => {
+        // Static sidebar nodes / root are never deletable.
+        if (node.id === "/" || node.id === "/profile" || node.id === "/tags") return;
+        if (node.id.endsWith("/metadata") || node.id.endsWith("/main.mdx")) return;
+
+        let target: DeleteTarget;
+        if (node.id.startsWith("__")) {
+            // Synthetic id — the row has no on-disk path. Delete by id.
+            if (typeof node.entityId !== "number") return;
+            const entity = node.contentType === "podcast" ? "podcast"
+                         : node.contentType === "shot" ? "shot"
+                         : null;
+            if (!entity) return;
+            target = { kind: "entity", entity, id: node.entityId, name: lastSegment(node.id) };
+        } else {
+            target = { kind: "path", path: node.id, name: lastSegment(node.id) };
+        }
+
+        try {
+            // For path targets ask the server; for synthetic-id rows the
+            // impact is trivially the row itself (one entry).
+            const impact: TagUsageRow[] = target.kind === "path"
+                ? ((await getDeleteImpact(target.path)).data.getDeleteImpact ?? [])
+                : [{ type: target.entity, id: target.id, label: target.name }];
+            if (impact.length === 0) {
+                await runDelete(target);
+                return;
+            }
+            setDeleteConfirm({ target, impact });
+        } catch (e) {
+            pushError("Delete impact", (e as Error).message);
+        }
+    };
+
+    const runDelete = async (target: DeleteTarget) => {
+        try {
+            if (target.kind === "path") {
+                await deleteByPath(target.path);
+                // Editor's open file may have just vanished — clear stale modes.
+                const mode = editingModeRef.current;
+                if (mode && typeof mode === "object" && "path" in mode &&
+                    (mode.path === target.path || mode.path.startsWith(target.path + "/"))) {
+                    editingModeRef.current = null;
+                    setMdxMode(false);
+                    setMetaMode(false);
+                }
+            } else if (target.entity === "shot") {
+                await deleteShotById(target.id);
+                if (shotForm?.id === target.id) setShotMode(false);
+            } else {
+                await deletePodcastById(target.id);
+                if (podcastForm?.id === target.id) setPodcastMode(false);
+            }
+            await refetch();
+        } catch (e) {
+            pushError("Delete", (e as Error).message);
+        }
+    };
+
+    const isNodeDropTarget = (node: Node<ContentItem>): boolean => {
+        if (node.id === "/profile" || node.id === "/tags") return false;
+        if (node.id.startsWith("__")) return false;
+        if (node.id.endsWith("/metadata") || node.id.endsWith("/main.mdx")) return false;
+        return node.tag === NodeTag.Category;
+    };
 
     const onTreeDropFiles = (node: Node<ContentItem>, files: FileList) => {
         // Sidebar pseudo-items aren't filesystem paths — silently ignore drops.
@@ -1321,7 +1439,7 @@ export const ArticleCreator = () => {
                 result.unshift(renameEntry)
                 result.push(copyPath);
                 result.push(
-                    { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
+                    { label: "Delete", danger: true, onClick: () => void requestDelete(node) }
                 )
             }
 
@@ -1343,7 +1461,7 @@ export const ArticleCreator = () => {
                 },
                 renameEntry,
                 copyPath,
-                { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+                { label: "Delete", danger: true, onClick: () => void requestDelete(node) },
             ];
 
             if (node.contentType === "article") {
@@ -1367,7 +1485,7 @@ export const ArticleCreator = () => {
         return [
             renameEntry,
             copyPath,
-            { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
+            { label: "Delete", danger: true, onClick: () => void requestDelete(node) },
         ];
     }
 
@@ -1380,6 +1498,9 @@ export const ArticleCreator = () => {
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
                     onNodeDropFiles={onTreeDropFiles}
+                    onNodeMove={(sourceId, target) => void onTreeNodeMove(sourceId, target)}
+                    isNodeDraggable={isNodeDraggable}
+                    isNodeDropTarget={isNodeDropTarget}
                     viewItem={viewItem}
                     expandIds={[
                         ...(pendingNew ? [pendingNew.parentId] : []),

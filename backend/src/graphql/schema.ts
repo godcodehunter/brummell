@@ -643,6 +643,31 @@ builder.queryType({
       type: ["Tag"],
       resolve: () => db.select().from(tags).all(),
     }),
+    // Tracked rows (article/shot/podcast) whose path equals `path` or sits
+    // under it. Mirrors getTagUsage's shape so the admin can reuse the
+    // same impact-list modal before confirming a destructive delete.
+    getDeleteImpact: t.field({
+      type: ["TagUsage"],
+      args: { path: t.arg.string({ required: true }) },
+      resolve: (_, { path: relPath }, ctx): TagUsage[] => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const prefixLike = `${relPath}/%`;
+        const out: TagUsage[] = [];
+        for (const a of db.select().from(articles)
+          .where(or(eq(articles.path, relPath), like(articles.path, prefixLike))).all()) {
+          out.push({ type: "article", id: a.id, label: a.headline });
+        }
+        for (const p of db.select().from(podcasts)
+          .where(or(eq(podcasts.path, relPath), like(podcasts.path, prefixLike))).all()) {
+          out.push({ type: "podcast", id: p.id, label: p.headline });
+        }
+        for (const s of db.select().from(shots)
+          .where(or(eq(shots.path, relPath), like(shots.path, prefixLike))).all()) {
+          out.push({ type: "shot", id: s.id, label: s.path ?? `Shot #${s.id}` });
+        }
+        return out;
+      },
+    }),
     // Returns every entity (article/shot/podcast) whose tag_set currently
     // includes the given tag id. Used by the admin tag editor to warn
     // before deletion — caller can show the list and prompt to confirm.
@@ -1153,6 +1178,106 @@ builder.mutationType({
             .run();
         }
         db.delete(tags).where(eq(tags.id, id)).run();
+        return true;
+      },
+    }),
+    // Recursively delete the on-disk path *and* any article/shot/podcast
+    // rows whose path equals or sits under it. tag_sets entries for those
+    // rows are stripped, and matching MDX build caches are removed. Used
+    // by the admin "Delete" context-menu after the user confirms via the
+    // impact dialog.
+    deleteByPath: t.field({
+      type: "Boolean",
+      args: { path: t.arg.string({ required: true }) },
+      resolve: async (_, { path: relPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+
+        const abs = resolveFilePath(`/files/${relPath.replace(/^\/+/, "")}`);
+        if (!abs) throw new Error("INVALID_PATH");
+
+        try {
+          await fs.rm(abs, { recursive: true, force: true });
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+        }
+
+        const prefixLike = `${relPath}/%`;
+        const cleanup = (
+          table: typeof articles | typeof shots | typeof podcasts,
+          type: "article" | "shot" | "podcast",
+        ) => {
+          const rows = db.select().from(table)
+            .where(or(eq(table.path, relPath), like(table.path, prefixLike)))
+            .all();
+          for (const r of rows) {
+            writeTagSet(type, r.id, []);
+            db.delete(table).where(eq(table.id, r.id)).run();
+          }
+        };
+        cleanup(articles, "article");
+        cleanup(shots, "shot");
+        cleanup(podcasts, "podcast");
+
+        // MDX build cache: an article folder owns `${BUILD_DIR}/<path>.js`,
+        // a parent dir owns the whole `${BUILD_DIR}/<path>` subtree.
+        const rmBuild = async (p: string) => {
+          try {
+            await fs.rm(p, { recursive: true, force: true });
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+          }
+        };
+        await rmBuild(path.join(BUILD_DIR, relPath));
+        await rmBuild(path.join(BUILD_DIR, `${relPath}.js`));
+
+        return true;
+      },
+    }),
+    // For shot/podcast rows whose `path` is null (synthetic tree id like
+    // `__shot/3`), there's no disk path to drive deleteByPath. These call
+    // sites take the numeric id instead. If a path happens to be set, the
+    // referenced file is also removed.
+    deleteShotById: t.field({
+      type: "Boolean",
+      args: { id: t.arg.int({ required: true }) },
+      resolve: async (_, { id }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const row = db.select().from(shots).where(eq(shots.id, id)).all()[0];
+        if (!row) throw new Error("NOT_FOUND");
+        if (row.path) {
+          const abs = resolveFilePath(`/files/${row.path.replace(/^\/+/, "")}`);
+          if (abs) {
+            try {
+              await fs.rm(abs, { recursive: true, force: true });
+            } catch (err) {
+              if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+            }
+          }
+        }
+        writeTagSet("shot", id, []);
+        db.delete(shots).where(eq(shots.id, id)).run();
+        return true;
+      },
+    }),
+    deletePodcastById: t.field({
+      type: "Boolean",
+      args: { id: t.arg.int({ required: true }) },
+      resolve: async (_, { id }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const row = db.select().from(podcasts).where(eq(podcasts.id, id)).all()[0];
+        if (!row) throw new Error("NOT_FOUND");
+        if (row.path) {
+          const abs = resolveFilePath(`/files/${row.path.replace(/^\/+/, "")}`);
+          if (abs) {
+            try {
+              await fs.rm(abs, { recursive: true, force: true });
+            } catch (err) {
+              if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+            }
+          }
+        }
+        writeTagSet("podcast", id, []);
+        db.delete(podcasts).where(eq(podcasts.id, id)).run();
         return true;
       },
     }),

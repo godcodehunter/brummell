@@ -654,3 +654,60 @@ export function updatePodcastMeta(meta: PodcastMeta) {
         },
     });
 }
+
+const GET_DELETE_IMPACT = gql`
+    query GetDeleteImpact($path: String!) {
+        getDeleteImpact(path: $path) {
+            type
+            id
+            label
+        }
+    }
+`;
+
+export function getDeleteImpact(path: string) {
+    return client.query<{ getDeleteImpact: TagUsageRow[] }, { path: string }>({
+        query: GET_DELETE_IMPACT,
+        variables: { path },
+        fetchPolicy: "no-cache",
+    });
+}
+
+const DELETE_BY_PATH = gql`
+    mutation DeleteByPath($path: String!) {
+        deleteByPath(path: $path)
+    }
+`;
+
+export function deleteByPath(path: string) {
+    return client.mutate<{ deleteByPath: boolean }, { path: string }>({
+        mutation: DELETE_BY_PATH,
+        variables: { path },
+    });
+}
+
+const DELETE_SHOT_BY_ID = gql`
+    mutation DeleteShotById($id: Int!) {
+        deleteShotById(id: $id)
+    }
+`;
+
+export function deleteShotById(id: number) {
+    return client.mutate<{ deleteShotById: boolean }, { id: number }>({
+        mutation: DELETE_SHOT_BY_ID,
+        variables: { id },
+    });
+}
+
+const DELETE_PODCAST_BY_ID = gql`
+    mutation DeletePodcastById($id: Int!) {
+        deletePodcastById(id: $id)
+    }
+`;
+
+export function deletePodcastById(id: number) {
+    return client.mutate<{ deletePodcastById: boolean }, { id: number }>({
+        mutation: DELETE_PODCAST_BY_ID,
+        variables: { id },
+    });
+}

@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, css } from 'aphrodite';
 import { MasonryGrid } from '../components/MasonryGrid';
-import { IconButton } from '../components/InconButton';
 import { gql, useLazyQuery, useQuery } from "@apollo/client";
 import { useNavigate } from 'react-router-dom';
 
@@ -13,11 +12,6 @@ import { VerticalProfileCard } from '../components/ProfileCard';
 import { Category, TreeCard, NodeTag } from '../components/TreeCard';
 import { ArticleCard } from '../components/ArticleCard';
 import { PodcastCard } from '../components/PodcastCard';
-
-
-import { ReactComponent as Github } from '../assets/github.svg';
-import { ReactComponent as Linkedin } from '../assets/linkedin.svg';
-import { ReactComponent as Twitter } from '../assets/twitter.svg';
 
 import { palette, constants } from '../globalStyles';
 
@@ -205,39 +199,38 @@ const GET_OWNER = gql`
     }
 `;
 
-const ProfileCardWithContent = () => {
-  const { data, loading, error } = useQuery(GET_OWNER);
+// Image-icon flavour of IconButton — the owner profile carries each ref's
+// `svgIcon` as a URL/path string, not a bundled SVG component, so we render
+// it as <img>. resolveAssetSrc lets paths like `icons/github.svg` work via
+// /files without forcing the user to type the full URL.
+const RefIcon: React.FC<{ url: string, svgIcon: string }> = ({ url, svgIcon }) => (
+  <img
+    src={resolveAssetSrc(svgIcon)}
+    alt=""
+    onClick={() => window.open(url, "_blank")}
+    style={{ width: "100%", height: "100%", objectFit: "contain", cursor: "pointer" }}
+  />
+);
 
-  const overview =
-  <>
-    Welcome to my blog. I am a programmer who believes that open source
-    will take over the world, also I am Rust cultist. In my free time
-    I am interested in microelectronics, deep topics from computer
-    science, various code translators.
-    <br />
-    I respect perseverance, uncompromising hard skills, pedantry and
-    commitment to ideals, and with this I move towards a craftsmanship.
-  </>
-  
-  const social = [
-    <IconButton
-      url={"https://x.com/godcodehunter"}
-      Icon={Twitter}
-    />,
-    <IconButton
-      url={"https://github.com/godcodehunter"}
-      Icon={Github}
-    />,
-    <IconButton
-      url={"https://www.linkedin.com/in/dmitry-opokin/"}
-      Icon={Linkedin}
-    />
-  ];
+function resolveAssetSrc(src: string): string {
+  if (!src) return src;
+  if (/^(data:|https?:\/\/|\/)/.test(src)) return src;
+  return `/files/${src}`;
+}
+
+const ProfileCardWithContent = () => {
+  const { data } = useQuery(GET_OWNER);
+  const owner = data?.getOwner;
+
+  const social = (owner?.externalLinks ?? []).map(
+    (l: { svgIcon: string, url: string }, i: number) =>
+      <RefIcon key={i} url={l.url} svgIcon={l.svgIcon} />,
+  );
 
   return <VerticalProfileCard
-    avatar={data?.getOwner?.avatar}
-    nickname={data?.getOwner?.nickname}
-    overview={data?.getOwner?.aboutMyself}
+    avatar={owner?.avatar ?? ""}
+    nickname={owner?.nickname ?? ""}
+    overview={owner?.aboutMyself ?? ""}
     social={social}
   />;
 };
