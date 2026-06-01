@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, type MDXBuild } from "./queryEditor";
+import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, togglePublishStatus, type MDXBuild } from "./queryEditor";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -622,7 +622,13 @@ export const ArticleCreator = () => {
 
         if (node.contentType === "shot" || node.contentType === "article" || node.contentType === "podcast") {
             let result: ContextMenuItem[] = [
-                { label: "Toggle Publish Status", onClick: () => console.log("Toggle Publish Status", node.id) },
+                {
+                    label: "Toggle Publish Status",
+                    onClick: async () => {
+                        await togglePublishStatus(node.id);
+                        await refetch();
+                    },
+                },
                 renameEntry,
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];

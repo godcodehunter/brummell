@@ -795,6 +795,26 @@ builder.mutationType({
         return true;
       },
     }),
+    // Flip publish_status between "published" and "draft" for whichever of
+    // articles/shots/podcasts owns this path. No-op (NOT_FOUND) if no row
+    // matches — caller is expected to invoke this only on tracked content.
+    togglePublishStatus: t.field({
+      type: PublishStatusEnum,
+      args: {
+        path: t.arg.string({ required: true }),
+      },
+      resolve: (_, { path: relPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        for (const table of [articles, shots, podcasts] as const) {
+          const row = db.select().from(table).where(eq(table.path, relPath)).all()[0];
+          if (!row) continue;
+          const next = row.publish_status === "published" ? "draft" : "published";
+          db.update(table).set({ publish_status: next }).where(eq(table.id, row.id)).run();
+          return next;
+        }
+        throw new Error("NOT_FOUND");
+      },
+    }),
     setupOwner: t.field({
       type: "AuthPayload",
       args: {

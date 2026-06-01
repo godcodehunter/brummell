@@ -186,8 +186,17 @@ export function queryTreeItem() {
     return {data: treeData, loading, error, refetch};
 }
 
-export function publishUnpublishItem(id: string, publishStatus: "published" | "draft") {
-    /* TODO */
+const TOGGLE_PUBLISH_STATUS = gql`
+    mutation TogglePublishStatus($path: String!) {
+        togglePublishStatus(path: $path)
+    }
+`;
+
+export function togglePublishStatus(path: string) {
+    return client.mutate<{ togglePublishStatus: "published" | "draft" }, { path: string }>({
+        mutation: TOGGLE_PUBLISH_STATUS,
+        variables: { path },
+    });
 }
 
 const CREATE_FOLDER = gql`
