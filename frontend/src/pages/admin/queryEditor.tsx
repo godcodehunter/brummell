@@ -108,9 +108,9 @@ function constructNodeFromItem(item: ContentItem): Node<ContentItem> {
             label: `${icon} ${name} ${status}`,
             children: [
                 {
-                    id: `${item.id}/def`,
+                    id: `${item.id}/metadata`,
                     tag: NodeTag.Item,
-                    label: "def.json",
+                    label: "metadata",
                 },
             ],
         };
@@ -401,5 +401,70 @@ export function getTagUsage(id: number) {
         query: GET_TAG_USAGE,
         variables: { id },
         fetchPolicy: "no-cache",
+    });
+}
+
+export type Difficulty = "easy" | "medium" | "hard" | "extra_hard";
+
+export interface ArticleMeta {
+    path: string;
+    kicker: string;
+    headline: string;
+    illustration: string;
+    preview_txt: string;
+    reading_time_min: number;
+    difficulty: Difficulty;
+}
+
+const GET_ARTICLE_BY_PATH = gql`
+    query GetArticleByPath($path: String!) {
+        getArticleByPath(path: $path) {
+            path
+            kicker
+            headline
+            illustration
+            preview_txt
+            reading_time_min
+            difficulty
+        }
+    }
+`;
+
+export function getArticleByPath(path: string) {
+    return client.query<{ getArticleByPath: ArticleMeta | null }, { path: string }>({
+        query: GET_ARTICLE_BY_PATH,
+        variables: { path },
+        fetchPolicy: "no-cache",
+    });
+}
+
+const UPDATE_ARTICLE_META = gql`
+    mutation UpdateArticleMeta(
+        $path: String!
+        $kicker: String!
+        $headline: String!
+        $illustration: String!
+        $preview_txt: String!
+        $reading_time_min: Int!
+        $difficulty: Difficulty!
+    ) {
+        updateArticleMeta(
+            path: $path
+            kicker: $kicker
+            headline: $headline
+            illustration: $illustration
+            preview_txt: $preview_txt
+            reading_time_min: $reading_time_min
+            difficulty: $difficulty
+        ) {
+            path
+        }
+    }
+`;
+
+export function updateArticleMeta(meta: ArticleMeta) {
+    return client.mutate<{ updateArticleMeta: { path: string } }, ArticleMeta>({
+        mutation: UPDATE_ARTICLE_META,
+        variables: meta,
     });
 }

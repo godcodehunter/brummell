@@ -537,6 +537,18 @@ builder.queryType({
         return row;
       },
     }),
+    // Admin lookup keyed by the on-disk path — the tree already exposes the
+    // article folder by path, so the metadata form fetches with that. No
+    // publish_status gate here: editing drafts is the whole point.
+    getArticleByPath: t.field({
+      type: "Article",
+      nullable: true,
+      args: { path: t.arg.string({ required: true }) },
+      resolve: (_, { path: relPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        return db.select().from(articles).where(eq(articles.path, relPath)).all()[0] ?? null;
+      },
+    }),
     getPayload: t.field({
       type: "String",
       args: {
@@ -682,6 +694,39 @@ builder.mutationType({
 
         pubsub.publish("newArticle", created);
         return created;
+      },
+    }),
+    // Patches an article's metadata in place. Identified by `path` because
+    // that's what the admin tree carries (no need to expose the numeric id
+    // to the UI). publish_status is not editable here — use
+    // togglePublishStatus. path/created_at stay as they are.
+    updateArticleMeta: t.field({
+      type: "Article",
+      args: {
+        path: t.arg.string({ required: true }),
+        kicker: t.arg.string({ required: true }),
+        headline: t.arg.string({ required: true }),
+        illustration: t.arg.string({ required: true }),
+        preview_txt: t.arg.string({ required: true }),
+        reading_time_min: t.arg.int({ required: true }),
+        difficulty: t.arg({ type: DifficultyEnum, required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const updated = db.update(articles)
+          .set({
+            kicker: args.kicker,
+            headline: args.headline,
+            illustration: args.illustration,
+            preview_txt: args.preview_txt,
+            reading_time_min: args.reading_time_min,
+            difficulty: args.difficulty,
+          })
+          .where(eq(articles.path, args.path))
+          .returning()
+          .all()[0];
+        if (!updated) throw new Error("NOT_FOUND");
+        return updated;
       },
     }),
     updateOwner: t.field({

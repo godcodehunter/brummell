@@ -6,7 +6,7 @@ import { ErrorMsg } from '../../components/ErrorMsg';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { previewAndSaveMDX, createArticle, createFolder, createTag, deleteTag, fetchPayload, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateTag, type MDXBuild, type TagRow, type TagUsageRow } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, createTag, deleteTag, fetchPayload, getArticleByPath, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type TagRow, type TagUsageRow } from "./queryEditor";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -783,6 +783,7 @@ export const ArticleCreator = () => {
             editingModeRef.current = "profile";
             setMdxMode(false);
             setTagsMode(false);
+            setMetaMode(false);
             setProfileMode(true);
             profileDirtyRef.current = false;
             const o = data?.getOwner;
@@ -800,6 +801,7 @@ export const ArticleCreator = () => {
             editingModeRef.current = null;
             setMdxMode(false);
             setTagsMode(false);
+            setMetaMode(false);
             setProfileMode(false);
             pushError("Load profile", err.message);
         },
@@ -818,6 +820,7 @@ export const ArticleCreator = () => {
             editingModeRef.current = "tags";
             setMdxMode(false);
             setProfileMode(false);
+            setMetaMode(false);
             setTagsMode(true);
             setTagsForm((data.getTag ?? []).map(t => ({
                 id: Number(t.id),
@@ -830,6 +833,7 @@ export const ArticleCreator = () => {
             editingModeRef.current = null;
             setMdxMode(false);
             setProfileMode(false);
+            setMetaMode(false);
             setTagsMode(false);
             pushError("Load tags", err.message);
         },
@@ -918,9 +922,56 @@ export const ArticleCreator = () => {
             setMdxMode(false);
             setTagsMode(false);
             setProfileMode(false);
+            setMetaMode(false);
             pushError("Load file", err.message);
         },
     });
+
+    // Article metadata form: same dirty-flag pattern as profile/tags.
+    // `metaPath` pins the active row so the auto-save useEffect knows
+    // which article's path to PATCH against.
+    const [metaMode, setMetaMode] = useState(false);
+    const [metaForm, setMetaForm] = useState<ArticleMeta | null>(null);
+    const metaDirtyRef = useRef(false);
+
+    const editMeta = (mutator: (m: ArticleMeta) => ArticleMeta) => {
+        metaDirtyRef.current = true;
+        setMetaForm(p => p ? mutator(p) : p);
+    };
+
+    const openArticleMeta = async (articlePath: string) => {
+        // Ctrl+S handler only fires for profile or `{ path }` modes; null
+        // here means metadata form just sits there auto-saving on edits.
+        editingModeRef.current = null;
+        setMdxMode(false);
+        setTagsMode(false);
+        setProfileMode(false);
+        setMetaMode(true);
+        metaDirtyRef.current = false;
+        try {
+            const { data } = await getArticleByPath(articlePath);
+            const m = data.getArticleByPath;
+            if (!m) throw new Error("Article not found");
+            setMetaForm({ ...m });
+        } catch (e) {
+            setMetaMode(false);
+            pushError("Load metadata", (e as Error).message);
+        }
+    };
+
+    useEffect(() => {
+        if (!metaMode || !metaForm) return;
+        if (!metaDirtyRef.current) return;
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            try {
+                await updateArticleMeta(metaForm);
+            } catch (e) {
+                if (!cancelled) pushError("Metadata save", (e as Error).message);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [metaForm, metaMode]);
 
     // Live MDX preview: when editing main.mdx, debounce-persist the current
     // buffer to disk and keep `mdxBuild` in sync with the compiled bundle.
@@ -1024,7 +1075,12 @@ export const ArticleCreator = () => {
             setMdxMode(true);
             setProfileMode(false);
             setTagsMode(false);
+            setMetaMode(false);
             fetchArticle({ variables: { path: node.id } });
+        }
+        if (node.id.endsWith("/metadata") && getParentNode(data, node)?.contentType === "article") {
+            const articlePath = node.id.slice(0, -"/metadata".length);
+            void openArticleMeta(articlePath);
         }
     }
 
@@ -1097,7 +1153,7 @@ export const ArticleCreator = () => {
         }
 
         // Mirror files ignore
-        if (node.id.endsWith("/def") || node.id.endsWith("/main.mdx")) {
+        if (node.id.endsWith("/def") || node.id.endsWith("/metadata") || node.id.endsWith("/main.mdx")) {
             switch (getParentNode(data, node)?.contentType) {
                 case "article":
                 case "podcast":
@@ -1173,6 +1229,79 @@ export const ArticleCreator = () => {
                                     className={css(profileFormStyles.refAdd)}
                                     onClick={() => void addTagRow()}
                                 >+ Add tag</button>
+                            </div>
+                        </div>
+                    </div>
+                ) : metaMode && metaForm ? (
+                    <div className={css(profileFormStyles.scroller)}>
+                        <div className={css(profileFormStyles.inner)}>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Headline</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    value={metaForm.headline}
+                                    onChange={e => editMeta(m => ({ ...m, headline: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Kicker</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    value={metaForm.kicker}
+                                    onChange={e => editMeta(m => ({ ...m, kicker: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Illustration</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    placeholder="path under /files or data: / http(s):// URL"
+                                    value={metaForm.illustration}
+                                    onChange={e => editMeta(m => ({ ...m, illustration: e.target.value }))}
+                                />
+                                {metaForm.illustration && (
+                                    <div className={css(profileFormStyles.avatarPreviewWrap)}>
+                                        <img
+                                            className={css(profileFormStyles.avatarPreview)}
+                                            src={resolveAssetSrc(metaForm.illustration)}
+                                            alt=""
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Preview text</label>
+                                <textarea
+                                    className={css(profileFormStyles.textarea)}
+                                    value={metaForm.preview_txt}
+                                    onChange={e => editMeta(m => ({ ...m, preview_txt: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Difficulty</label>
+                                <select
+                                    className={css(profileFormStyles.input)}
+                                    value={metaForm.difficulty}
+                                    onChange={e => editMeta(m => ({ ...m, difficulty: e.target.value as Difficulty }))}
+                                >
+                                    <option value="easy">easy</option>
+                                    <option value="medium">medium</option>
+                                    <option value="hard">hard</option>
+                                    <option value="extra_hard">extra_hard</option>
+                                </select>
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Reading time (min)</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    className={css(profileFormStyles.input)}
+                                    value={metaForm.reading_time_min}
+                                    onChange={e => {
+                                        const n = Number(e.target.value);
+                                        editMeta(m => ({ ...m, reading_time_min: Number.isFinite(n) ? n : 0 }));
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>
