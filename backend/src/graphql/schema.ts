@@ -83,8 +83,15 @@ const builder = new SchemaBuilder<{
     SubtitleWord: { range: TimeRange; text: string };
     EditableItem: EditableItem,
     MDXBuild: { code: string | null; error: string | null };
+    TagUsage: TagUsage;
   };
 }>({});
+
+type TagUsage = {
+  type: "article" | "shot" | "podcast";
+  id: number;
+  label: string;
+};
 
 interface EditableItem {
   id: string,
@@ -301,6 +308,17 @@ builder.objectType("Tag", {
     label: t.exposeString("label"),
     color: t.exposeString("color"),
     tooltip: t.exposeString("tooltip"),
+  }),
+});
+
+// Per-entity reference returned from getTagUsage. `label` is the best
+// human-readable handle: headline for article/podcast, path for shot
+// (shots have no headline column).
+builder.objectType("TagUsage", {
+  fields: (t) => ({
+    type: t.field({ type: CommentTargetTypeEnum, resolve: u => u.type }),
+    id: t.exposeInt("id"),
+    label: t.exposeString("label"),
   }),
 });
 
@@ -551,6 +569,32 @@ builder.queryType({
     getTag: t.field({
       type: ["Tag"],
       resolve: () => db.select().from(tags).all(),
+    }),
+    // Returns every entity (article/shot/podcast) whose tag_set currently
+    // includes the given tag id. Used by the admin tag editor to warn
+    // before deletion — caller can show the list and prompt to confirm.
+    getTagUsage: t.field({
+      type: ["TagUsage"],
+      args: { id: t.arg.int({ required: true }) },
+      resolve: (_, { id }, ctx): TagUsage[] => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const sets = db.select().from(tagSets).all()
+          .filter(s => s.tag_ids.includes(id));
+        const out: TagUsage[] = [];
+        for (const s of sets) {
+          if (s.type === "article") {
+            const r = db.select().from(articles).where(eq(articles.id, s.entity_id)).all()[0];
+            if (r) out.push({ type: "article", id: r.id, label: r.headline });
+          } else if (s.type === "podcast") {
+            const r = db.select().from(podcasts).where(eq(podcasts.id, s.entity_id)).all()[0];
+            if (r) out.push({ type: "podcast", id: r.id, label: r.headline });
+          } else {
+            const r = db.select().from(shots).where(eq(shots.id, s.entity_id)).all()[0];
+            if (r) out.push({ type: "shot", id: r.id, label: r.path });
+          }
+        }
+        return out;
+      },
     }),
     getOwner: t.field({
       type: "Owner",
@@ -817,6 +861,58 @@ builder.mutationType({
         await moveBuild(path.join(BUILD_DIR, oldPath), path.join(BUILD_DIR, newPath));
         await moveBuild(path.join(BUILD_DIR, `${oldPath}.js`), path.join(BUILD_DIR, `${newPath}.js`));
 
+        return true;
+      },
+    }),
+    createTag: t.field({
+      type: "Tag",
+      args: {
+        label: t.arg.string({ required: true }),
+        color: t.arg.string({ required: true }),
+        tooltip: t.arg.string({ required: true }),
+      },
+      resolve: (_, { label, color, tooltip }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        return db.insert(tags).values({ label, color, tooltip }).returning().all()[0]!;
+      },
+    }),
+    updateTag: t.field({
+      type: "Tag",
+      args: {
+        id: t.arg.int({ required: true }),
+        label: t.arg.string({ required: true }),
+        color: t.arg.string({ required: true }),
+        tooltip: t.arg.string({ required: true }),
+      },
+      resolve: (_, { id, label, color, tooltip }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const updated = db.update(tags)
+          .set({ label, color, tooltip })
+          .where(eq(tags.id, id))
+          .returning()
+          .all()[0];
+        if (!updated) throw new Error("NOT_FOUND");
+        return updated;
+      },
+    }),
+    // Always force-deletes — the caller (admin UI) is expected to invoke
+    // getTagUsage first and confirm with the user if anything points at
+    // this tag. Strips the tag id from every tag_set that references it,
+    // then removes the row itself.
+    deleteTag: t.field({
+      type: "Boolean",
+      args: { id: t.arg.int({ required: true }) },
+      resolve: (_, { id }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const sets = db.select().from(tagSets).all();
+        for (const s of sets) {
+          if (!s.tag_ids.includes(id)) continue;
+          db.update(tagSets)
+            .set({ tag_ids: s.tag_ids.filter(t => t !== id) })
+            .where(eq(tagSets.id, s.id))
+            .run();
+        }
+        db.delete(tags).where(eq(tags.id, id)).run();
         return true;
       },
     }),

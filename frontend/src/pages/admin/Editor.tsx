@@ -6,7 +6,7 @@ import { ErrorMsg } from '../../components/ErrorMsg';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { previewAndSaveMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, togglePublishStatus, type MDXBuild } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, createTag, deleteTag, fetchPayload, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateTag, type MDXBuild, type TagRow, type TagUsageRow } from "./queryEditor";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -354,6 +354,98 @@ const profileFormStyles = StyleSheet.create({
     },
 });
 
+const tagsFormStyles = StyleSheet.create({
+    rowsList: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+    },
+    tagRow: {
+        display: "grid",
+        gridTemplateColumns: "1fr 88px 2fr 28px",
+        gap: 6,
+        alignItems: "center",
+    },
+    colorCell: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+    },
+    colorSwatch: {
+        width: 16,
+        height: 16,
+        border: "1px solid #3A3A3A",
+        flexShrink: 0,
+    },
+    colorInput: {
+        flex: 1,
+        minWidth: 0,
+    },
+    modalOverlay: {
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2000,
+    },
+    modalBox: {
+        backgroundColor: "#1E1E1F",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        fontFamily: "Roboto",
+        fontSize: 13,
+        padding: 16,
+        maxWidth: 480,
+        width: "90%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+    },
+    modalTitle: {
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#FF8A80",
+    },
+    usageList: {
+        margin: 0,
+        paddingLeft: 18,
+        maxHeight: 240,
+        overflowY: "auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+    },
+    usageType: {
+        color: "#858585",
+        marginRight: 6,
+        textTransform: "uppercase",
+        fontSize: 11,
+    },
+    modalActions: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 8,
+    },
+    btnGhost: {
+        backgroundColor: "transparent",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        padding: "6px 12px",
+        cursor: "pointer",
+        ":hover": { borderColor: "#6CA9E8", color: "#6CA9E8" },
+    },
+    btnDanger: {
+        backgroundColor: "transparent",
+        border: "1px solid #FF8A80",
+        color: "#FF8A80",
+        padding: "6px 12px",
+        cursor: "pointer",
+        ":hover": { backgroundColor: "rgba(255,138,128,0.1)" },
+    },
+});
+
 const noticesStyle = StyleSheet.create({
     container: {
         position: "fixed",
@@ -677,8 +769,6 @@ export const ArticleCreator = () => {
         );
     };
 
-    const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
-
     // Profile is edited as a structured form (not Monaco). When in profile
     // mode the right panel renders ProfileForm; auto-save debounces on every
     // change like the MDX editor. `profileDirtyRef` is the guard that keeps
@@ -692,6 +782,7 @@ export const ArticleCreator = () => {
         onCompleted: data => {
             editingModeRef.current = "profile";
             setMdxMode(false);
+            setTagsMode(false);
             setProfileMode(true);
             profileDirtyRef.current = false;
             const o = data?.getOwner;
@@ -708,26 +799,115 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
+            setTagsMode(false);
             setProfileMode(false);
             pushError("Load profile", err.message);
         },
     });
 
-    const [fetchTags] = useLazyQuery(GET_TAGS, {
+    // Same dirty-flag pattern as the profile form: structured rows, auto-save
+    // debounce; the initial fetch must not re-write the data back.
+    type TagFormRow = { id: number, label: string, color: string, tooltip: string, dirty?: boolean };
+    const [tagsMode, setTagsMode] = useState(false);
+    const [tagsForm, setTagsForm] = useState<TagFormRow[] | null>(null);
+    const [tagDeleteConfirm, setTagDeleteConfirm] = useState<{ id: number, label: string, usage: TagUsageRow[] } | null>(null);
+
+    const [fetchTags] = useLazyQuery<{ getTag: TagRow[] }>(GET_TAGS, {
         fetchPolicy: "network-only",
         onCompleted: data => {
             editingModeRef.current = "tags";
             setMdxMode(false);
             setProfileMode(false);
-            setEditorValue(JSON.stringify(data.getTag, removeInternal, 4));
+            setTagsMode(true);
+            setTagsForm((data.getTag ?? []).map(t => ({
+                id: Number(t.id),
+                label: t.label,
+                color: t.color,
+                tooltip: t.tooltip,
+            })));
         },
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
             setProfileMode(false);
+            setTagsMode(false);
             pushError("Load tags", err.message);
         },
     });
+
+    const editTagRow = (id: number, mutator: (t: TagFormRow) => TagFormRow) => {
+        setTagsForm(p => p ? p.map(t => t.id === id ? { ...mutator(t), dirty: true } : t) : p);
+    };
+
+    // Auto-save: debounce-flush every dirty row through updateTag in parallel.
+    // Errors surface as toasts; rows keep their dirty flag if all saves fail,
+    // so the next change retries them along with the new edit.
+    useEffect(() => {
+        if (!tagsMode || !tagsForm) return;
+        const dirty = tagsForm.filter(t => t.dirty);
+        if (dirty.length === 0) return;
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            const results = await Promise.allSettled(
+                dirty.map(t => updateTag(t.id, t.label, t.color, t.tooltip))
+            );
+            if (cancelled) return;
+            const savedIds = new Set<number>();
+            results.forEach((r, i) => {
+                if (r.status === "fulfilled") savedIds.add(dirty[i].id);
+                else pushError("Tag save", (r.reason as Error).message);
+            });
+            if (savedIds.size > 0) {
+                setTagsForm(p => p ? p.map(t => savedIds.has(t.id) ? { ...t, dirty: false } : t) : p);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [tagsForm, tagsMode]);
+
+    const addTagRow = async () => {
+        try {
+            const { data } = await createTag("new_tag", "#888888", "");
+            const created = data?.createTag;
+            if (!created) return;
+            setTagsForm(p => [...(p ?? []), {
+                id: Number(created.id),
+                label: created.label,
+                color: created.color,
+                tooltip: created.tooltip,
+            }]);
+        } catch (e) {
+            pushError("Create tag", (e as Error).message);
+        }
+    };
+
+    // Two-phase delete: peek at usage first, prompt the user if anything
+    // references this tag. Empty usage → immediate delete (no extra click).
+    const requestDeleteTag = async (row: TagFormRow) => {
+        try {
+            const { data } = await getTagUsage(row.id);
+            const usage = data?.getTagUsage ?? [];
+            if (usage.length === 0) {
+                await deleteTag(row.id);
+                setTagsForm(p => p ? p.filter(t => t.id !== row.id) : p);
+                return;
+            }
+            setTagDeleteConfirm({ id: row.id, label: row.label, usage });
+        } catch (e) {
+            pushError("Delete tag", (e as Error).message);
+        }
+    };
+
+    const confirmDeleteTag = async () => {
+        if (!tagDeleteConfirm) return;
+        const { id } = tagDeleteConfirm;
+        setTagDeleteConfirm(null);
+        try {
+            await deleteTag(id);
+            setTagsForm(p => p ? p.filter(t => t.id !== id) : p);
+        } catch (e) {
+            pushError("Delete tag", (e as Error).message);
+        }
+    };
 
     const [fetchArticle] = fetchPayload({
         onCompleted: data => {
@@ -736,6 +916,7 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
+            setTagsMode(false);
             setProfileMode(false);
             pushError("Load file", err.message);
         },
@@ -842,6 +1023,7 @@ export const ArticleCreator = () => {
             editingModeRef.current = { path: node.id };
             setMdxMode(true);
             setProfileMode(false);
+            setTagsMode(false);
             fetchArticle({ variables: { path: node.id } });
         }
     }
@@ -950,7 +1132,51 @@ export const ArticleCreator = () => {
                 />
             </Panel>
             <Panel flex>
-                {profileMode && profileForm ? (
+                {tagsMode && tagsForm ? (
+                    <div className={css(profileFormStyles.scroller)}>
+                        <div className={css(profileFormStyles.inner)}>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Tags</label>
+                                <div className={css(tagsFormStyles.rowsList)}>
+                                    {tagsForm.map(tag => (
+                                        <div key={tag.id} className={css(tagsFormStyles.tagRow)}>
+                                            <input
+                                                className={css(profileFormStyles.input)}
+                                                placeholder="label"
+                                                value={tag.label}
+                                                onChange={e => editTagRow(tag.id, t => ({ ...t, label: e.target.value }))}
+                                            />
+                                            <div className={css(tagsFormStyles.colorCell)}>
+                                                <span className={css(tagsFormStyles.colorSwatch)} style={{ backgroundColor: tag.color || "transparent" }} />
+                                                <input
+                                                    className={css(profileFormStyles.input, tagsFormStyles.colorInput)}
+                                                    placeholder="#888"
+                                                    value={tag.color}
+                                                    onChange={e => editTagRow(tag.id, t => ({ ...t, color: e.target.value }))}
+                                                />
+                                            </div>
+                                            <input
+                                                className={css(profileFormStyles.input)}
+                                                placeholder="tooltip"
+                                                value={tag.tooltip}
+                                                onChange={e => editTagRow(tag.id, t => ({ ...t, tooltip: e.target.value }))}
+                                            />
+                                            <button
+                                                className={css(profileFormStyles.refDelete)}
+                                                onClick={() => void requestDeleteTag(tag)}
+                                                aria-label="Remove tag"
+                                            >×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    className={css(profileFormStyles.refAdd)}
+                                    onClick={() => void addTagRow()}
+                                >+ Add tag</button>
+                            </div>
+                        </div>
+                    </div>
+                ) : profileMode && profileForm ? (
                     <div className={css(profileFormStyles.scroller)}>
                         <div className={css(profileFormStyles.inner)}>
                             <div className={css(profileFormStyles.field)}>
@@ -1103,5 +1329,36 @@ export const ArticleCreator = () => {
                 </div>
             ))}
         </div>
+        {tagDeleteConfirm && (
+            <div className={css(tagsFormStyles.modalOverlay)} onClick={() => setTagDeleteConfirm(null)}>
+                <div className={css(tagsFormStyles.modalBox)} onClick={e => e.stopPropagation()}>
+                    <div className={css(tagsFormStyles.modalTitle)}>
+                        Delete tag "{tagDeleteConfirm.label}"?
+                    </div>
+                    <div>
+                        This tag is currently attached to {tagDeleteConfirm.usage.length} item{tagDeleteConfirm.usage.length === 1 ? "" : "s"}.
+                        Deleting it will detach the tag from every one of them.
+                    </div>
+                    <ul className={css(tagsFormStyles.usageList)}>
+                        {tagDeleteConfirm.usage.map(u => (
+                            <li key={`${u.type}-${u.id}`}>
+                                <span className={css(tagsFormStyles.usageType)}>{u.type}</span>
+                                {u.label || `#${u.id}`}
+                            </li>
+                        ))}
+                    </ul>
+                    <div className={css(tagsFormStyles.modalActions)}>
+                        <button
+                            className={css(tagsFormStyles.btnGhost)}
+                            onClick={() => setTagDeleteConfirm(null)}
+                        >Cancel</button>
+                        <button
+                            className={css(tagsFormStyles.btnDanger)}
+                            onClick={() => void confirmDeleteTag()}
+                        >Delete anyway</button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
 };

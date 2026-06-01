@@ -323,3 +323,83 @@ export function renameObject(oldPath: string, newPath: string) {
         variables: { oldPath, newPath },
     });
 }
+
+export interface TagRow {
+    id: string;
+    label: string;
+    color: string;
+    tooltip: string;
+}
+
+export interface TagUsageRow {
+    type: "article" | "shot" | "podcast";
+    id: number;
+    label: string;
+}
+
+const CREATE_TAG = gql`
+    mutation CreateTag($label: String!, $color: String!, $tooltip: String!) {
+        createTag(label: $label, color: $color, tooltip: $tooltip) {
+            id
+            label
+            color
+            tooltip
+        }
+    }
+`;
+
+export function createTag(label: string, color: string, tooltip: string) {
+    return client.mutate<{ createTag: TagRow }, { label: string; color: string; tooltip: string }>({
+        mutation: CREATE_TAG,
+        variables: { label, color, tooltip },
+    });
+}
+
+const UPDATE_TAG = gql`
+    mutation UpdateTag($id: Int!, $label: String!, $color: String!, $tooltip: String!) {
+        updateTag(id: $id, label: $label, color: $color, tooltip: $tooltip) {
+            id
+            label
+            color
+            tooltip
+        }
+    }
+`;
+
+export function updateTag(id: number, label: string, color: string, tooltip: string) {
+    return client.mutate<{ updateTag: TagRow }, { id: number; label: string; color: string; tooltip: string }>({
+        mutation: UPDATE_TAG,
+        variables: { id, label, color, tooltip },
+    });
+}
+
+const DELETE_TAG = gql`
+    mutation DeleteTag($id: Int!) {
+        deleteTag(id: $id)
+    }
+`;
+
+export function deleteTag(id: number) {
+    return client.mutate<{ deleteTag: boolean }, { id: number }>({
+        mutation: DELETE_TAG,
+        variables: { id },
+    });
+}
+
+const GET_TAG_USAGE = gql`
+    query GetTagUsage($id: Int!) {
+        getTagUsage(id: $id) {
+            type
+            id
+            label
+        }
+    }
+`;
+
+export function getTagUsage(id: number) {
+    return client.query<{ getTagUsage: TagUsageRow[] }, { id: number }>({
+        query: GET_TAG_USAGE,
+        variables: { id },
+        fetchPolicy: "no-cache",
+    });
+}
