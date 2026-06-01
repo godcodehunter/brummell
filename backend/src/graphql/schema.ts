@@ -316,7 +316,7 @@ builder.objectType("Shot", {
     tag: t.string({ resolve: () => "shot" }),
     id: t.exposeID("id"),
     createdAt: t.exposeInt("created_at"),
-    path: t.exposeString("path"),
+    text: t.exposeString("text"),
     views: t.field({
       type: "Int",
       resolve: (shot) => resolveViews("shot", shot.id),

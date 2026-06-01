@@ -1,8 +1,5 @@
 import { ProfileCard } from '../components/ProfileCard';
 import avatar from '../assets/avatar.jpg';
-import { ReactComponent as Github } from '../assets/github.svg';
-import { ReactComponent as Linkedin } from '../assets/linkedin.svg';
-import { ReactComponent as Twitter } from '../assets/twitter.svg';
 
 export default {
     title: 'ProfileCard',
@@ -21,10 +18,6 @@ export const Default = {
         avatar: avatar,
         nickname: "mrsmith",
         overview: OVERVIEW,
-        social: [
-            <Twitter fill="#ABABAB" />,
-            <Github fill="#ABABAB" />,
-            <Linkedin fill="#ABABAB" />,
-        ],
+        social: [],
     },
 };

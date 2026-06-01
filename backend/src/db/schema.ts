@@ -54,9 +54,8 @@ export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
-  // The shot's single media file (image/video). Nullable — a freshly
-  // created shot has no media yet; the editor form lets the user fill it.
-  path: text("path"),
+  // Tweet-style short text — the whole shot. No on-disk file involved.
+  text: text("text").notNull().default(""),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 
