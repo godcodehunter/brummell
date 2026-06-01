@@ -292,7 +292,13 @@ export const ArticlePage = () => {
                         kicker: data.getArticle.kicker,
                         title: data.getArticle.headline,
                         preview: data.getArticle.preview_txt,
-                        tags: data.getArticle.tags,
+                        // Server returns color as a hex string; Chip wants a
+                        // chroma.Color instance (it calls .hex() on it).
+                        tags: data.getArticle.tags.map((t: { label: string, color: string, tooltip: string }) => ({
+                            label: t.label,
+                            color: chroma(t.color || "#888888"),
+                            tooltip: t.tooltip,
+                        })),
                         imageSrc: data.getArticle.illustration,
                         metaItems: {
                             difficulty: data.getArticle.difficulty,
