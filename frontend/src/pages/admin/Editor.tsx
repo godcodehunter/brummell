@@ -5,7 +5,7 @@ import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, savePayload, type MDXBuild } from "./queryEditor";
+import { compileMDX, createArticle, createFolder, fetchPayload, queryTreeItem, renameObject, savePayload, type MDXBuild } from "./queryEditor";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
@@ -271,6 +271,13 @@ export const ArticleCreator = () => {
     const [pendingValue, setPendingValue] = useState("");
     const submittingRef = useRef(false);
 
+    // Rename uses the same in-tree input pattern as New Folder: the target
+    // node's row is taken over by an editable input pre-populated with its
+    // current name. Commit on Enter or blur, cancel on Escape or empty/unchanged.
+    const [pendingRename, setPendingRename] = useState<{ targetId: string } | null>(null);
+    const [renameValue, setRenameValue] = useState("");
+    const renameSubmittingRef = useRef(false);
+
     const pendingId = pendingNew ? makePendingId(pendingNew.parentId) : null;
 
     const dataWithPending = useMemo(() => {
@@ -299,6 +306,42 @@ export const ArticleCreator = () => {
     useEffect(() => {
         if (pendingNew) submittingRef.current = false;
     }, [pendingNew]);
+
+    const cancelRename = () => {
+        renameSubmittingRef.current = true;
+        setPendingRename(null);
+        setRenameValue("");
+    };
+
+    const commitRename = async () => {
+        if (renameSubmittingRef.current || !pendingRename) return;
+        renameSubmittingRef.current = true;
+        const newName = renameValue.trim();
+        const oldPath = pendingRename.targetId;
+        setPendingRename(null);
+        setRenameValue("");
+        const oldName = lastSegment(oldPath);
+        if (!newName || newName === oldName || newName.includes("/")) return;
+        const parts = oldPath.split("/");
+        parts[parts.length - 1] = newName;
+        const newPath = parts.join("/");
+        await renameObject(oldPath, newPath);
+        // If the editor is currently editing a path under the renamed object,
+        // rebase that path so subsequent saves hit the new location.
+        const mode = editingModeRef.current;
+        if (mode && typeof mode === "object" && "path" in mode) {
+            if (mode.path === oldPath) {
+                editingModeRef.current = { path: newPath };
+            } else if (mode.path.startsWith(oldPath + "/")) {
+                editingModeRef.current = { path: newPath + mode.path.slice(oldPath.length) };
+            }
+        }
+        await refetch();
+    };
+
+    useEffect(() => {
+        if (pendingRename) renameSubmittingRef.current = false;
+    }, [pendingRename]);
 
     const viewItem = (node: Node<ContentItem>) => {
         if (pendingId && node.id === pendingId) {
@@ -332,16 +375,29 @@ export const ArticleCreator = () => {
         }
         const icon = iconForContent(node.contentType);
         const status = publishIcon(node);
-        const name = lastSegment(node.id);
+        const isRenaming = pendingRename?.targetId === node.id;
+        const name = isRenaming ? renameValue : lastSegment(node.id);
         return (
             <div className={css(editorView.row)}>
                 <span className={css(editorView.icon)}>{icon}</span>
                 <input
+                    autoFocus={isRenaming}
                     className={css(editorView.nameField)}
                     value={name}
-                    readOnly
+                    readOnly={!isRenaming}
+                    onFocus={isRenaming ? e => e.currentTarget.select() : undefined}
+                    onChange={isRenaming ? e => setRenameValue(e.target.value) : undefined}
+                    onBlur={isRenaming ? () => { void commitRename(); } : undefined}
+                    onKeyDown={isRenaming ? e => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            void commitRename();
+                        } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelRename();
+                        }
+                    } : undefined}
                     onClick={e => e.stopPropagation()}
-                    onChange={() => { /* rename is wired separately */ }}
                 />
                 {status && <span className={css(editorView.icon)}>{status}</span>}
             </div>
@@ -479,6 +535,7 @@ export const ArticleCreator = () => {
 
     function onTreeItemClick(node: Node) {
         if (pendingId && node.id === pendingId) return;
+        if (pendingRename && node.id === pendingRename.targetId) return;
         if (node.id === "/profile") {
             fetchOwner();
         }
@@ -505,6 +562,13 @@ export const ArticleCreator = () => {
             label: "New Article",
             onClick: () => createArticle(node.id, "new_article")
         }
+        const renameEntry = {
+            label: "Rename",
+            onClick: () => {
+                setRenameValue(lastSegment(node.id));
+                setPendingRename({ targetId: node.id });
+            },
+        }
 
         // Profile and tags are special nodes that don't represent actual content items, so we don't show any context menu for them.
         if (node.id === "/profile" || node.id === "/tags") {
@@ -520,9 +584,7 @@ export const ArticleCreator = () => {
             ];
 
             if (node.id !== "/") {
-                result.unshift(
-                    { label: "Rename", onClick: () => console.log("Rename", node.id) }
-                )
+                result.unshift(renameEntry)
                 result.push(
                     { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) }
                 )
@@ -534,7 +596,7 @@ export const ArticleCreator = () => {
         if (node.contentType === "shot" || node.contentType === "article" || node.contentType === "podcast") {
             let result: ContextMenuItem[] = [
                 { label: "Toggle Publish Status", onClick: () => console.log("Toggle Publish Status", node.id) },
-                { label: "Rename", onClick: () => console.log("Rename", node.id) },
+                renameEntry,
                 { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
             ];
 
@@ -557,7 +619,7 @@ export const ArticleCreator = () => {
 
         // Common files
         return [
-            { label: "Rename", onClick: () => console.log("Rename", node.id) },
+            renameEntry,
             { label: "Delete", danger: true, onClick: () => console.log("Delete", node.id) },
         ];
     }
@@ -571,7 +633,10 @@ export const ArticleCreator = () => {
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
                     viewItem={viewItem}
-                    expandIds={pendingNew ? [pendingNew.parentId] : undefined}
+                    expandIds={[
+                        ...(pendingNew ? [pendingNew.parentId] : []),
+                        ...(pendingRename ? [pendingRename.targetId] : []),
+                    ]}
                     style={{ height: "100%" }}
                 />
             </Panel>

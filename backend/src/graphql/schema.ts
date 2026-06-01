@@ -14,7 +14,7 @@
 //   4. `builder.toSchema()` — produce the executable schema for Yoga.
 
 import SchemaBuilder from "@pothos/core";
-import { and, asc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, eq, inArray, like, or } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   shots,
@@ -52,7 +52,7 @@ import {
   prepaireForStorage,
 } from "../adminPass.js"
 import { FILES_DIR, MIME_BY_EXT, resolveFilePath } from "../files.js";
-import { compileArticleMDX } from "../mdxBuild.js";
+import { compileArticleMDX, BUILD_DIR } from "../mdxBuild.js";
 import { bundleMDX } from "mdx-bundler";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -722,6 +722,76 @@ builder.mutationType({
           if (code === "EEXIST") throw new Error("ALREADY_EXISTS");
           throw err;
         }
+        return true;
+      },
+    }),
+    // Move/rename a tracked path. Touches three places:
+    //   1. The on-disk file or directory under FILES_DIR.
+    //   2. The `path` column on articles/shots/podcasts whose paths either
+    //      equal oldPath or live underneath it — rewritten to the new prefix.
+    //   3. The MDX build cache. A renamed article folder owns a sibling
+    //      cache file `${BUILD_DIR}/${oldPath}.js`; a renamed parent dir
+    //      owns the cache subtree `${BUILD_DIR}/${oldPath}`. Both moves are
+    //      attempted; ENOENT is fine (cache may not exist yet).
+    renameObject: t.field({
+      type: "Boolean",
+      args: {
+        oldPath: t.arg.string({ required: true }),
+        newPath: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { oldPath, newPath }, ctx) => {
+        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        if (oldPath === newPath) return true;
+
+        const oldAbs = resolveFilePath(`/files/${oldPath.replace(/^\/+/, "")}`);
+        const newAbs = resolveFilePath(`/files/${newPath.replace(/^\/+/, "")}`);
+        if (!oldAbs || !newAbs) throw new Error("INVALID_PATH");
+
+        try {
+          await fs.access(newAbs);
+          throw new Error("ALREADY_EXISTS");
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+        }
+
+        try {
+          await fs.mkdir(path.dirname(newAbs), { recursive: true });
+          await fs.rename(oldAbs, newAbs);
+        } catch (err) {
+          const code = (err as NodeJS.ErrnoException).code;
+          if (code === "ENOENT") throw new Error("NOT_FOUND");
+          throw err;
+        }
+
+        const prefixLike = `${oldPath}/%`;
+        const remapPath = (current: string): string =>
+          current === oldPath ? newPath : newPath + current.slice(oldPath.length);
+
+        for (const table of [articles, shots, podcasts] as const) {
+          const affected = db
+            .select()
+            .from(table)
+            .where(or(eq(table.path, oldPath), like(table.path, prefixLike)))
+            .all();
+          for (const row of affected) {
+            db.update(table)
+              .set({ path: remapPath(row.path) })
+              .where(eq(table.id, row.id))
+              .run();
+          }
+        }
+
+        const moveBuild = async (from: string, to: string) => {
+          try {
+            await fs.mkdir(path.dirname(to), { recursive: true });
+            await fs.rename(from, to);
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+          }
+        };
+        await moveBuild(path.join(BUILD_DIR, oldPath), path.join(BUILD_DIR, newPath));
+        await moveBuild(path.join(BUILD_DIR, `${oldPath}.js`), path.join(BUILD_DIR, `${newPath}.js`));
+
         return true;
       },
     }),

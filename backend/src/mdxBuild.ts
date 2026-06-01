@@ -9,7 +9,7 @@ import { bundleMDX } from "mdx-bundler";
 import { config } from "./config.js";
 import { FILES_DIR } from "./files.js";
 
-const BUILD_DIR = path.join(config.dbDir, "build");
+export const BUILD_DIR = path.join(config.dbDir, "build");
 
 // `articlePath` is the relative path stored in the articles row (e.g.
 // "articles/lock-free-queues"). Returns null when main.mdx is missing.

@@ -303,6 +303,15 @@ export function createShot(path: string, name: string) {
     /* TODO */
 }
 
-export function moveObject(newPath: string, oldPath: string) {
-    /* TODO */
+const RENAME_OBJECT = gql`
+    mutation RenameObject($oldPath: String!, $newPath: String!) {
+        renameObject(oldPath: $oldPath, newPath: $newPath)
+    }
+`;
+
+export function renameObject(oldPath: string, newPath: string) {
+    return client.mutate<{ renameObject: boolean }, { oldPath: string; newPath: string }>({
+        mutation: RENAME_OBJECT,
+        variables: { oldPath, newPath },
+    });
 }
