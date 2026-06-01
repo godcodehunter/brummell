@@ -10,18 +10,6 @@ import { previewAndSaveMDX, createArticle, createFolder, fetchPayload, queryTree
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
 
-interface ExternalLink {
-    svg_icon: string;
-    url: string;
-}
-
-interface Owner {
-    nickname: string;
-    about_myself: string;
-    avatar: string;
-    external_links: ExternalLink[];
-}
-
 const GET_OWNER = gql`
     query GetOwner {
         getOwner {
@@ -148,16 +136,22 @@ export interface ContentItem {
     publishStatus?: "published" | "draft";
 }
 
-const profileEditTip = `// The profle data have the following structure:
-// {
-//    nickname: string;
-//    aboutMyself: string;
-//    avatar: string;
-//    externalLinks: {
-//         svgIcon: string;
-//         url: string;
-//    }[];
-// }`;
+// GraphQL camelCase shape — what fetchOwner actually returns.
+type ProfileFormData = {
+    nickname: string;
+    aboutMyself: string;
+    avatar: string;
+    externalLinks: { svgIcon: string; url: string }[];
+};
+
+// Mirrors ProfileCard's path resolver so the in-form avatar preview matches
+// what the public profile renders. Stays a local copy to avoid coupling the
+// editor to ProfileCard's internals.
+function resolveAssetSrc(src: string): string {
+    if (!src) return src;
+    if (/^(data:|https?:\/\/|\/)/.test(src)) return src;
+    return `/files/${src}`;
+}
 
 function getParentNode(data: Node<ContentItem>[] | null, target: Node<ContentItem>): Category<ContentItem> | null {
     const walk = (nodes: Node<ContentItem>[], parent: Category<ContentItem> | null): Category<ContentItem> | null => {
@@ -252,6 +246,111 @@ const editorView = StyleSheet.create({
         padding: 0,
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
+    },
+});
+
+const profileFormStyles = StyleSheet.create({
+    scroller: {
+        height: "100%",
+        overflowY: "auto",
+        backgroundColor: "#1E1E1F",
+        color: "#D4D4D4",
+        fontFamily: "Roboto",
+        fontSize: 13,
+    },
+    inner: {
+        maxWidth: 720,
+        margin: "0 auto",
+        padding: 24,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+    },
+    field: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+    },
+    label: {
+        fontSize: 11,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        color: "#858585",
+    },
+    input: {
+        backgroundColor: "#2A2A2A",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        padding: "6px 8px",
+        fontFamily: "Roboto",
+        fontSize: 13,
+        outline: "none",
+        ":focus": { borderColor: "#6CA9E8" },
+    },
+    textarea: {
+        backgroundColor: "#2A2A2A",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        padding: "6px 8px",
+        fontFamily: "Roboto",
+        fontSize: 13,
+        outline: "none",
+        resize: "vertical",
+        minHeight: 96,
+        ":focus": { borderColor: "#6CA9E8" },
+    },
+    avatarPreviewWrap: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        marginTop: 4,
+    },
+    avatarPreview: {
+        width: 64,
+        height: 64,
+        objectFit: "cover",
+        border: "1px solid #3A3A3A",
+        backgroundColor: "#2A2A2A",
+    },
+    refsList: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+    },
+    refRow: {
+        display: "flex",
+        gap: 6,
+        alignItems: "center",
+    },
+    refIconInput: {
+        flex: "1 1 0",
+        minWidth: 0,
+    },
+    refUrlInput: {
+        flex: "2 1 0",
+        minWidth: 0,
+    },
+    refDelete: {
+        flexShrink: 0,
+        width: 28,
+        height: 28,
+        backgroundColor: "transparent",
+        border: "1px solid #3A3A3A",
+        color: "#D4D4D4",
+        cursor: "pointer",
+        fontSize: 16,
+        lineHeight: "26px",
+        padding: 0,
+        ":hover": { borderColor: "#FF8A80", color: "#FF8A80" },
+    },
+    refAdd: {
+        alignSelf: "flex-start",
+        backgroundColor: "transparent",
+        border: "1px dashed #3A3A3A",
+        color: "#858585",
+        padding: "6px 10px",
+        cursor: "pointer",
+        ":hover": { borderColor: "#6CA9E8", color: "#6CA9E8" },
     },
 });
 
@@ -580,16 +679,36 @@ export const ArticleCreator = () => {
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
-    const [fetchOwner] = useLazyQuery<{ getOwner: Owner | null }>(GET_OWNER, {
+    // Profile is edited as a structured form (not Monaco). When in profile
+    // mode the right panel renders ProfileForm; auto-save debounces on every
+    // change like the MDX editor. `profileDirtyRef` is the guard that keeps
+    // the initial fetch from triggering a useless write-back.
+    const [profileMode, setProfileMode] = useState(false);
+    const [profileForm, setProfileForm] = useState<ProfileFormData | null>(null);
+    const profileDirtyRef = useRef(false);
+
+    const [fetchOwner] = useLazyQuery<{ getOwner: ProfileFormData | null }>(GET_OWNER, {
         fetchPolicy: "network-only",
         onCompleted: data => {
             editingModeRef.current = "profile";
             setMdxMode(false);
-            setEditorValue(profileEditTip + "\n\n" + JSON.stringify(data?.getOwner ?? null, removeInternal, 4));
+            setProfileMode(true);
+            profileDirtyRef.current = false;
+            const o = data?.getOwner;
+            setProfileForm({
+                nickname: o?.nickname ?? "",
+                aboutMyself: o?.aboutMyself ?? "",
+                avatar: o?.avatar ?? "",
+                externalLinks: (o?.externalLinks ?? []).map(l => ({
+                    svgIcon: l.svgIcon ?? "",
+                    url: l.url ?? "",
+                })),
+            });
         },
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
+            setProfileMode(false);
             pushError("Load profile", err.message);
         },
     });
@@ -599,11 +718,13 @@ export const ArticleCreator = () => {
         onCompleted: data => {
             editingModeRef.current = "tags";
             setMdxMode(false);
+            setProfileMode(false);
             setEditorValue(JSON.stringify(data.getTag, removeInternal, 4));
         },
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
+            setProfileMode(false);
             pushError("Load tags", err.message);
         },
     });
@@ -615,6 +736,7 @@ export const ArticleCreator = () => {
         onError: err => {
             editingModeRef.current = null;
             setMdxMode(false);
+            setProfileMode(false);
             pushError("Load file", err.message);
         },
     });
@@ -658,48 +780,37 @@ export const ArticleCreator = () => {
 
     const [updateOwner] = useMutation(UPDATE_OWNER);
 
-    const stripComments = (src: string) =>
-        src.split("\n").filter(line => !line.trim().startsWith("//")).join("\n").trim();
-
-    const saveProfile = async () => {
-        const jsonText = stripComments(editorValue);
-        if (!jsonText) return;
-        let parsed: any;
-        try {
-            parsed = JSON.parse(jsonText);
-        } catch (e) {
-            pushError("Profile parse", (e as Error).message);
-            return;
-        }
-        try {
-            await updateOwner({
-                variables: {
-                    nickname: parsed.nickname ?? "",
-                    aboutMyself: parsed.aboutMyself ?? "",
-                    avatar: parsed.avatar ?? "",
-                    externalLinks: (parsed.externalLinks ?? []).map(
-                        (l: any) => ({ svgIcon: l.svgIcon ?? "", url: l.url ?? "" }),
-                    ),
-                },
-            });
-        } catch (e) {
-            pushError("Profile save", (e as Error).message);
-        }
-    };
-
-    const saveProfileRef = useRef(saveProfile);
-    saveProfileRef.current = saveProfile;
+    // Auto-save the profile form on every keystroke (debounced). The dirty
+    // ref skips the initial save that would otherwise fire when fetchOwner
+    // first populates the form.
+    useEffect(() => {
+        if (!profileMode || !profileForm) return;
+        if (!profileDirtyRef.current) return;
+        let cancelled = false;
+        const handle = setTimeout(async () => {
+            try {
+                await updateOwner({
+                    variables: {
+                        nickname: profileForm.nickname,
+                        aboutMyself: profileForm.aboutMyself,
+                        avatar: profileForm.avatar,
+                        externalLinks: profileForm.externalLinks,
+                    },
+                });
+            } catch (e) {
+                if (!cancelled) pushError("Profile save", (e as Error).message);
+            }
+        }, 400);
+        return () => { cancelled = true; clearTimeout(handle); };
+    }, [profileForm, profileMode]);
 
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             const isSave = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s";
             if (!isSave) return;
             const mode = editingModeRef.current;
-            if (mode === "profile") {
-                e.preventDefault();
-                e.stopPropagation();
-                saveProfileRef.current();
-            } else if (mode && typeof mode === "object" && "path" in mode) {
+            // profile mode no longer needs Ctrl+S — it auto-saves on edit.
+            if (mode && typeof mode === "object" && "path" in mode) {
                 e.preventDefault();
                 e.stopPropagation();
                 savePayloadRef.current(mode.path);
@@ -708,6 +819,14 @@ export const ArticleCreator = () => {
         window.addEventListener("keydown", onKeyDown, { capture: true });
         return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
     }, []);
+
+    // Wrap every form mutation through this — flips the dirty flag so the
+    // auto-save effect knows the change came from user input, not from the
+    // initial fetchOwner population.
+    const editProfile = (mutator: (p: ProfileFormData) => ProfileFormData) => {
+        profileDirtyRef.current = true;
+        setProfileForm(p => p ? mutator(p) : p);
+    };
 
 
     function onTreeItemClick(node: Node) {
@@ -722,6 +841,7 @@ export const ArticleCreator = () => {
         if (node.id.endsWith("/main.mdx") && getParentNode(data, node)?.contentType === "article") {
             editingModeRef.current = { path: node.id };
             setMdxMode(true);
+            setProfileMode(false);
             fetchArticle({ variables: { path: node.id } });
         }
     }
@@ -830,7 +950,90 @@ export const ArticleCreator = () => {
                 />
             </Panel>
             <Panel flex>
-                {mdxMode ? (
+                {profileMode && profileForm ? (
+                    <div className={css(profileFormStyles.scroller)}>
+                        <div className={css(profileFormStyles.inner)}>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Nickname</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    value={profileForm.nickname}
+                                    onChange={e => editProfile(p => ({ ...p, nickname: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Avatar</label>
+                                <input
+                                    className={css(profileFormStyles.input)}
+                                    placeholder="path under /files or data: / http(s):// URL"
+                                    value={profileForm.avatar}
+                                    onChange={e => editProfile(p => ({ ...p, avatar: e.target.value }))}
+                                />
+                                {profileForm.avatar && (
+                                    <div className={css(profileFormStyles.avatarPreviewWrap)}>
+                                        <img
+                                            className={css(profileFormStyles.avatarPreview)}
+                                            src={resolveAssetSrc(profileForm.avatar)}
+                                            alt=""
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Description</label>
+                                <textarea
+                                    className={css(profileFormStyles.textarea)}
+                                    value={profileForm.aboutMyself}
+                                    onChange={e => editProfile(p => ({ ...p, aboutMyself: e.target.value }))}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Refs</label>
+                                <div className={css(profileFormStyles.refsList)}>
+                                    {profileForm.externalLinks.map((link, i) => (
+                                        <div key={i} className={css(profileFormStyles.refRow)}>
+                                            <input
+                                                className={css(profileFormStyles.input, profileFormStyles.refIconInput)}
+                                                placeholder="icon"
+                                                value={link.svgIcon}
+                                                onChange={e => editProfile(p => ({
+                                                    ...p,
+                                                    externalLinks: p.externalLinks.map((l, j) =>
+                                                        j === i ? { ...l, svgIcon: e.target.value } : l),
+                                                }))}
+                                            />
+                                            <input
+                                                className={css(profileFormStyles.input, profileFormStyles.refUrlInput)}
+                                                placeholder="https://…"
+                                                value={link.url}
+                                                onChange={e => editProfile(p => ({
+                                                    ...p,
+                                                    externalLinks: p.externalLinks.map((l, j) =>
+                                                        j === i ? { ...l, url: e.target.value } : l),
+                                                }))}
+                                            />
+                                            <button
+                                                className={css(profileFormStyles.refDelete)}
+                                                onClick={() => editProfile(p => ({
+                                                    ...p,
+                                                    externalLinks: p.externalLinks.filter((_, j) => j !== i),
+                                                }))}
+                                                aria-label="Remove ref"
+                                            >×</button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    className={css(profileFormStyles.refAdd)}
+                                    onClick={() => editProfile(p => ({
+                                        ...p,
+                                        externalLinks: [...p.externalLinks, { svgIcon: "", url: "" }],
+                                    }))}
+                                >+ Add ref</button>
+                            </div>
+                        </div>
+                    </div>
+                ) : mdxMode ? (
                     <SplitPane storageKey="editor-mdx-layout">
                         <Panel flex>
                             <Editor
