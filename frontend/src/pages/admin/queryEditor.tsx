@@ -550,7 +550,9 @@ export function updateShotMeta(meta: ShotMeta) {
     >({
         mutation: UPDATE_SHOT_META,
         variables: {
-            id: meta.id,
+            // `id` arrives as a GraphQL ID (string) from getShotById; the
+            // mutation declares `$id: Int!`, so coerce before sending.
+            id: Number(meta.id),
             text: meta.text,
             tagIds: meta.tags.map(t => Number(t.id)),
         },
@@ -645,7 +647,9 @@ export function updatePodcastMeta(meta: PodcastMeta) {
     >({
         mutation: UPDATE_PODCAST_META,
         variables: {
-            id: meta.id,
+            // `id` arrives as a GraphQL ID (string) from getPodcastById; the
+            // mutation declares `$id: Int!`, so coerce before sending.
+            id: Number(meta.id),
             headline: meta.headline,
             path: meta.path ?? "",
             guestsJson: JSON.stringify(meta.guests),
