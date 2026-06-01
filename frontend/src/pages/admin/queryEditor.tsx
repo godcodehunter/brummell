@@ -414,6 +414,7 @@ export interface ArticleMeta {
     preview_txt: string;
     reading_time_min: number;
     difficulty: Difficulty;
+    tags: TagRow[];
 }
 
 const GET_ARTICLE_BY_PATH = gql`
@@ -426,6 +427,12 @@ const GET_ARTICLE_BY_PATH = gql`
             preview_txt
             reading_time_min
             difficulty
+            tags {
+                id
+                label
+                color
+                tooltip
+            }
         }
     }
 `;
@@ -447,6 +454,7 @@ const UPDATE_ARTICLE_META = gql`
         $preview_txt: String!
         $reading_time_min: Int!
         $difficulty: Difficulty!
+        $tagIds: [Int!]!
     ) {
         updateArticleMeta(
             path: $path
@@ -456,15 +464,27 @@ const UPDATE_ARTICLE_META = gql`
             preview_txt: $preview_txt
             reading_time_min: $reading_time_min
             difficulty: $difficulty
+            tagIds: $tagIds
         ) {
             path
         }
     }
 `;
 
+type UpdateArticleMetaVars = Omit<ArticleMeta, "tags"> & { tagIds: number[] };
+
 export function updateArticleMeta(meta: ArticleMeta) {
-    return client.mutate<{ updateArticleMeta: { path: string } }, ArticleMeta>({
+    return client.mutate<{ updateArticleMeta: { path: string } }, UpdateArticleMetaVars>({
         mutation: UPDATE_ARTICLE_META,
-        variables: meta,
+        variables: {
+            path: meta.path,
+            kicker: meta.kicker,
+            headline: meta.headline,
+            illustration: meta.illustration,
+            preview_txt: meta.preview_txt,
+            reading_time_min: meta.reading_time_min,
+            difficulty: meta.difficulty,
+            tagIds: meta.tags.map(t => Number(t.id)),
+        },
     });
 }

@@ -3,6 +3,9 @@ import { StyleSheet, css } from "aphrodite";
 import { TreeCard, NodeTag, Category, Node, type TreeCardController } from '../../components/TreeCard';
 import { ContextMenu, ContextMenuItem } from '../../components/ContextMenu';
 import { ErrorMsg } from '../../components/ErrorMsg';
+import { TagSelector } from '../../components/TagSelector';
+import { Tag } from '../../components/Chip';
+import chroma from 'chroma-js';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
@@ -934,6 +937,16 @@ export const ArticleCreator = () => {
     const [metaForm, setMetaForm] = useState<ArticleMeta | null>(null);
     const metaDirtyRef = useRef(false);
 
+    // Read-only mirror of the tag catalogue, used to look up ids by label
+    // when TagSelector emits a chip (it only carries label/color/tooltip).
+    // Apollo dedupes with the query that TagSelector runs internally.
+    const { data: tagCatalogData } = useQuery<{ getTag: TagRow[] }>(GET_TAGS);
+    const tagByLabel = useMemo(() => {
+        const m = new Map<string, TagRow>();
+        for (const t of tagCatalogData?.getTag ?? []) m.set(t.label, t);
+        return m;
+    }, [tagCatalogData]);
+
     const editMeta = (mutator: (m: ArticleMeta) => ArticleMeta) => {
         metaDirtyRef.current = true;
         setMetaForm(p => p ? mutator(p) : p);
@@ -1301,6 +1314,26 @@ export const ArticleCreator = () => {
                                         const n = Number(e.target.value);
                                         editMeta(m => ({ ...m, reading_time_min: Number.isFinite(n) ? n : 0 }));
                                     }}
+                                />
+                            </div>
+                            <div className={css(profileFormStyles.field)}>
+                                <label className={css(profileFormStyles.label)}>Tags</label>
+                                <TagSelector
+                                    selected={metaForm.tags.map(t => ({
+                                        label: t.label,
+                                        color: chroma(t.color || "#888888"),
+                                        tooltip: t.tooltip,
+                                    } as Tag))}
+                                    onChange={next => editMeta(m => ({
+                                        ...m,
+                                        // TagSelector chips don't carry ids — resolve each chip's
+                                        // id from the tag catalogue (Apollo cache via tagByLabel).
+                                        // Chips with no matching catalogue entry are dropped: a
+                                        // tag must exist in the DB before it can be attached.
+                                        tags: next
+                                            .map(chip => tagByLabel.get(chip.label))
+                                            .filter((t): t is TagRow => !!t),
+                                    }))}
                                 />
                             </div>
                         </div>

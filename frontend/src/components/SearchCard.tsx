@@ -1,20 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ReactComponent as Loupe } from '../assets/loupe.svg';
 import { CloseInSquare } from '../assets/icons';
 import { StyleSheet, css } from 'aphrodite';
-import { gql, useQuery } from "@apollo/client";
-import { ChipHolder, Tag } from './Chip';
+import { Tag } from './Chip';
 import { useHover } from '../hooks';
-import * as R from 'ramda';
-import chroma from 'chroma-js';
-import { Autocomplete } from './Autocomplete';
 import { SegmentedControls } from './SegmentedControls';
-
-const GET_TAGS = gql`
-  query GetTags {
-    getTag { label color tooltip }
-  }
-`;
+import { TagSelector } from './TagSelector';
 
 const styles = StyleSheet.create({
     substrate: {
@@ -154,22 +145,6 @@ export const SearchCard = ({
         onReset?.();
     };
 
-    const { data: tagData } = useQuery(GET_TAGS);
-    const allTags: Tag[] = useMemo(() => {
-        const raw = tagData?.getTag ?? [];
-        return raw.map((t: { label: string, color: string, tooltip: string }) => ({
-            label: t.label,
-            color: chroma(t.color),
-            tooltip: t.tooltip,
-        }));
-    }, [tagData]);
-
-    // Don't suggest topics that are already picked.
-    const available = useMemo(
-        () => allTags.filter(t => !topics.some(tp => tp.label === t.label)),
-        [allTags, topics],
-    );
-
     return (
         <div className={css(styles.substrate)} style={{ ...style }}>
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
@@ -188,18 +163,7 @@ export const SearchCard = ({
                 <span className={css(styles.headline)}>
                     TOPICS
                 </span>
-                <ChipHolder
-                    removable
-                    data={topics}
-                    style={{ marginBottom: topics.length !== 0 ? 6 : 0 }}
-                    onRemove={(i) => { setTopics(R.remove(i, 1, topics)); }}
-                />
-                <Autocomplete<Tag>
-                    variants={available}
-                    getLabel={(t) => t.label}
-                    onSelect={(t) => setTopics(prev => [...prev, t])}
-                    placeholder="Add a topic..."
-                />
+                <TagSelector selected={topics} onChange={setTopics} />
                 <span className={css(styles.headline)}>
                     CONTENT TYPE
                 </span>

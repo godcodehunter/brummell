@@ -700,6 +700,8 @@ builder.mutationType({
     // that's what the admin tree carries (no need to expose the numeric id
     // to the UI). publish_status is not editable here — use
     // togglePublishStatus. path/created_at stay as they are.
+    // `tagIds` rewrites the article's tag_set as a whole: empty list
+    // removes the row, non-empty upserts.
     updateArticleMeta: t.field({
       type: "Article",
       args: {
@@ -710,6 +712,7 @@ builder.mutationType({
         preview_txt: t.arg.string({ required: true }),
         reading_time_min: t.arg.int({ required: true }),
         difficulty: t.arg({ type: DifficultyEnum, required: true }),
+        tagIds: t.arg.intList({ required: true }),
       },
       resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
@@ -726,6 +729,24 @@ builder.mutationType({
           .returning()
           .all()[0];
         if (!updated) throw new Error("NOT_FOUND");
+
+        const existing = db.select().from(tagSets)
+          .where(and(eq(tagSets.type, "article"), eq(tagSets.entity_id, updated.id)))
+          .all()[0];
+        if (existing) {
+          if (args.tagIds.length === 0) {
+            db.delete(tagSets).where(eq(tagSets.id, existing.id)).run();
+          } else {
+            db.update(tagSets)
+              .set({ tag_ids: args.tagIds })
+              .where(eq(tagSets.id, existing.id))
+              .run();
+          }
+        } else if (args.tagIds.length > 0) {
+          db.insert(tagSets)
+            .values({ type: "article", entity_id: updated.id, tag_ids: args.tagIds })
+            .run();
+        }
         return updated;
       },
     }),
