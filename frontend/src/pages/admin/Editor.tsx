@@ -172,15 +172,176 @@ function getParentNode(data: Node<ContentItem>[] | null, target: Node<ContentIte
     return walk(data ?? [], null);
 }
 
+const PENDING_NODE_TOKEN = "__pending__";
+
+function makePendingId(parentId: string): string {
+    return `${parentId}/${PENDING_NODE_TOKEN}`;
+}
+
+function injectPendingNode(nodes: Node<ContentItem>[], parentId: string, pendingId: string): Node<ContentItem>[] {
+    return nodes.map(n => {
+        if (n.tag !== NodeTag.Category) return n;
+        if (n.id === parentId) {
+            return {
+                ...n,
+                children: [
+                    ...n.children,
+                    {
+                        tag: NodeTag.Category,
+                        id: pendingId,
+                        label: "",
+                        children: [],
+                        contentType: "dir",
+                    } as Node<ContentItem>,
+                ],
+            };
+        }
+        return { ...n, children: injectPendingNode(n.children, parentId, pendingId) };
+    });
+}
+
+function iconForContent(contentType: ContentItem["contentType"]): string {
+    switch (contentType) {
+        case "dir": return "📁";
+        case "shot": return "🎬";
+        case "article": return "📄";
+        case "podcast": return "🎙️";
+        case "library": return "⚙️";
+        case "media": return "🖼️";
+        default: return "❓";
+    }
+}
+
+function publishIcon(item: ContentItem): string | null {
+    switch (item.contentType) {
+        case "shot":
+        case "article":
+        case "podcast":
+            return item.publishStatus === "published" ? "✅" : "🔨";
+        default:
+            return null;
+    }
+}
+
+function lastSegment(id: string): string {
+    const parts = id.split("/");
+    return parts[parts.length - 1];
+}
+
+const editorView = StyleSheet.create({
+    row: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        flexGrow: 1,
+        minWidth: 0,
+    },
+    nameField: {
+        flex: 1,
+        minWidth: 0,
+        background: "transparent",
+        color: "inherit",
+        border: "none",
+        outline: "none",
+        font: "inherit",
+        padding: 0,
+        textOverflow: "ellipsis",
+    },
+});
+
 type EditingMode = "profile" | "tags" | { path: string } | null;
 
 export const ArticleCreator = () => {
-    let { data, loading, error } = queryTreeItem()
+    let { data, loading, error, refetch } = queryTreeItem()
     const [editorValue, setEditorValue] = useState("");
     const [menu, setMenu] = useState<{ x: number; y: number; node: Node<ContentItem> } | null>(null);
     const editingModeRef = useRef<EditingMode>(null);
     const [mdxMode, setMdxMode] = useState(false);
     const [mdxBuild, setMdxBuild] = useState<MDXBuild>({ code: null, error: null });
+    // The user just asked us to "New Folder" somewhere — we materialize a
+    // transient placeholder row in the tree under `parentId` and let the
+    // viewItem render an autofocused input. Enter/blur with content commits;
+    // empty value cancels.
+    const [pendingNew, setPendingNew] = useState<{ parentId: string } | null>(null);
+    const [pendingValue, setPendingValue] = useState("");
+    const submittingRef = useRef(false);
+
+    const pendingId = pendingNew ? makePendingId(pendingNew.parentId) : null;
+
+    const dataWithPending = useMemo(() => {
+        if (!pendingNew || !pendingId) return data;
+        return injectPendingNode(data, pendingNew.parentId, pendingId);
+    }, [data, pendingNew, pendingId]);
+
+    const cancelPending = () => {
+        submittingRef.current = true;
+        setPendingNew(null);
+        setPendingValue("");
+    };
+
+    const commitPending = async () => {
+        if (submittingRef.current || !pendingNew) return;
+        submittingRef.current = true;
+        const name = pendingValue.trim();
+        const parentId = pendingNew.parentId;
+        setPendingNew(null);
+        setPendingValue("");
+        if (!name) return;
+        await createFolder(parentId, name);
+        await refetch();
+    };
+
+    useEffect(() => {
+        if (pendingNew) submittingRef.current = false;
+    }, [pendingNew]);
+
+    const viewItem = (node: Node<ContentItem>) => {
+        if (pendingId && node.id === pendingId) {
+            return (
+                <div className={css(editorView.row)}>
+                    <span>📁</span>
+                    <input
+                        autoFocus
+                        className={css(editorView.nameField)}
+                        value={pendingValue}
+                        onChange={e => setPendingValue(e.target.value)}
+                        onBlur={() => { void commitPending(); }}
+                        onKeyDown={e => {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                void commitPending();
+                            } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                cancelPending();
+                            }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    />
+                </div>
+            );
+        }
+        // Sidebar pseudo-items ("/profile", "/tags") and the Content root ("/")
+        // are static labels — keep the original display for them.
+        if (node.id.startsWith("/")) {
+            return node.label;
+        }
+        const icon = iconForContent(node.contentType);
+        const status = publishIcon(node);
+        const name = lastSegment(node.id);
+        return (
+            <div className={css(editorView.row)}>
+                <span>{icon}</span>
+                <input
+                    className={css(editorView.nameField)}
+                    value={name}
+                    readOnly
+                    onClick={e => e.stopPropagation()}
+                    onChange={() => { /* rename is wired separately */ }}
+                />
+                {status && <span>{status}</span>}
+            </div>
+        );
+    };
 
     const removeInternal = (key: string, value: any) => key.startsWith("__") ? undefined : value;
 
@@ -312,6 +473,7 @@ export const ArticleCreator = () => {
 
 
     function onTreeItemClick(node: Node) {
+        if (pendingId && node.id === pendingId) return;
         if (node.id === "/profile") {
             fetchOwner();
         }
@@ -326,9 +488,13 @@ export const ArticleCreator = () => {
     }
 
     const menuItems = (node: Node<ContentItem>): ContextMenuItem[] => {
+        if (pendingId && node.id === pendingId) return [];
         const newFolder = {
             label: "New Folder",
-            onClick: () => createFolder(node.id, "new_folder"),
+            onClick: () => {
+                setPendingValue("");
+                setPendingNew({ parentId: node.id });
+            },
         }
         const newArticle = {
             label: "New Article",
@@ -394,11 +560,13 @@ export const ArticleCreator = () => {
     return <div className={css(styles.root)}>
         <SplitPane storageKey="editor-layout">
             <Panel defaultSize={260} minSize={150} maxSize={600}>
-                <TreeCard
+                <TreeCard<ContentItem>
                     title="Files"
-                    data={data}
+                    data={dataWithPending}
                     onNodeClick={onTreeItemClick}
                     onNodeRightClick={(node, e) => setMenu({ x: e.clientX, y: e.clientY, node })}
+                    viewItem={viewItem}
+                    expandIds={pendingNew ? [pendingNew.parentId] : undefined}
                     style={{ height: "100%" }}
                 />
             </Panel>

@@ -60,7 +60,20 @@ function reconstructTree(items: ContentItem[]): Category<ContentItem>[] {
         }
     }
 
+    sortTree(root as Node<ContentItem>[]);
     return root;
+}
+
+function nodeSortKey(n: Node<ContentItem>): string {
+    const parts = n.id.split("/");
+    return parts[parts.length - 1].toLocaleLowerCase();
+}
+
+function sortTree(nodes: Node<ContentItem>[]) {
+    nodes.sort((a, b) => nodeSortKey(a).localeCompare(nodeSortKey(b)));
+    for (const n of nodes) {
+        if (n.tag === NodeTag.Category) sortTree(n.children);
+    }
 }
 
 /// Some node such as article and podcast have pseudo files under them (e.g. `def.json` for article). We want to show them in the tree, but they don't exist in the database. This function adds those pseudo nodes to the tree.
@@ -148,7 +161,7 @@ const SIDEBAR_ITEMS: Node<ContentItem>[] = [
 ];
 
 export function queryTreeItem() {
-    const { data, loading, error } = useQuery<{getEditableItems: ContentItem[]}>(GET_EDITABLE_ITEMS, {
+    const { data, loading, error, refetch } = useQuery<{getEditableItems: ContentItem[]}>(GET_EDITABLE_ITEMS, {
         fetchPolicy: "network-only",
     });
 
@@ -170,7 +183,7 @@ export function queryTreeItem() {
         } as Node<ContentItem>,
     ], [data]);
 
-    return {data: treeData, loading, error};
+    return {data: treeData, loading, error, refetch};
 }
 
 export function publishUnpublishItem(id: string, publishStatus: "published" | "draft") {

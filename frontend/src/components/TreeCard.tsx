@@ -73,7 +73,7 @@ const categoryRow = StyleSheet.create({
 
 interface CategoryRowProps {
     nodeId: string,
-    label: string,
+    view: React.ReactNode,
     itemCount: number,
     onToggle: () => void,
     onClick?: () => void,
@@ -86,7 +86,7 @@ interface CategoryRowProps {
 
 const GroupRow: React.FC<CategoryRowProps> = ({
     nodeId,
-    label,
+    view,
     itemCount,
     isOpen,
     onToggle,
@@ -117,7 +117,7 @@ const GroupRow: React.FC<CategoryRowProps> = ({
                 onClick={(e) => { e.stopPropagation(); onToggle(); }}
             />
             <span className={css(categoryRow.label)}>
-                {label}
+                {view}
             </span>
             <span className={css(categoryRow.itemsCount)}>
                 {`[ ${itemCount} ]`}
@@ -128,7 +128,7 @@ const GroupRow: React.FC<CategoryRowProps> = ({
 
 interface ContentRowProps {
     nodeId?: string,
-    label: string,
+    view: React.ReactNode,
     style?: any,
     onClick?: () => void,
     onRightClick?: (e: React.MouseEvent) => void,
@@ -136,7 +136,7 @@ interface ContentRowProps {
     depth?: number,
 }
 
-const ContentRow: React.FC<ContentRowProps> = ({nodeId, label, style, onClick, onRightClick, active, depth = 0}) => (
+const ContentRow: React.FC<ContentRowProps> = ({nodeId, view, style, onClick, onRightClick, active, depth = 0}) => (
     <div
         data-tree-node-id={nodeId}
         className={css(onClick && baseRow.interactive, active && baseRow.active)}
@@ -144,30 +144,54 @@ const ContentRow: React.FC<ContentRowProps> = ({nodeId, label, style, onClick, o
         onClick={onClick}
         onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
     >
-        {label}
+        {view}
     </div>
 );
 
 interface TreeProps {
     node: Node,
-    Component: any,
     depth?: number,
     openIds: Set<string>,
     onToggle: (id: string) => void,
     highlightedIds: Set<string>,
     stuckIds: Set<string>,
+    viewItem?: (node: Node) => React.ReactNode,
+    onNodeClick?: (node: Node) => void,
+    onNodeRightClick?: (node: Node, e: React.MouseEvent) => void,
 }
 
-const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedIds, stuckIds}: TreeProps) => {
+// Render GroupRow/ContentRow directly here rather than going through a
+// caller-supplied `Component` prop — that older pattern caused React to
+// unmount/remount the whole node subtree whenever Component identity changed,
+// which destroyed DOM state (including focus) for any inputs the caller
+// rendered via `viewItem`.
+const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick}: TreeProps) => {
     const isOpen = openIds.has(node.id);
-    const renderedNode = (
-        <Component
-            node={node}
+    const view = viewItem ? viewItem(node) : node.label;
+    const active = highlightedIds.has(node.id);
+    const onClick = onNodeClick ? () => onNodeClick(node) : undefined;
+    const onRightClick = onNodeRightClick ? (e: React.MouseEvent) => onNodeRightClick(node, e) : undefined;
+    const renderedNode = node.tag === NodeTag.Category ? (
+        <GroupRow
+            nodeId={node.id}
+            view={view}
+            itemCount={node.children.length}
             isOpen={isOpen}
-            depth={depth}
-            active={highlightedIds.has(node.id)}
-            stuck={stuckIds.has(node.id)}
             onToggle={() => onToggle(node.id)}
+            onClick={onClick}
+            onRightClick={onRightClick}
+            depth={depth}
+            active={active}
+            stuck={stuckIds.has(node.id)}
+        />
+    ) : (
+        <ContentRow
+            nodeId={node.id}
+            view={view}
+            onClick={onClick}
+            onRightClick={onRightClick}
+            depth={depth}
+            active={active}
         />
     );
     if (node.tag !== NodeTag.Category) return renderedNode;
@@ -181,12 +205,14 @@ const Tree = memo(({node, Component, depth = 0, openIds, onToggle, highlightedId
                 <Tree
                     key={n.id}
                     node={n}
-                    Component={Component}
                     depth={depth + 1}
                     openIds={openIds}
                     onToggle={onToggle}
                     highlightedIds={highlightedIds}
                     stuckIds={stuckIds}
+                    viewItem={viewItem}
+                    onNodeClick={onNodeClick}
+                    onNodeRightClick={onNodeRightClick}
                 />
             )}
         </div>
@@ -261,9 +287,13 @@ interface TreeCardProps<E = {}> {
     // Ids whose ancestor path should be force-expanded. Anything not on the
     // expansion union (∪ of paths to each id, plus activeId's path) is closed.
     expandIds?: string[],
+    // Pluggable view for each node — applies to both categories and items. The
+    // returned ReactNode replaces the label slot (next to the toggle icon for
+    // categories; the row body for items). Defaults to `node.label`.
+    viewItem?: (node: Node<E>) => React.ReactNode,
 }
 
-export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds}: TreeCardProps<E>) {
+export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
     const [stuckIds, setStuckIds] = useState<Set<string>>(() => new Set());
     const containerRef = useRef<HTMLDivElement>(null);
@@ -390,39 +420,6 @@ export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRi
         });
     };
 
-    const Component = ({node, onToggle, isOpen, depth, active, stuck}: {
-        node: Node, onToggle: () => void, isOpen: boolean, depth: number, active: boolean, stuck: boolean
-    }) => {
-        switch(node.tag) {
-            case NodeTag.Category:
-                return (
-                    <GroupRow
-                        nodeId={node.id}
-                        label={node.label}
-                        itemCount={node.children.length}
-                        isOpen={isOpen}
-                        onToggle={onToggle}
-                        onClick={onNodeClick ? () => onNodeClick(node as Node<E>) : undefined}
-                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node as Node<E>, e) : undefined}
-                        depth={depth}
-                        active={active}
-                        stuck={stuck}
-                    />
-                );
-            case NodeTag.Item:
-                return (
-                    <ContentRow
-                        nodeId={node.id}
-                        label={node.label}
-                        onClick={onNodeClick ? () => onNodeClick(node as Node<E>) : undefined}
-                        onRightClick={onNodeRightClick ? (e) => onNodeRightClick(node as Node<E>, e) : undefined}
-                        depth={depth}
-                        active={active}
-                    />
-                );
-        }
-    };
-
     return (
         <div className={css(globalStyles.substrate)} style={{display: "flex", flexDirection: "column", minHeight: 0, ...style}}>
             <div className={css(timelineCard.content)}>
@@ -436,16 +433,18 @@ export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRi
                     {data.length !== 0 ? data.map((e) => (
                         <Tree
                             key={e.id}
-                            node={e}
-                            Component={Component}
+                            node={e as Node}
                             openIds={openIds}
                             onToggle={handleToggle}
                             highlightedIds={highlightedIds}
                             stuckIds={stuckIds}
+                            viewItem={viewItem as ((node: Node) => React.ReactNode) | undefined}
+                            onNodeClick={onNodeClick as ((node: Node) => void) | undefined}
+                            onNodeRightClick={onNodeRightClick as ((node: Node, e: React.MouseEvent) => void) | undefined}
                         />)
                     ) : (
                         <ContentRow
-                            label={"NO DATA"}
+                            view={"NO DATA"}
                             style={{
                                 textAlign: "center",
                                 color: palette.darkenedUninteractive,
