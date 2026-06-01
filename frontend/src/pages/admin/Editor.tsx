@@ -785,7 +785,13 @@ export const ArticleCreator = () => {
     };
 
     useEffect(() => {
-        if (pendingNew) submittingRef.current = false;
+        if (pendingNew) {
+            submittingRef.current = false;
+            // Surface the placeholder row by opening its parent additively
+            // (without collapsing sibling open folders, the way expandIds
+            // would have).
+            treeCtrl.current?.openPath(pendingNew.parentId);
+        }
     }, [pendingNew]);
 
     const cancelRename = () => {
@@ -835,7 +841,12 @@ export const ArticleCreator = () => {
     };
 
     useEffect(() => {
-        if (pendingRename) renameSubmittingRef.current = false;
+        if (pendingRename) {
+            renameSubmittingRef.current = false;
+            // Open the chain *to* the target without unfolding the target
+            // itself — the user is editing its name, not exploring it.
+            treeCtrl.current?.openAncestors(pendingRename.targetId);
+        }
     }, [pendingRename]);
 
     const viewItem = (node: Node<ContentItem>) => {
@@ -1502,10 +1513,6 @@ export const ArticleCreator = () => {
                     isNodeDraggable={isNodeDraggable}
                     isNodeDropTarget={isNodeDropTarget}
                     viewItem={viewItem}
-                    expandIds={[
-                        ...(pendingNew ? [pendingNew.parentId] : []),
-                        ...(pendingRename ? [pendingRename.targetId] : []),
-                    ]}
                     controllerRef={treeCtrl}
                     style={{ height: "100%" }}
                 />

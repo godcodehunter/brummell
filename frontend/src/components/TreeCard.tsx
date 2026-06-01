@@ -386,6 +386,15 @@ function findPath(nodes: Node[], targetId: string, acc: string[] = []): string[]
 // renamed subtree stays expanded across the data refetch.
 export type TreeCardController = {
     rewriteOpenIds: (remap: (id: string) => string) => void,
+    // Additively open the ancestor path of `id` *including `id` itself* —
+    // leaves other open folders alone. Use when you want a node visible
+    // AND expanded (e.g. a parent under which a placeholder child must
+    // appear).
+    openPath: (id: string) => void,
+    // Same, but stops at the parent — opens every ancestor without
+    // expanding `id`. Use when you only need `id` *visible*, not opened
+    // (e.g. surfacing a folder being renamed without unfolding it).
+    openAncestors: (id: string) => void,
 };
 
 interface TreeCardProps<E = {}> {
@@ -422,6 +431,11 @@ interface TreeCardProps<E = {}> {
 export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRightClick, activeId, expandIds, viewItem, controllerRef, onNodeDropFiles, onNodeMove, isNodeDraggable, isNodeDropTarget}: TreeCardProps<E>) {
     const [openIds, setOpenIds] = useState<Set<string>>(() => new Set());
 
+    // findPath uses the latest data via this ref — the controller closure
+    // is bound once (controllerRef dep only) and otherwise wouldn't see
+    // new rows added after it was installed.
+    const dataRef = useRef<Node<E>[]>(data);
+    dataRef.current = data;
     useEffect(() => {
         if (!controllerRef) return;
         controllerRef.current = {
@@ -429,6 +443,25 @@ export function TreeCard<E = {}>({data, title, style = {}, onNodeClick, onNodeRi
                 setOpenIds(prev => {
                     const next = new Set<string>();
                     for (const id of prev) next.add(remap(id));
+                    return next;
+                });
+            },
+            openPath(id) {
+                setOpenIds(prev => {
+                    const path = findPath(dataRef.current as Node[], id);
+                    if (!path) return prev;
+                    const next = new Set(prev);
+                    for (const p of path) next.add(p);
+                    return next;
+                });
+            },
+            openAncestors(id) {
+                setOpenIds(prev => {
+                    const path = findPath(dataRef.current as Node[], id);
+                    if (!path) return prev;
+                    const next = new Set(prev);
+                    // Drop the final segment — that's `id` itself.
+                    for (let i = 0; i < path.length - 1; i++) next.add(path[i]);
                     return next;
                 });
             },
