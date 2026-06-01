@@ -6,6 +6,7 @@ import BackToMain from '../components/BackToMain';
 import { Category, NodeTag, TreeCard } from '../components/TreeCard';
 import { gql, useQuery } from '@apollo/client';
 import { useSearchParams, Navigate } from 'react-router-dom';
+import chroma from 'chroma-js';
 
 const page = StyleSheet.create({
     root: {
@@ -171,7 +172,7 @@ export const PodcastPage = () => {
             <div className={css(page.middlePanel)}>
                 <PodcastHead
                     badge={podcast.ribbon}
-                    tags={podcast.tags}
+                    tags={podcast.tags.map((t: { color: string }) => ({ ...t, color: chroma(t.color || "#888888") }))}
                     title={podcast.headline}
                     path={podcast.path}
                     description={podcast.description}
