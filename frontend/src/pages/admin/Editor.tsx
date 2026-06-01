@@ -722,9 +722,13 @@ export const ArticleCreator = () => {
 
     const viewItem = (node: Node<ContentItem>) => {
         if (pendingId && node.id === pendingId) {
+            const pendingIcon =
+                pendingNew?.kind === "article" ? "📄" :
+                pendingNew?.kind === "podcast" ? "🎙️" :
+                pendingNew?.kind === "shot" ? "🎬" : "📁";
             return (
                 <div className={css(editorView.row)}>
-                    <span className={css(editorView.icon)}>📁</span>
+                    <span className={css(editorView.icon)}>{pendingIcon}</span>
                     <input
                         autoFocus
                         className={css(editorView.nameField)}
@@ -1268,17 +1272,21 @@ export const ArticleCreator = () => {
 
     const menuItems = (node: Node<ContentItem>): ContextMenuItem[] => {
         if (pendingId && node.id === pendingId) return [];
-        const newFolder = {
-            label: "New Folder",
+        // Builder for the four "New X" menu entries — they all share the
+        // same in-tree input flow (a pending row, name typed inline,
+        // commit on Enter/blur, cancel on empty/Escape). `kind` decides
+        // which create mutation `commitPending` dispatches.
+        const newEntry = (label: string, kind: PendingKind): ContextMenuItem => ({
+            label,
             onClick: () => {
                 setPendingValue("");
-                setPendingNew({ parentId: node.id });
+                setPendingNew({ parentId: node.id, kind });
             },
-        }
-        const newArticle = {
-            label: "New Article",
-            onClick: () => createArticle(node.id, "new_article")
-        }
+        });
+        const newFolder = newEntry("New Folder", "folder");
+        const newArticle = newEntry("New Article", "article");
+        const newPodcast = newEntry("New Podcast", "podcast");
+        const newShot = newEntry("New Shot", "shot");
         const renameEntry = {
             label: "Rename",
             onClick: () => {
@@ -1303,9 +1311,9 @@ export const ArticleCreator = () => {
 
         if (node.contentType === "dir") {
             let result: ContextMenuItem[] = [
-                { label: "New Shot", onClick: () => console.log("New Shot in", node.id) },
+                newShot,
                 newArticle,
-                { label: "New Podcast", onClick: () => console.log("New Podcast in", node.id) },
+                newPodcast,
                 newFolder,
             ];
 
