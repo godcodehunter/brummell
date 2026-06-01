@@ -13,68 +13,47 @@ interface ShotCardProps {
 }
 
 const styles = StyleSheet.create({
-    // Same blocky palette as ArticleCard/PodcastCard but without the
-    // pressable shadow — the absence of the heavy 8px drop-shadow is the
-    // primary "this isn't clickable" signal.
     card: {
-        position: "relative",
         backgroundColor: "#2E2E2E",
-        padding: "20px 24px 12px 24px",
+        padding: "16px 24px 12px 24px",
         cursor: "default",
     },
-    // Big serif quotation marks bracket the text — turn the whole card
-    // into a "quote/pull-out" rather than a link card. Hand-positioned in
-    // the corners so the body text reads as the quoted content itself.
-    quoteOpen: {
-        position: "absolute",
-        top: -2,
-        left: 6,
-        fontFamily: "Monda",
-        fontSize: 64,
-        lineHeight: 1,
-        color: "#4A4A4A",
-        userSelect: "none",
-        pointerEvents: "none",
+    header: {
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 12,
     },
-    quoteClose: {
-        position: "absolute",
-        bottom: -28,
-        right: 10,
-        fontFamily: "Monda",
-        fontSize: 64,
+    headerIcon: {
+        fontSize: 18,
         lineHeight: 1,
-        color: "#4A4A4A",
-        userSelect: "none",
-        pointerEvents: "none",
+    },
+    headerLabel: {
+        fontFamily: "Roboto",
+        fontSize: 13,
+        fontWeight: 600,
+        letterSpacing: "0.04em",
+        color: "#ABABAB",
     },
     body: {
-        position: "relative",
         fontFamily: "Roboto",
-        fontStyle: "italic",
         fontSize: 16,
         lineHeight: 1.5,
         color: "#E6E6E6",
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
     },
-    footer: {
-        display: "flex",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 14,
-        gap: 8,
-    },
     chips: {
-        flex: 1,
-        minWidth: 0,
+        marginTop: 14,
     },
     date: {
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "flex-end",
         gap: 4,
-        flexShrink: 0,
+        marginTop: 10,
     },
     dateText: {
         fontFamily: "Roboto",
@@ -88,20 +67,19 @@ const styles = StyleSheet.create({
 export const ShotCard: React.FC<ShotCardProps> = ({ text, tags = [], created_at, style = {} }) => {
     return (
         <>
-            <link href="https://fonts.googleapis.com/css2?family=Monda:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
             <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
             <div className={css(styles.card)} style={style}>
-                <span aria-hidden="true" className={css(styles.quoteOpen)}>«</span>
-                <span aria-hidden="true" className={css(styles.quoteClose)}>»</span>
+                <div className={css(styles.header)}>
+                    <span aria-hidden="true" className={css(styles.headerIcon)}>🎬</span>
+                    <span className={css(styles.headerLabel)}>Shot</span>
+                </div>
                 <div className={css(styles.body)}>{text}</div>
-                <div className={css(styles.footer)}>
-                    <div className={css(styles.chips)}>
-                        <ChipHolder data={tags} />
-                    </div>
-                    <div className={css(styles.date)}>
-                        <div style={{ height: 14, width: 14 }}><Calendar fill="#ABABAB" /></div>
-                        <span className={css(styles.dateText)}>{stringifyTime(created_at)}</span>
-                    </div>
+                <div className={css(styles.chips)}>
+                    <ChipHolder data={tags} />
+                </div>
+                <div className={css(styles.date)}>
+                    <div style={{ height: 14, width: 14 }}><Calendar fill="#ABABAB" /></div>
+                    <span className={css(styles.dateText)}>{stringifyTime(created_at)}</span>
                 </div>
             </div>
         </>
