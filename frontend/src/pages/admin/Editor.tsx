@@ -277,6 +277,18 @@ export const ArticleCreator = () => {
     const [pendingRename, setPendingRename] = useState<{ targetId: string } | null>(null);
     const [renameValue, setRenameValue] = useState("");
     const renameSubmittingRef = useRef(false);
+    const renameInputRef = useRef<HTMLInputElement | null>(null);
+
+    // The input element exists in the DOM before rename starts (rendered as
+    // readonly), so `autoFocus` won't fire on the transition — focus + select
+    // imperatively whenever a rename begins.
+    useEffect(() => {
+        if (!pendingRename) return;
+        const el = renameInputRef.current;
+        if (!el) return;
+        el.focus();
+        el.select();
+    }, [pendingRename]);
 
     const pendingId = pendingNew ? makePendingId(pendingNew.parentId) : null;
 
@@ -381,11 +393,10 @@ export const ArticleCreator = () => {
             <div className={css(editorView.row)}>
                 <span className={css(editorView.icon)}>{icon}</span>
                 <input
-                    autoFocus={isRenaming}
+                    ref={isRenaming ? renameInputRef : undefined}
                     className={css(editorView.nameField)}
                     value={name}
                     readOnly={!isRenaming}
-                    onFocus={isRenaming ? e => e.currentTarget.select() : undefined}
                     onChange={isRenaming ? e => setRenameValue(e.target.value) : undefined}
                     onBlur={isRenaming ? () => { void commitRename(); } : undefined}
                     onKeyDown={isRenaming ? e => {
