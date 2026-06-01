@@ -1998,5 +1998,41 @@ export const ArticleCreator = () => {
                 </div>
             </div>
         )}
+        {deleteConfirm && (
+            <div className={css(tagsFormStyles.modalOverlay)} onClick={() => setDeleteConfirm(null)}>
+                <div className={css(tagsFormStyles.modalBox)} onClick={e => e.stopPropagation()}>
+                    <div className={css(tagsFormStyles.modalTitle)}>
+                        Delete "{deleteConfirm.target.name}"?
+                    </div>
+                    <div>
+                        {deleteConfirm.target.kind === "path"
+                            ? <>This will permanently remove the path on disk and the {deleteConfirm.impact.length} tracked item{deleteConfirm.impact.length === 1 ? "" : "s"} below.</>
+                            : <>This will permanently remove this {deleteConfirm.target.entity}.</>}
+                    </div>
+                    <ul className={css(tagsFormStyles.usageList)}>
+                        {deleteConfirm.impact.map(u => (
+                            <li key={`${u.type}-${u.id}`}>
+                                <span className={css(tagsFormStyles.usageType)}>{u.type}</span>
+                                {u.label || `#${u.id}`}
+                            </li>
+                        ))}
+                    </ul>
+                    <div className={css(tagsFormStyles.modalActions)}>
+                        <button
+                            className={css(tagsFormStyles.btnGhost)}
+                            onClick={() => setDeleteConfirm(null)}
+                        >Cancel</button>
+                        <button
+                            className={css(tagsFormStyles.btnDanger)}
+                            onClick={async () => {
+                                const target = deleteConfirm.target;
+                                setDeleteConfirm(null);
+                                await runDelete(target);
+                            }}
+                        >Delete</button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
 };
