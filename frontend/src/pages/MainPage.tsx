@@ -12,6 +12,7 @@ import { SearchCard } from '../components/SearchCard';
 import { VerticalProfileCard } from '../components/ProfileCard';
 import { Category, TreeCard, NodeTag } from '../components/TreeCard';
 import { ArticleCard } from '../components/ArticleCard';
+import { PodcastCard } from '../components/PodcastCard';
 
 
 import { ReactComponent as Github } from '../assets/github.svg';
@@ -368,8 +369,16 @@ export const MainPage = () => {
                     onOpen={() => navigate(`/article?id=${item.id}`)}
                   />
                 );
-              case "shot":
               case "podcast":
+                return (
+                  <PodcastCard
+                    key={idx}
+                    headline={item.headline}
+                    created_at={DateTime.fromSeconds(item.createdAt)}
+                    onOpen={() => navigate(`/podcast?id=${item.id}`)}
+                  />
+                );
+              case "shot":
                 return null;
             }
           })}

@@ -1,7 +1,7 @@
 import { StyleSheet, css } from 'aphrodite';
 import { palette, constants } from '../globalStyles';
 import { Chat } from '../components/Chat';
-import { PodcastCard, Range } from '../components/PodcastCard';
+import { PodcastHead, Range } from '../components/PodcastHead';
 import BackToMain from '../components/BackToMain';
 import { Category, NodeTag, TreeCard } from '../components/TreeCard';
 import { gql, useQuery } from '@apollo/client';
@@ -169,7 +169,7 @@ export const PodcastPage = () => {
             </div>
 
             <div className={css(page.middlePanel)}>
-                <PodcastCard
+                <PodcastHead
                     badge={podcast.ribbon}
                     tags={podcast.tags}
                     title={podcast.headline}
