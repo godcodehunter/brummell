@@ -316,6 +316,7 @@ builder.objectType("Shot", {
     tag: t.string({ resolve: () => "shot" }),
     id: t.exposeID("id"),
     createdAt: t.exposeInt("created_at"),
+    path: t.exposeString("path", { nullable: true }),
     text: t.exposeString("text"),
     views: t.field({
       type: "Int",
@@ -475,10 +476,8 @@ builder.queryType({
           entityId: podcast.id,
         }));
 
-        // Shots have no on-disk path anymore (they're text rows); the tree
-        // uses a synthetic id `__shot/<n>` and the form opens by entityId.
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
-          id: `__shot/${shot.id}`,
+          id: shot.path ?? `__shot/${shot.id}`,
           contentType: "shot",
           publishStatus: shot.publish_status,
           entityId: shot.id,
@@ -887,13 +886,13 @@ builder.mutationType({
         return updated;
       },
     }),
-    // Shots are tweet-style text rows. `text` arrives empty from the
-    // "New Shot" inline-input flow (we use the name as a slug elsewhere,
-    // here we just stash it in the body — user keeps editing in the form).
+    // Shots are tweet-style text rows. The "New Shot" inline-input flow
+    // gives us the slug (`path`) — the body (`text`) stays empty until
+    // the user fills it in the form.
     addNewShot: t.field({
       type: "Shot",
       args: {
-        text: t.arg.string({ required: true }),
+        path: t.arg.string({ required: true }),
         publish_status: t.arg({ type: PublishStatusEnum, required: true }),
       },
       resolve: (_, args, ctx) => {
@@ -902,7 +901,8 @@ builder.mutationType({
           .insert(shots)
           .values({
             created_at: Math.floor(Date.now() / 1000),
-            text: args.text,
+            path: args.path,
+            text: "",
             publish_status: args.publish_status,
           })
           .returning()

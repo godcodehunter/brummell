@@ -12,6 +12,7 @@ import { VerticalProfileCard } from '../components/ProfileCard';
 import { Category, TreeCard, NodeTag } from '../components/TreeCard';
 import { ArticleCard } from '../components/ArticleCard';
 import { PodcastCard } from '../components/PodcastCard';
+import { ShotCard } from '../components/ShotCard';
 
 import { palette, constants } from '../globalStyles';
 
@@ -34,8 +35,9 @@ const GET_BLOG_CONTENT = gql`
       ... on Shot {
         tag
         id
-        path
+        text
         createdAt
+        tags { tooltip label color }
       }
       ... on Podcast {
         tag
@@ -68,8 +70,9 @@ const SEARCH_BLOG_CONTENT = gql`
       ... on Shot {
         tag
         id
-        path
+        text
         createdAt
+        tags { tooltip label color }
       }
       ... on Podcast {
         tag
@@ -105,7 +108,8 @@ interface ArticleItem {
 interface ShotItem {
   tag: "shot",
   id: number,
-  path: string,
+  text: string,
+  tags: Tag[],
   createdAt: number,
 }
 
@@ -123,7 +127,9 @@ type BlogContentItem = ArticleItem | ShotItem | PodcastItem;
 interface ArticleLine {
   tag: BlogContentItem["tag"],
   id: number,
-  path: string,
+  // Shots have no path (they're text rows); kept optional so the timeline
+  // can still display them without the tree node-id field.
+  path?: string,
   headline: string,
   createdAt: number,
 }
@@ -274,7 +280,9 @@ const TreeCardWithFill = ({ content }: { content: ArticleLine[] }) => {
       label,
       children: items.map(i => ({
         tag: NodeTag.Item,
-        id: i.path,
+        // Shots have no path — fall back to `<tag>:<id>` so the Tree's
+        // node id stays a valid string and uniqueness is preserved.
+        id: i.path ?? `${i.tag}:${i.id}`,
         label: i.headline,
         navTag: i.tag,
         navId: i.id,
@@ -337,7 +345,7 @@ export const MainPage = () => {
     .map(i => ({
       tag: i.tag,
       id: i.id,
-      path: i.path,
+      path: i.tag === "shot" ? undefined : i.path,
       headline: i.tag === "shot" ? `Shot #${i.id}` : i.headline,
       createdAt: i.createdAt,
     }));
@@ -380,7 +388,14 @@ export const MainPage = () => {
                   />
                 );
               case "shot":
-                return null;
+                return (
+                  <ShotCard
+                    key={idx}
+                    text={item.text}
+                    tags={item.tags.map(t => ({ ...t, color: chroma(t.color) }))}
+                    created_at={DateTime.fromSeconds(item.createdAt)}
+                  />
+                );
             }
           })}
         </MasonryGrid>

@@ -512,7 +512,7 @@ export function updateArticleMeta(meta: ArticleMeta) {
 
 export interface ShotMeta {
     id: number;
-    path: string | null;
+    text: string;
     tags: TagRow[];
 }
 
@@ -520,7 +520,7 @@ const GET_SHOT_BY_ID = gql`
     query GetShotById($id: Int!) {
         getShotById(id: $id) {
             id
-            path
+            text
             tags { id label color tooltip }
         }
     }
@@ -535,23 +535,23 @@ export function getShotById(id: number) {
 }
 
 const UPDATE_SHOT_META = gql`
-    mutation UpdateShotMeta($id: Int!, $path: String!, $tagIds: [Int!]!) {
-        updateShotMeta(id: $id, path: $path, tagIds: $tagIds) {
+    mutation UpdateShotMeta($id: Int!, $text: String!, $tagIds: [Int!]!) {
+        updateShotMeta(id: $id, text: $text, tagIds: $tagIds) {
             id
-            path
+            text
         }
     }
 `;
 
 export function updateShotMeta(meta: ShotMeta) {
     return client.mutate<
-        { updateShotMeta: { id: string, path: string | null } },
-        { id: number, path: string, tagIds: number[] }
+        { updateShotMeta: { id: string, text: string } },
+        { id: number, text: string, tagIds: number[] }
     >({
         mutation: UPDATE_SHOT_META,
         variables: {
             id: meta.id,
-            path: meta.path ?? "",
+            text: meta.text,
             tagIds: meta.tags.map(t => Number(t.id)),
         },
     });

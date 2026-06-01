@@ -18,6 +18,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS shots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       created_at INTEGER NOT NULL,
+      path TEXT,
       text TEXT NOT NULL DEFAULT '',
       publish_status TEXT NOT NULL DEFAULT 'draft'
     );

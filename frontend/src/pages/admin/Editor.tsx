@@ -1566,22 +1566,13 @@ export const ArticleCreator = () => {
                     <div className={css(profileFormStyles.scroller)}>
                         <div className={css(profileFormStyles.inner)}>
                             <div className={css(profileFormStyles.field)}>
-                                <label className={css(profileFormStyles.label)}>Media file</label>
-                                <input
-                                    className={css(profileFormStyles.input)}
-                                    placeholder="path under /files or data: / http(s):// URL"
-                                    value={shotForm.path ?? ""}
-                                    onChange={e => editShot(m => ({ ...m, path: e.target.value }))}
+                                <label className={css(profileFormStyles.label)}>Text</label>
+                                <textarea
+                                    className={css(profileFormStyles.textarea)}
+                                    placeholder="What's on your mind?"
+                                    value={shotForm.text}
+                                    onChange={e => editShot(m => ({ ...m, text: e.target.value }))}
                                 />
-                                {shotForm.path && (
-                                    <div className={css(profileFormStyles.avatarPreviewWrap)}>
-                                        <img
-                                            className={css(profileFormStyles.avatarPreview)}
-                                            src={resolveAssetSrc(shotForm.path)}
-                                            alt=""
-                                        />
-                                    </div>
-                                )}
                             </div>
                             <div className={css(profileFormStyles.field)}>
                                 <label className={css(profileFormStyles.label)}>Tags</label>

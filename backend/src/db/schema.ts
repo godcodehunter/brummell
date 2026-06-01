@@ -54,7 +54,12 @@ export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
-  // Tweet-style short text — the whole shot. No on-disk file involved.
+  // Pseudo-path used purely as a tree slug (no on-disk file). Nullable so
+  // freshly created shots can show up before the user assigns one; kept
+  // as a column so rename/delete-by-path treat shots uniformly with the
+  // other entities.
+  path: text("path"),
+  // Tweet-style body — the actual shot content.
   text: text("text").notNull().default(""),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
