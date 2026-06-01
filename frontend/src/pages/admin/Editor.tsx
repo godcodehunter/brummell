@@ -233,11 +233,15 @@ const editorView = StyleSheet.create({
         display: "flex",
         alignItems: "center",
         gap: 6,
-        flexGrow: 1,
+        flex: "1 1 0%",
         minWidth: 0,
+        overflow: "hidden",
+    },
+    icon: {
+        flexShrink: 0,
     },
     nameField: {
-        flex: 1,
+        flex: "1 1 0%",
         minWidth: 0,
         background: "transparent",
         color: "inherit",
@@ -246,6 +250,7 @@ const editorView = StyleSheet.create({
         font: "inherit",
         padding: 0,
         textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
     },
 });
 
@@ -299,7 +304,7 @@ export const ArticleCreator = () => {
         if (pendingId && node.id === pendingId) {
             return (
                 <div className={css(editorView.row)}>
-                    <span>📁</span>
+                    <span className={css(editorView.icon)}>📁</span>
                     <input
                         autoFocus
                         className={css(editorView.nameField)}
@@ -330,7 +335,7 @@ export const ArticleCreator = () => {
         const name = lastSegment(node.id);
         return (
             <div className={css(editorView.row)}>
-                <span>{icon}</span>
+                <span className={css(editorView.icon)}>{icon}</span>
                 <input
                     className={css(editorView.nameField)}
                     value={name}
@@ -338,7 +343,7 @@ export const ArticleCreator = () => {
                     onClick={e => e.stopPropagation()}
                     onChange={() => { /* rename is wired separately */ }}
                 />
-                {status && <span>{status}</span>}
+                {status && <span className={css(editorView.icon)}>{status}</span>}
             </div>
         );
     };

@@ -58,16 +58,30 @@ const categoryRow = StyleSheet.create({
         },
     },
     label: {
-        flexGrow: 1,
+        display: "flex",
+        alignItems: "center",
+        flex: "1 1 0%",
+        minWidth: 0,
+        overflow: "hidden",
+    },
+    defaultLabelText: {
+        flex: "1 1 0%",
+        minWidth: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
     },
     toggleIcon: {
         width: 14,
         height: 14,
         cursor: "pointer",
+        flexShrink: 0,
     },
     itemsCount: {
         color: "#858585",
         fontSize: 12,
+        flexShrink: 0,
+        whiteSpace: "nowrap",
     }
 });
 
@@ -140,7 +154,7 @@ const ContentRow: React.FC<ContentRowProps> = ({nodeId, view, style, onClick, on
     <div
         data-tree-node-id={nodeId}
         className={css(onClick && baseRow.interactive, active && baseRow.active)}
-        style={{...rowPadding(depth), ...style}}
+        style={{...rowPadding(depth), display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden", ...style}}
         onClick={onClick}
         onContextMenu={onRightClick && ((e) => { e.preventDefault(); onRightClick(e); })}
     >
@@ -167,7 +181,9 @@ interface TreeProps {
 // rendered via `viewItem`.
 const Tree = memo(({node, depth = 0, openIds, onToggle, highlightedIds, stuckIds, viewItem, onNodeClick, onNodeRightClick}: TreeProps) => {
     const isOpen = openIds.has(node.id);
-    const view = viewItem ? viewItem(node) : node.label;
+    const view = viewItem
+        ? viewItem(node)
+        : <span className={css(categoryRow.defaultLabelText)}>{node.label}</span>;
     const active = highlightedIds.has(node.id);
     const onClick = onNodeClick ? () => onNodeClick(node) : undefined;
     const onRightClick = onNodeRightClick ? (e: React.MouseEvent) => onNodeRightClick(node, e) : undefined;
