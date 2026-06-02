@@ -762,7 +762,10 @@ export const ArticleCreator = () => {
         if (submittingRef.current || !pendingNew) return;
         submittingRef.current = true;
         const name = pendingValue.trim();
-        const parentId = pendingNew.parentId;
+        // Content root is keyed as "/" in the tree, but the create* mutations
+        // build the slug as `${parent}/${name}` — passing "/" would yield
+        // `//<name>` and split into ghost empty-named folders in the tree.
+        const parentId = pendingNew.parentId === "/" ? "" : pendingNew.parentId;
         const kind = pendingNew.kind;
         setPendingNew(null);
         setPendingValue("");
