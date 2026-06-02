@@ -251,6 +251,28 @@ server {
         try_files $uri =404;
     }
 
+    # /files/* → backend. The admin uploads via PUT and deletes via DELETE;
+    # GET also goes through the backend because files.ts adds ETag, MIME
+    # detection and auth. Without this block PUT/DELETE land in the SPA
+    # `try_files` below and nginx replies 405 Not Allowed for any non-GET.
+    location /files/ {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # backend caps uploads at 50 MB (MAX_UPLOAD_BYTES in files.ts);
+        # nginx default body limit is 1 MB and would 413 anything larger.
+        client_max_body_size 50m;
+        # Stream large uploads straight to the backend instead of buffering
+        # the whole request on disk first.
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+    }
+
     # SPA fallback for React Router.
     location / {
         try_files $uri $uri/ /index.html;
