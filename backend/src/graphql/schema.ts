@@ -14,7 +14,7 @@
 //   4. `builder.toSchema()` — produce the executable schema for Yoga.
 
 import SchemaBuilder from "@pothos/core";
-import { and, asc, eq, inArray, like, or } from "drizzle-orm";
+import { and, asc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   shots,
@@ -274,6 +274,10 @@ builder.objectType("Podcast", {
       type: RibbonEnum,
       nullable: true,
       resolve: (podcast) => resolveRibbon("podcast", podcast.id),
+    }),
+    views: t.field({
+      type: "Int",
+      resolve: (podcast) => resolveViews("podcast", podcast.id),
     }),
     guests: t.field({
       type: ["PodcastGuest"],
@@ -1222,6 +1226,30 @@ builder.mutationType({
         await rmBuild(path.join(BUILD_DIR, relPath));
         await rmBuild(path.join(BUILD_DIR, `${relPath}.js`));
 
+        return true;
+      },
+    }),
+    // Bump the per-day view counter for an article/podcast/shot. Called
+    // from the page once per mount. Authorized requests (the admin viewing
+    // their own work) are intentionally skipped so the author can't inflate
+    // their own counts while editing. UPSERT keys on (type, id, day), so
+    // many calls within the same UTC day collapse into one row.
+    recordView: t.field({
+      type: "Boolean",
+      args: {
+        type: t.arg({ type: CommentTargetTypeEnum, required: true }),
+        id: t.arg.int({ required: true }),
+      },
+      resolve: (_, args, ctx) => {
+        if (ctx.isAuthorized) return false;
+        const day = Math.floor(Date.now() / 86_400_000) * 86_400;
+        db.insert(pageViews)
+          .values({ target_type: args.type, target_id: args.id, day, count: 1 })
+          .onConflictDoUpdate({
+            target: [pageViews.target_type, pageViews.target_id, pageViews.day],
+            set: { count: sql`${pageViews.count} + 1` },
+          })
+          .run();
         return true;
       },
     }),

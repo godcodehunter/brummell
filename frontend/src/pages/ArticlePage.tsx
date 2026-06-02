@@ -9,7 +9,7 @@ import { useChat } from '../chatQueries';
 import { ArticleHead } from '../components/ArticleHead';
 import BackToMain from '../components/BackToMain';
 import { getMDXComponent } from 'mdx-bundler/client'
-import { gql, useQuery } from "@apollo/client";
+import { gql, useMutation, useQuery } from "@apollo/client";
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { DateTime, Duration } from 'luxon';
 import { stringifyDuration, stringifyTime } from '../utilsTime';
@@ -216,6 +216,12 @@ query GetArticle($id: Int!) {
 }
 `;
 
+const RECORD_VIEW = gql`
+    mutation RecordView($type: CommentTargetType!, $id: Int!) {
+        recordView(type: $type, id: $id)
+    }
+`;
+
 export const ArticlePage = () => {
     const [searchParams] = useSearchParams();
     const id = Number(searchParams.get("id"));
@@ -226,6 +232,20 @@ export const ArticlePage = () => {
         variables: { id },
         skip: !hasValidId,
     });
+
+    // Bump the view counter once per page load. The ref guards against
+    // React StrictMode's double-mount in dev and against re-runs on any
+    // unrelated state churn — we only fire on the first successful fetch
+    // of a given article id. Authorized requests (the admin viewing their
+    // own work) are silently no-op'd on the server.
+    const [recordView] = useMutation(RECORD_VIEW);
+    const viewRecordedFor = useRef<number | null>(null);
+    useEffect(() => {
+        if (!hasValidId || !data?.getArticle) return;
+        if (viewRecordedFor.current === id) return;
+        viewRecordedFor.current = id;
+        void recordView({ variables: { type: "article", id } });
+    }, [hasValidId, data, id, recordView]);
 
     const { messages, sendMessage } = useChat("article", id);
 

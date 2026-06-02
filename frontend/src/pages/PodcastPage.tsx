@@ -4,9 +4,10 @@ import { Chat } from '../components/Chat';
 import { PodcastHead, Range } from '../components/PodcastHead';
 import BackToMain from '../components/BackToMain';
 import { Category, NodeTag, TreeCard } from '../components/TreeCard';
-import { gql, useQuery } from '@apollo/client';
+import { gql, useMutation, useQuery } from '@apollo/client';
 import { useSearchParams, Navigate } from 'react-router-dom';
 import chroma from 'chroma-js';
+import { useEffect, useRef } from 'react';
 
 const page = StyleSheet.create({
     root: {
@@ -111,6 +112,12 @@ const GET_PODCAST = gql`
   }
 `;
 
+const RECORD_VIEW = gql`
+    mutation RecordView($type: CommentTargetType!, $id: Int!) {
+        recordView(type: $type, id: $id)
+    }
+`;
+
 export interface Topic {
     range: Range,
     text: string,
@@ -126,6 +133,19 @@ export const PodcastPage = () => {
         variables: { id },
         skip: !hasValidId,
     });
+
+    // Bump the view counter once per page load. Ref guards against React
+    // StrictMode's double-mount in dev and against re-runs on any unrelated
+    // state churn — we only fire on the first successful fetch of a given
+    // podcast id. Authorized requests no-op on the server.
+    const [recordView] = useMutation(RECORD_VIEW);
+    const viewRecordedFor = useRef<number | null>(null);
+    useEffect(() => {
+        if (!hasValidId || !data?.getPodcast) return;
+        if (viewRecordedFor.current === id) return;
+        viewRecordedFor.current = id;
+        void recordView({ variables: { type: "podcast", id } });
+    }, [hasValidId, data, id, recordView]);
 
     // Still fetching — don't redirect prematurely.
     if (hasValidId && loading) {
