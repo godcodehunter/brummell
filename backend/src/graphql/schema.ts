@@ -126,10 +126,6 @@ interface EditableItem {
   contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
   // Only `shot`, `article` and `podcast` can be published or draft.
   publishStatus?: "published" | "draft";
-  // DB row id for article/shot/podcast — lets the admin form mutate the
-  // entity directly (shot/podcast paths are nullable, so the tree falls
-  // back to synthetic strings that can't be parsed back to an id).
-  entityId?: number;
 }
 
 const ContentTypeEnum = builder.enumType("ContentType", {
@@ -215,11 +211,6 @@ builder.objectType("EditableItem", {
       nullable: true,
       resolve: (item) => item.publishStatus ?? null,
     }),
-    entityId: t.field({
-      type: "Int",
-      nullable: true,
-      resolve: (item) => item.entityId ?? null,
-    }),
   }),
 });
 
@@ -275,6 +266,7 @@ builder.objectType("Podcast", {
     tag: t.string({ resolve: () => "podcast" }),
     id: t.exposeID("id"),
     path: t.exposeString("path"),
+    sound: t.exposeString("sound", { nullable: true }),
     headline: t.exposeString("headline"),
     preview_txt: t.exposeString("preview_txt"),
     createdAt: t.exposeInt("created_at"),
@@ -317,7 +309,7 @@ builder.objectType("Shot", {
     tag: t.string({ resolve: () => "shot" }),
     id: t.exposeID("id"),
     createdAt: t.exposeInt("created_at"),
-    path: t.exposeString("path", { nullable: true }),
+    path: t.exposeString("path"),
     text: t.exposeString("text"),
     views: t.field({
       type: "Int",
@@ -459,29 +451,24 @@ builder.queryType({
     getEditableItems: t.field({
       type: ["EditableItem"],
       resolve: async () => {
-        // First collect all db items
+        // Every entity is now addressable by path — the tree id is the path,
+        // and rename/delete-by-path is the single entry point.
         let a = db.select().from(articles).all().map((article): EditableItem => ({
           id: article.path,
           contentType: "article",
           publishStatus: article.publish_status,
-          entityId: article.id,
         }));
 
-        // Synthetic ids for rows whose path hasn't been set yet — the tree
-        // needs a stable string to key on. Real path takes priority once it
-        // exists, so a future rename keeps the same row identity downstream.
         let p = db.select().from(podcasts).all().map((podcast): EditableItem => ({
-          id: podcast.path ?? `__podcast/${podcast.id}`,
+          id: podcast.path,
           contentType: "podcast",
           publishStatus: podcast.publish_status,
-          entityId: podcast.id,
         }));
 
         let s = db.select().from(shots).all().map((shot): EditableItem => ({
-          id: shot.path ?? `__shot/${shot.id}`,
+          id: shot.path,
           contentType: "shot",
           publishStatus: shot.publish_status,
-          entityId: shot.id,
         }));
 
         let mirrowedItems = [...a, ...p, ...s];
@@ -591,25 +578,23 @@ builder.queryType({
         return db.select().from(articles).where(eq(articles.path, relPath)).all()[0] ?? null;
       },
     }),
-    // Shot/Podcast lookups are id-keyed because their paths are nullable —
-    // the tree falls back to a synthetic id when path isn't set, and that
-    // synthetic id is not stored anywhere, so we can't query by it.
-    getShotById: t.field({
+    // Shot/Podcast lookups go through path, same as articles.
+    getShotByPath: t.field({
       type: "Shot",
       nullable: true,
-      args: { id: t.arg.int({ required: true }) },
-      resolve: (_, { id }, ctx) => {
+      args: { path: t.arg.string({ required: true }) },
+      resolve: (_, { path: relPath }, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
-        return db.select().from(shots).where(eq(shots.id, id)).all()[0] ?? null;
+        return db.select().from(shots).where(eq(shots.path, relPath)).all()[0] ?? null;
       },
     }),
-    getPodcastById: t.field({
+    getPodcastByPath: t.field({
       type: "Podcast",
       nullable: true,
-      args: { id: t.arg.int({ required: true }) },
-      resolve: (_, { id }, ctx) => {
+      args: { path: t.arg.string({ required: true }) },
+      resolve: (_, { path: relPath }, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
-        return db.select().from(podcasts).where(eq(podcasts.id, id)).all()[0] ?? null;
+        return db.select().from(podcasts).where(eq(podcasts.path, relPath)).all()[0] ?? null;
       },
     }),
     getPayload: t.field({
@@ -785,8 +770,9 @@ builder.mutationType({
       },
     }),
     // Mirrors addNewArticle for podcasts: mkdir the folder, insert the row.
-    // No "main.sound" file is materialised on disk — that comes via DnD
-    // upload of an audio file under the new podcast directory.
+    // Podcasts are virtual tree entries — `path` is just the slug the tree
+    // keys on, no on-disk dir is materialised. The audio asset lives in the
+    // `sound` column (set later via the form) and is uploaded separately.
     addNewPodcast: t.field({
       type: "Podcast",
       args: {
@@ -794,20 +780,11 @@ builder.mutationType({
         path: t.arg.string({ required: true }),
         publish_status: t.arg({ type: PublishStatusEnum, required: true }),
       },
-      resolve: async (_, args, ctx) => {
+      resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
 
-        const abs = resolveFilePath(`/files/${args.path.replace(/^\/+/, "")}`);
-        if (!abs) throw new Error("INVALID_PATH");
-
-        try {
-          await fs.mkdir(abs);
-        } catch (err) {
-          const code = (err as NodeJS.ErrnoException).code;
-          if (code === "ENOENT") throw new Error("PARENT_NOT_FOUND");
-          if (code === "EEXIST") throw new Error("ALREADY_EXISTS");
-          throw err;
-        }
+        const existing = db.select().from(podcasts).where(eq(podcasts.path, args.path)).all()[0];
+        if (existing) throw new Error("ALREADY_EXISTS");
 
         const created = db
           .insert(podcasts)
@@ -822,12 +799,13 @@ builder.mutationType({
         return created;
       },
     }),
-    // Form-driven patch for a shot. Shots are tweet-style text rows
-    // identified by numeric id (the tree shows `__shot/<id>`).
+    // Form-driven patch for a shot. Keyed by path (the tree slug) so the
+    // admin tree's node id is sufficient to open and save without exposing
+    // a numeric row id.
     updateShotMeta: t.field({
       type: "Shot",
       args: {
-        id: t.arg.int({ required: true }),
+        path: t.arg.string({ required: true }),
         text: t.arg.string({ required: true }),
         tagIds: t.arg.intList({ required: true }),
       },
@@ -835,7 +813,7 @@ builder.mutationType({
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
         const updated = db.update(shots)
           .set({ text: args.text })
-          .where(eq(shots.id, args.id))
+          .where(eq(shots.path, args.path))
           .returning()
           .all()[0];
         if (!updated) throw new Error("NOT_FOUND");
@@ -843,18 +821,18 @@ builder.mutationType({
         return updated;
       },
     }),
-    // Form-driven patch for a podcast. `guestsJson` / `subtitlesJson` are
-    // JSON-encoded strings parsed in the resolver — the admin form already
-    // edits subtitles as raw JSON, and guests are an array we'd rather not
-    // map through an input-type tree. Validation errors (bad JSON, wrong
-    // shape) surface as GraphQL errors.
+    // Form-driven patch for a podcast. Keyed by path (the tree slug);
+    // `sound` is the audio file path under /files and is independent from
+    // the tree position. `guestsJson` / `subtitlesJson` are JSON-encoded
+    // because the admin form edits them as raw JSON. Validation errors
+    // (bad JSON, wrong shape) surface as GraphQL errors.
     updatePodcastMeta: t.field({
       type: "Podcast",
       args: {
-        id: t.arg.int({ required: true }),
+        path: t.arg.string({ required: true }),
         headline: t.arg.string({ required: true }),
         preview_txt: t.arg.string({ required: true }),
-        path: t.arg.string({ required: true }),
+        sound: t.arg.string({ required: true }),
         guestsJson: t.arg.string({ required: true }),
         subtitlesJson: t.arg.string({ required: true }),
         tagIds: t.arg.intList({ required: true }),
@@ -877,11 +855,11 @@ builder.mutationType({
           .set({
             headline: args.headline,
             preview_txt: args.preview_txt,
-            path: args.path === "" ? null : args.path,
+            sound: args.sound === "" ? null : args.sound,
             guests,
             subtitles: subs,
           })
-          .where(eq(podcasts.id, args.id))
+          .where(eq(podcasts.path, args.path))
           .returning()
           .all()[0];
         if (!updated) throw new Error("NOT_FOUND");
@@ -891,7 +869,7 @@ builder.mutationType({
     }),
     // Shots are tweet-style text rows. The "New Shot" inline-input flow
     // gives us the slug (`path`) — the body (`text`) stays empty until
-    // the user fills it in the form.
+    // the user fills it in the form. No on-disk file is materialised.
     addNewShot: t.field({
       type: "Shot",
       args: {
@@ -900,6 +878,8 @@ builder.mutationType({
       },
       resolve: (_, args, ctx) => {
         if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
+        const existing = db.select().from(shots).where(eq(shots.path, args.path)).all()[0];
+        if (existing) throw new Error("ALREADY_EXISTS");
         const created = db
           .insert(shots)
           .values({
@@ -1089,19 +1069,22 @@ builder.mutationType({
           if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
         }
 
+        // Shots/podcasts are virtual tree entries — no on-disk file at the
+        // path. Treat a missing on-disk source as success and proceed to the
+        // DB remap; any other fs error still propagates.
         try {
           await fs.mkdir(path.dirname(newAbs), { recursive: true });
           await fs.rename(oldAbs, newAbs);
         } catch (err) {
           const code = (err as NodeJS.ErrnoException).code;
-          if (code === "ENOENT") throw new Error("NOT_FOUND");
-          throw err;
+          if (code !== "ENOENT") throw err;
         }
 
         const prefixLike = `${oldPath}/%`;
         const remapPath = (current: string): string =>
           current === oldPath ? newPath : newPath + current.slice(oldPath.length);
 
+        let dbHits = 0;
         for (const table of [articles, shots, podcasts] as const) {
           const affected = db
             .select()
@@ -1109,15 +1092,19 @@ builder.mutationType({
             .where(or(eq(table.path, oldPath), like(table.path, prefixLike)))
             .all();
           for (const row of affected) {
-            // Affected query already filters by oldPath/prefix so the path
-            // can't be null here, but TS doesn't narrow from drizzle's
-            // `where`. Skip defensively rather than coercing.
-            if (row.path == null) continue;
             db.update(table)
               .set({ path: remapPath(row.path) })
               .where(eq(table.id, row.id))
               .run();
+            dbHits++;
           }
+        }
+        // Neither a real file moved nor any DB row matched — the requested
+        // oldPath simply doesn't exist anywhere.
+        try {
+          await fs.access(newAbs);
+        } catch {
+          if (dbHits === 0) throw new Error("NOT_FOUND");
         }
 
         const moveBuild = async (from: string, to: string) => {
@@ -1235,54 +1222,6 @@ builder.mutationType({
         await rmBuild(path.join(BUILD_DIR, relPath));
         await rmBuild(path.join(BUILD_DIR, `${relPath}.js`));
 
-        return true;
-      },
-    }),
-    // For shot/podcast rows whose `path` is null (synthetic tree id like
-    // `__shot/3`), there's no disk path to drive deleteByPath. These call
-    // sites take the numeric id instead. If a path happens to be set, the
-    // referenced file is also removed.
-    deleteShotById: t.field({
-      type: "Boolean",
-      args: { id: t.arg.int({ required: true }) },
-      resolve: async (_, { id }, ctx) => {
-        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
-        const row = db.select().from(shots).where(eq(shots.id, id)).all()[0];
-        if (!row) throw new Error("NOT_FOUND");
-        if (row.path) {
-          const abs = resolveFilePath(`/files/${row.path.replace(/^\/+/, "")}`);
-          if (abs) {
-            try {
-              await fs.rm(abs, { recursive: true, force: true });
-            } catch (err) {
-              if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-            }
-          }
-        }
-        writeTagSet("shot", id, []);
-        db.delete(shots).where(eq(shots.id, id)).run();
-        return true;
-      },
-    }),
-    deletePodcastById: t.field({
-      type: "Boolean",
-      args: { id: t.arg.int({ required: true }) },
-      resolve: async (_, { id }, ctx) => {
-        if (!ctx.isAuthorized) throw new Error("UNAUTHORIZED");
-        const row = db.select().from(podcasts).where(eq(podcasts.id, id)).all()[0];
-        if (!row) throw new Error("NOT_FOUND");
-        if (row.path) {
-          const abs = resolveFilePath(`/files/${row.path.replace(/^\/+/, "")}`);
-          if (abs) {
-            try {
-              await fs.rm(abs, { recursive: true, force: true });
-            } catch (err) {
-              if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-            }
-          }
-        }
-        writeTagSet("podcast", id, []);
-        db.delete(podcasts).where(eq(podcasts.id, id)).run();
         return true;
       },
     }),

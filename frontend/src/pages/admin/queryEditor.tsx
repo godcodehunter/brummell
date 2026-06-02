@@ -142,7 +142,6 @@ const GET_EDITABLE_ITEMS = gql`
             id
             contentType
             publishStatus
-            entityId
         }
     }
 `;
@@ -511,33 +510,33 @@ export function updateArticleMeta(meta: ArticleMeta) {
 }
 
 export interface ShotMeta {
-    id: number;
+    path: string;
     text: string;
     tags: TagRow[];
 }
 
-const GET_SHOT_BY_ID = gql`
-    query GetShotById($id: Int!) {
-        getShotById(id: $id) {
-            id
+const GET_SHOT_BY_PATH = gql`
+    query GetShotByPath($path: String!) {
+        getShotByPath(path: $path) {
+            path
             text
             tags { id label color tooltip }
         }
     }
 `;
 
-export function getShotById(id: number) {
-    return client.query<{ getShotById: ShotMeta | null }, { id: number }>({
-        query: GET_SHOT_BY_ID,
-        variables: { id },
+export function getShotByPath(path: string) {
+    return client.query<{ getShotByPath: ShotMeta | null }, { path: string }>({
+        query: GET_SHOT_BY_PATH,
+        variables: { path },
         fetchPolicy: "no-cache",
     });
 }
 
 const UPDATE_SHOT_META = gql`
-    mutation UpdateShotMeta($id: Int!, $text: String!, $tagIds: [Int!]!) {
-        updateShotMeta(id: $id, text: $text, tagIds: $tagIds) {
-            id
+    mutation UpdateShotMeta($path: String!, $text: String!, $tagIds: [Int!]!) {
+        updateShotMeta(path: $path, text: $text, tagIds: $tagIds) {
+            path
             text
         }
     }
@@ -545,14 +544,12 @@ const UPDATE_SHOT_META = gql`
 
 export function updateShotMeta(meta: ShotMeta) {
     return client.mutate<
-        { updateShotMeta: { id: string, text: string } },
-        { id: number, text: string, tagIds: number[] }
+        { updateShotMeta: { path: string, text: string } },
+        { path: string, text: string, tagIds: number[] }
     >({
         mutation: UPDATE_SHOT_META,
         variables: {
-            // `id` arrives as a GraphQL ID (string) from getShotById; the
-            // mutation declares `$id: Int!`, so coerce before sending.
-            id: Number(meta.id),
+            path: meta.path,
             text: meta.text,
             tagIds: meta.tags.map(t => Number(t.id)),
         },
@@ -576,22 +573,22 @@ export interface PodcastSubtitle {
 }
 
 export interface PodcastMeta {
-    id: number;
+    path: string;
     headline: string;
     preview_txt: string;
-    path: string | null;
+    sound: string | null;
     guests: PodcastGuest[];
     subtitles: PodcastSubtitle[];
     tags: TagRow[];
 }
 
-const GET_PODCAST_BY_ID = gql`
-    query GetPodcastById($id: Int!) {
-        getPodcastById(id: $id) {
-            id
+const GET_PODCAST_BY_PATH = gql`
+    query GetPodcastByPath($path: String!) {
+        getPodcastByPath(path: $path) {
+            path
+            sound
             headline
             preview_txt
-            path
             guests { image name whoIs }
             subtitles {
                 speakerIdx
@@ -605,46 +602,46 @@ const GET_PODCAST_BY_ID = gql`
     }
 `;
 
-export function getPodcastById(id: number) {
-    return client.query<{ getPodcastById: PodcastMeta | null }, { id: number }>({
-        query: GET_PODCAST_BY_ID,
-        variables: { id },
+export function getPodcastByPath(path: string) {
+    return client.query<{ getPodcastByPath: PodcastMeta | null }, { path: string }>({
+        query: GET_PODCAST_BY_PATH,
+        variables: { path },
         fetchPolicy: "no-cache",
     });
 }
 
 const UPDATE_PODCAST_META = gql`
     mutation UpdatePodcastMeta(
-        $id: Int!,
+        $path: String!,
         $headline: String!,
         $preview_txt: String!,
-        $path: String!,
+        $sound: String!,
         $guestsJson: String!,
         $subtitlesJson: String!,
         $tagIds: [Int!]!
     ) {
         updatePodcastMeta(
-            id: $id,
+            path: $path,
             headline: $headline,
             preview_txt: $preview_txt,
-            path: $path,
+            sound: $sound,
             guestsJson: $guestsJson,
             subtitlesJson: $subtitlesJson,
             tagIds: $tagIds
         ) {
-            id
+            path
         }
     }
 `;
 
 export function updatePodcastMeta(meta: PodcastMeta) {
     return client.mutate<
-        { updatePodcastMeta: { id: string } },
+        { updatePodcastMeta: { path: string } },
         {
-            id: number,
+            path: string,
             headline: string,
             preview_txt: string,
-            path: string,
+            sound: string,
             guestsJson: string,
             subtitlesJson: string,
             tagIds: number[],
@@ -652,12 +649,10 @@ export function updatePodcastMeta(meta: PodcastMeta) {
     >({
         mutation: UPDATE_PODCAST_META,
         variables: {
-            // `id` arrives as a GraphQL ID (string) from getPodcastById; the
-            // mutation declares `$id: Int!`, so coerce before sending.
-            id: Number(meta.id),
+            path: meta.path,
             headline: meta.headline,
             preview_txt: meta.preview_txt,
-            path: meta.path ?? "",
+            sound: meta.sound ?? "",
             guestsJson: JSON.stringify(meta.guests),
             subtitlesJson: JSON.stringify(meta.subtitles),
             tagIds: meta.tags.map(t => Number(t.id)),
@@ -696,28 +691,3 @@ export function deleteByPath(path: string) {
     });
 }
 
-const DELETE_SHOT_BY_ID = gql`
-    mutation DeleteShotById($id: Int!) {
-        deleteShotById(id: $id)
-    }
-`;
-
-export function deleteShotById(id: number) {
-    return client.mutate<{ deleteShotById: boolean }, { id: number }>({
-        mutation: DELETE_SHOT_BY_ID,
-        variables: { id },
-    });
-}
-
-const DELETE_PODCAST_BY_ID = gql`
-    mutation DeletePodcastById($id: Int!) {
-        deletePodcastById(id: $id)
-    }
-`;
-
-export function deletePodcastById(id: number) {
-    return client.mutate<{ deletePodcastById: boolean }, { id: number }>({
-        mutation: DELETE_PODCAST_BY_ID,
-        variables: { id },
-    });
-}

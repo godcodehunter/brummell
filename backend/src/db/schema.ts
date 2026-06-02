@@ -54,11 +54,10 @@ export const shots = sqliteTable("shots", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   // Unix timestamp
   created_at: integer("created_at").notNull(),
-  // Pseudo-path used purely as a tree slug (no on-disk file). Nullable so
-  // freshly created shots can show up before the user assigns one; kept
-  // as a column so rename/delete-by-path treat shots uniformly with the
-  // other entities.
-  path: text("path"),
+  // Tree slug — virtual, no on-disk file. Always set: every shot is
+  // addressable by path, the same way rename/delete-by-path works for
+  // articles and folders.
+  path: text("path").notNull(),
   // Tweet-style body — the actual shot content.
   text: text("text").notNull().default(""),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
@@ -92,9 +91,12 @@ export const podcasts = sqliteTable("podcasts", {
     .default([]),
   // Unix timestamp in seconds.
   created_at: integer("created_at").notNull(),
-  // Audio file path under FILES_DIR. Nullable — the podcast can exist as
-  // a row before its sound asset is uploaded.
-  path: text("path"),
+  // Tree slug — virtual, no on-disk file. Always set; rename/delete-by-path
+  // and the tree pick it up identically to articles and folders.
+  path: text("path").notNull(),
+  // Audio asset path under FILES_DIR. Nullable — the podcast row can exist
+  // before the user uploads/links its sound file.
+  sound: text("sound"),
   publish_status: text("publish_status", { enum: ["published", "draft"] }).notNull(),
 });
 

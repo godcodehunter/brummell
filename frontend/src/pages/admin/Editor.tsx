@@ -9,7 +9,7 @@ import chroma from 'chroma-js';
 import { SplitPane, Panel } from '../../components/SplitPane';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { gql, useLazyQuery, useMutation, useQuery } from "@apollo/client";
-import { previewAndSaveMDX, createArticle, createFolder, createPodcast, createShot, createTag, deleteByPath, deletePodcastById, deleteShotById, deleteTag, fetchPayload, getArticleByPath, getDeleteImpact, getPodcastById, getShotById, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updatePodcastMeta, updateShotMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type PodcastMeta, type ShotMeta, type TagRow, type TagUsageRow } from "./queryEditor";
+import { previewAndSaveMDX, createArticle, createFolder, createPodcast, createShot, createTag, deleteByPath, deleteTag, fetchPayload, getArticleByPath, getDeleteImpact, getPodcastByPath, getShotByPath, getTagUsage, queryTreeItem, renameObject, savePayload, togglePublishStatus, updateArticleMeta, updatePodcastMeta, updateShotMeta, updateTag, type ArticleMeta, type Difficulty, type MDXBuild, type PodcastMeta, type ShotMeta, type TagRow, type TagUsageRow } from "./queryEditor";
 import { AudioTrack } from "../../components/AudioTrack";
 import { getMDXComponent } from "mdx-bundler/client";
 import { globalStyles, constants, palette } from "../../globalStyles";
@@ -138,9 +138,6 @@ export interface ContentItem {
     contentType?: "shot" | "article" | "podcast" | "library" | "media" | "dir";
     // Only `shot`, `article` and `podcast` can be published or draft.
     publishStatus?: "published" | "draft";
-    // DB row id for article/shot/podcast (used by the form editors to
-    // mutate rows whose `path` may be null and thus not addressable).
-    entityId?: number;
 }
 
 // GraphQL camelCase shape — what fetchOwner actually returns.
@@ -611,7 +608,6 @@ export const ArticleCreator = () => {
         // Sanity bail-outs (TreeCard already does most of these, repeated
         // here so a malformed drag doesn't accidentally rename).
         if (!sourceId || sourceId === "/" || sourceId.startsWith("/")) return;
-        if (sourceId.startsWith("__")) return;
         const name = lastSegment(sourceId);
         const targetBase = target.id === "/" ? "" : target.id;
         const newPath = targetBase ? `${targetBase}/${name}` : name;
@@ -641,18 +637,13 @@ export const ArticleCreator = () => {
     const isNodeDraggable = (node: Node<ContentItem>): boolean => {
         if (node.id === "/" || node.id === "/profile" || node.id === "/tags") return false;
         if (pendingId && node.id === pendingId) return false;
-        if (node.id.startsWith("__")) return false;
         if (node.id.endsWith("/metadata")) return false;
         return true;
     };
 
-    // Delete-confirm: mirrors the tag-delete dialog. `target` is either a
-    // tree path (handles folders / articles / files) or a `(type, id)` pair
-    // (handles shot/podcast rows whose path is null and thus not deletable
-    // by path). Either way, `impact` is what shows in the dialog.
-    type DeleteTarget =
-        | { kind: "path", path: string, name: string }
-        | { kind: "entity", entity: "shot" | "podcast", id: number, name: string };
+    // Delete-confirm: every entity (folder, article, shot, podcast) is
+    // addressable by path now, so the target is always a tree path.
+    type DeleteTarget = { path: string, name: string };
     const [deleteConfirm, setDeleteConfirm] = useState<{ target: DeleteTarget, impact: TagUsageRow[] } | null>(null);
 
     const requestDelete = async (node: Node<ContentItem>) => {
@@ -660,25 +651,10 @@ export const ArticleCreator = () => {
         if (node.id === "/" || node.id === "/profile" || node.id === "/tags") return;
         if (node.id.endsWith("/metadata") || node.id.endsWith("/main.mdx")) return;
 
-        let target: DeleteTarget;
-        if (node.id.startsWith("__")) {
-            // Synthetic id — the row has no on-disk path. Delete by id.
-            if (typeof node.entityId !== "number") return;
-            const entity = node.contentType === "podcast" ? "podcast"
-                         : node.contentType === "shot" ? "shot"
-                         : null;
-            if (!entity) return;
-            target = { kind: "entity", entity, id: node.entityId, name: lastSegment(node.id) };
-        } else {
-            target = { kind: "path", path: node.id, name: lastSegment(node.id) };
-        }
+        const target: DeleteTarget = { path: node.id, name: lastSegment(node.id) };
 
         try {
-            // For path targets ask the server; for synthetic-id rows the
-            // impact is trivially the row itself (one entry).
-            const impact: TagUsageRow[] = target.kind === "path"
-                ? ((await getDeleteImpact(target.path)).data.getDeleteImpact ?? [])
-                : [{ type: target.entity, id: target.id, label: target.name }];
+            const impact = (await getDeleteImpact(target.path)).data.getDeleteImpact ?? [];
             if (impact.length === 0) {
                 await runDelete(target);
                 return;
@@ -691,23 +667,17 @@ export const ArticleCreator = () => {
 
     const runDelete = async (target: DeleteTarget) => {
         try {
-            if (target.kind === "path") {
-                await deleteByPath(target.path);
-                // Editor's open file may have just vanished — clear stale modes.
-                const mode = editingModeRef.current;
-                if (mode && typeof mode === "object" && "path" in mode &&
-                    (mode.path === target.path || mode.path.startsWith(target.path + "/"))) {
-                    editingModeRef.current = null;
-                    setMdxMode(false);
-                    setMetaMode(false);
-                }
-            } else if (target.entity === "shot") {
-                await deleteShotById(target.id);
-                if (shotForm?.id === target.id) setShotMode(false);
-            } else {
-                await deletePodcastById(target.id);
-                if (podcastForm?.id === target.id) setPodcastMode(false);
+            await deleteByPath(target.path);
+            // Editor's open file may have just vanished — clear stale modes.
+            const mode = editingModeRef.current;
+            if (mode && typeof mode === "object" && "path" in mode &&
+                (mode.path === target.path || mode.path.startsWith(target.path + "/"))) {
+                editingModeRef.current = null;
+                setMdxMode(false);
+                setMetaMode(false);
             }
+            if (shotForm?.path === target.path) setShotMode(false);
+            if (podcastForm?.path === target.path) setPodcastMode(false);
             await refetch();
         } catch (e) {
             pushError("Delete", (e as Error).message);
@@ -716,7 +686,6 @@ export const ArticleCreator = () => {
 
     const isNodeDropTarget = (node: Node<ContentItem>): boolean => {
         if (node.id === "/profile" || node.id === "/tags") return false;
-        if (node.id.startsWith("__")) return false;
         if (node.id.endsWith("/metadata") || node.id.endsWith("/main.mdx")) return false;
         return node.tag === NodeTag.Category;
     };
@@ -1159,7 +1128,7 @@ export const ArticleCreator = () => {
         setShotForm(p => p ? mutator(p) : p);
     };
 
-    const openShotMeta = async (entityId: number) => {
+    const openShotMeta = async (shotPath: string) => {
         editingModeRef.current = null;
         setMdxMode(false);
         setTagsMode(false);
@@ -1169,8 +1138,8 @@ export const ArticleCreator = () => {
         setShotMode(true);
         shotDirtyRef.current = false;
         try {
-            const { data } = await getShotById(entityId);
-            const m = data.getShotById;
+            const { data } = await getShotByPath(shotPath);
+            const m = data.getShotByPath;
             if (!m) throw new Error("Shot not found");
             setShotForm({ ...m });
         } catch (e) {
@@ -1209,7 +1178,7 @@ export const ArticleCreator = () => {
         setPodcastForm(p => p ? mutator(p) : p);
     };
 
-    const openPodcastMeta = async (entityId: number) => {
+    const openPodcastMeta = async (podcastPath: string) => {
         editingModeRef.current = null;
         setMdxMode(false);
         setTagsMode(false);
@@ -1220,8 +1189,8 @@ export const ArticleCreator = () => {
         podcastDirtyRef.current = false;
         setSubtitlesError(null);
         try {
-            const { data } = await getPodcastById(entityId);
-            const m = data.getPodcastById;
+            const { data } = await getPodcastByPath(podcastPath);
+            const m = data.getPodcastByPath;
             if (!m) throw new Error("Podcast not found");
             setPodcastForm({ ...m });
             setSubtitlesText(JSON.stringify(m.subtitles ?? [], null, 2));
@@ -1394,11 +1363,11 @@ export const ArticleCreator = () => {
             void openArticleMeta(articlePath);
         }
         const ext = node as Node<ContentItem>;
-        if (ext.contentType === "shot" && typeof ext.entityId === "number") {
-            void openShotMeta(ext.entityId);
+        if (ext.contentType === "shot") {
+            void openShotMeta(node.id);
         }
-        if (ext.contentType === "podcast" && typeof ext.entityId === "number") {
-            void openPodcastMeta(ext.entityId);
+        if (ext.contentType === "podcast") {
+            void openPodcastMeta(node.id);
         }
     }
 
@@ -1619,9 +1588,9 @@ export const ArticleCreator = () => {
                                 <label className={css(profileFormStyles.label)}>Sound</label>
                                 <input
                                     className={css(profileFormStyles.input)}
-                                    placeholder="path under /files"
-                                    value={podcastForm.path ?? ""}
-                                    onChange={e => editPodcast(m => ({ ...m, path: e.target.value }))}
+                                    placeholder="audio file path under /files"
+                                    value={podcastForm.sound ?? ""}
+                                    onChange={e => editPodcast(m => ({ ...m, sound: e.target.value }))}
                                 />
                             </div>
                             <div className={css(profileFormStyles.field)}>
@@ -1691,11 +1660,11 @@ export const ArticleCreator = () => {
                                     }))}
                                 />
                             </div>
-                            {podcastForm.path && (
+                            {podcastForm.sound && (
                                 <div className={css(profileFormStyles.field)}>
                                     <label className={css(profileFormStyles.label)}>Track</label>
                                     <AudioTrack
-                                        src={resolveAssetSrc(podcastForm.path)}
+                                        src={resolveAssetSrc(podcastForm.sound)}
                                         subtitles={subtitlesError ? [] : podcastForm.subtitles}
                                         guestColors={podcastForm.guests.map((_g, idx) => ({
                                             color: chroma.hsl((idx * 73) % 360, 0.7, 0.65).hex(),
@@ -2015,9 +1984,7 @@ export const ArticleCreator = () => {
                         Delete "{deleteConfirm.target.name}"?
                     </div>
                     <div>
-                        {deleteConfirm.target.kind === "path"
-                            ? <>This will permanently remove the path on disk and the {deleteConfirm.impact.length} tracked item{deleteConfirm.impact.length === 1 ? "" : "s"} below.</>
-                            : <>This will permanently remove this {deleteConfirm.target.entity}.</>}
+                        This will permanently remove the path and the {deleteConfirm.impact.length} tracked item{deleteConfirm.impact.length === 1 ? "" : "s"} below.
                     </div>
                     <ul className={css(tagsFormStyles.usageList)}>
                         {deleteConfirm.impact.map(u => (
