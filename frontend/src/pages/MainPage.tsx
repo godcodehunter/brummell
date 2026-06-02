@@ -206,17 +206,36 @@ const GET_OWNER = gql`
 `;
 
 // Image-icon flavour of IconButton — the owner profile carries each ref's
-// `svgIcon` as a URL/path string, not a bundled SVG component, so we render
-// it as <img>. resolveAssetSrc lets paths like `icons/github.svg` work via
-// /files without forcing the user to type the full URL.
-const RefIcon: React.FC<{ url: string, svgIcon: string }> = ({ url, svgIcon }) => (
-  <img
-    src={resolveAssetSrc(svgIcon)}
-    alt=""
-    onClick={() => window.open(url, "_blank")}
-    style={{ width: "100%", height: "100%", objectFit: "contain", cursor: "pointer" }}
-  />
-);
+// `svgIcon` as a URL/path string, not a bundled SVG component. We render
+// the SVG as a CSS mask so `background-color` controls the icon colour
+// (matching the original bundled-SVG palette: #ABABAB default, #FAFAFA on
+// hover). Requires single-colour SVGs, which all social icons are.
+const RefIcon: React.FC<{ url: string, svgIcon: string }> = ({ url, svgIcon }) => {
+  const [hovered, setHovered] = React.useState(false);
+  const src = resolveAssetSrc(svgIcon);
+  return (
+    <div
+      role="link"
+      onClick={() => window.open(url, "_blank")}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "100%",
+        height: "100%",
+        cursor: "pointer",
+        backgroundColor: hovered ? "#FAFAFA" : "#ABABAB",
+        WebkitMaskImage: `url(${src})`,
+        maskImage: `url(${src})`,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
+  );
+};
 
 function resolveAssetSrc(src: string): string {
   if (!src) return src;
