@@ -19,6 +19,7 @@
     "fuse.js": "^7.4.0",
     "graphql": "^16.9.0",
     "graphql-ws": "^5.16.0",
+    "katex": "^0.17.0",
     "luxon": "^3.5.0",
     "mdx-bundler": "^10.1.1",
     "ramda": "^0.30.1",

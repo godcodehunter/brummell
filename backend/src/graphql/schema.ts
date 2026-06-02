@@ -52,7 +52,7 @@ import {
   prepaireForStorage,
 } from "../adminPass.js"
 import { FILES_DIR, MIME_BY_EXT, resolveFilePath } from "../files.js";
-import { compileArticleMDX, BUILD_DIR } from "../mdxBuild.js";
+import { compileArticleMDX, BUILD_DIR, mdxOptionsWithMath } from "../mdxBuild.js";
 import { bundleMDX } from "mdx-bundler";
 import * as fs from "node:fs/promises";
 import path from "node:path";
@@ -1008,7 +1008,7 @@ builder.mutationType({
         }
 
         try {
-          const { code } = await bundleMDX({ source });
+          const { code } = await bundleMDX({ source, mdxOptions: mdxOptionsWithMath });
           return { code, error: null };
         } catch (err) {
           return { code: null, error: (err as Error).message };

@@ -1,6 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css';
+// Math support for MDX: the backend pre-renders KaTeX HTML via rehype-katex,
+// so we only ship the matching stylesheet here (no client-side compile).
+import 'katex/dist/katex.min.css';
 import App from './App';
 
 import {
