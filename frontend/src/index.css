@@ -21,6 +21,25 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
   color: #E0E0E0;
 }
 
+/* The aggressive `*` reset above clobbers font-family/size/style on every
+   descendant of .katex, including unclassed inner spans that hold composed
+   glyphs (e.g. the `=` + PUA strikethrough that makes ≠). Roboto has no
+   glyph for those PUA codepoints, so the slash overlay disappears and
+   formulas like S(n) ≠ 0 render as plain `=`. Restoring `inherit` lets
+   KaTeX's own cascade reach those spans; the class-specific rules KaTeX
+   ships (.mathnormal, .amsrm, …) keep winning by specificity. */
+.katex,
+.katex * {
+  font-family: inherit;
+  font-size: inherit;
+  font-style: inherit;
+  font-weight: inherit;
+}
+.katex {
+  font-family: KaTeX_Main, "Times New Roman", serif;
+  font-style: normal;
+}
+
 *::-webkit-scrollbar {
   width: 0.8em;
 }
