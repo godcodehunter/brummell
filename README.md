@@ -304,10 +304,62 @@ tail -n 30 /var/log/nginx/error.log
 tail -n 30 /var/log/nginx/access.log
 ```
 
-## 9. Domain + HTTPS (TODO)
+## 9. Domain + HTTPS
 
-Once a domain is pointed at the server, swap `server_name _;` for the real
-hostname and run `certbot --nginx` to issue a Let's Encrypt cert.
+The site runs on `godcodehunter.com` (apex + `www`), served over HTTPS with a
+free Let's Encrypt certificate.
+
+**DNS.** Point the domain at the server with two `A` records — both the apex
+and `www` resolve to `server_ip`:
+
+```
+A  @    → 46.29.166.201
+A  www  → 46.29.166.201
+```
+
+Wait until they actually resolve before issuing a cert (`dig +short
+godcodehunter.com` should print the IP), otherwise the HTTP-01 challenge fails.
+
+**Certificate.** Install Certbot and its nginx plugin, then issue the cert.
+The `server_name` in the `brummell` site already lists both names, so Certbot
+finds them automatically:
+
+```
+apt install -y certbot python3-certbot-nginx
+
+certbot --nginx \
+  -d godcodehunter.com -d www.godcodehunter.com \
+  --email mamhigtt@gmail.com --agree-tos --no-eff-email --redirect
+```
+
+`--redirect` makes Certbot rewrite the site in place: the original server block
+moves to `listen 443 ssl` with the cert paths, and a second port-80 server block
+301-redirects all HTTP to HTTPS. The `location` blocks from section 8 are left
+untouched. Re-test and reload:
+
+```
+nginx -t && systemctl reload nginx
+curl -sI http://godcodehunter.com    # 301 → https://…
+curl -sI https://godcodehunter.com   # 200
+```
+
+**Auto-renewal.** Certbot installs a `certbot.timer` systemd unit (`systemctl
+status certbot.timer`) that runs twice a day and reloads nginx after a renewal.
+Certs are valid 90 days and renew ~30 days before expiry. Verify the whole
+renewal path — challenge included — without touching the live cert:
+
+```
+certbot renew --dry-run --no-random-sleep-on-renew
+# → "Congratulations, all simulated renewals succeeded"
+```
+
+> Plain `certbot renew` sleeps a random 0–12 min before running (load-spreading
+> for Let's Encrypt) — that's the timer's job, not a hang. Add
+> `--no-random-sleep-on-renew` when you want to test it by hand.
+
+The nginx authenticator answers the renewal challenge over port 80 even with the
+HTTPS redirect in place, so no extra `.well-known` carve-out is needed. Certs
+live under `/etc/letsencrypt/live/godcodehunter.com/`.
 
 ---
 
