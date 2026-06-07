@@ -179,3 +179,36 @@ p, h1, h2, h3, h4, h5, h6, ul, dl, dt, dd {
   color: #ABABAB;
   font-style: italic;
 }
+
+/* GFM tables (remark-gfm). Wide tables scroll horizontally instead of
+   blowing out the article column. */
+.article-section table {
+  font-family: "Roboto";
+  font-size: 13px;
+  line-height: 1.5;
+  color: #D4D4D4;
+  background-color: #1E1E1F;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0 16px;
+  display: block;
+  overflow-x: auto;
+}
+
+.article-section thead {
+  background-color: #1E1E1F;
+}
+
+.article-section th,
+.article-section td {
+  border: 1px solid #585858;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.article-section th {
+  color: #FFFFFF;
+  font-weight: bold;
+  white-space: nowrap;
+}
