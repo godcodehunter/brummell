@@ -7,6 +7,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { bundleMDX } from "mdx-bundler";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import { config } from "./config.js";
 import { FILES_DIR } from "./files.js";
@@ -16,8 +17,11 @@ export const BUILD_DIR = path.join(config.dbDir, "build");
 // Shared MDX pipeline options. remark-math parses $...$ / $$...$$ blocks
 // and rehype-katex turns them into KaTeX HTML at build time, so the client
 // only needs the KaTeX CSS — no JS runtime, no per-page math compile.
+// remark-gfm adds GitHub-flavored markdown on top of plain CommonMark/MDX:
+// pipe tables, strikethrough, task lists and autolinks (MDX has none of these
+// by default).
 export const mdxOptionsWithMath = (opts: Parameters<NonNullable<Parameters<typeof bundleMDX>[0]["mdxOptions"]>>[0]) => {
-  opts.remarkPlugins = [...(opts.remarkPlugins ?? []), remarkMath];
+  opts.remarkPlugins = [...(opts.remarkPlugins ?? []), remarkMath, remarkGfm];
   opts.rehypePlugins = [...(opts.rehypePlugins ?? []), rehypeKatex];
   return opts;
 };

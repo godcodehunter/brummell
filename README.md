@@ -14,6 +14,7 @@
 | **Wide range of supported content** | Native support for short, articles and podcasts         | ✅         |
 | **MDX support**                     | Write articles filled with dynamic content              | 🚧 Partial |
 | **Latext Math Formules**            | Write usual latext formules in mdx                      | ✅         |
+| **GFM tables**                      | GitHub-flavored markdown tables in articles             | ✅         |
 | **TG notifications**                | Receive notifications directly in Telegram              | ✅         |
 | **Open Graph support**              | Share articles on social media with a beautiful preview | ⏳ Planned |
 
